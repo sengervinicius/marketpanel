@@ -117,7 +117,7 @@
 .pp-row-button {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   padding: 0;
   text-align: center;
   transition: color 0.15s;

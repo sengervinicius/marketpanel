@@ -46,7 +46,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-xs);
   letter-spacing: 0.08em;
   padding: 16px;

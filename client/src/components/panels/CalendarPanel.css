@@ -30,7 +30,7 @@
 }
 .cp-subtitle {
   font-size: 8.5px;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 /* H2 W1.2 — watchlist filter toggle (PanelChrome actions slot) */
@@ -271,7 +271,7 @@
 }
 .cp-ai-tag-label {
   font-size: 8.5px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-weight: 600;
 }
 .cp-ai-tag {

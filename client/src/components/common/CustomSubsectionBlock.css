@@ -78,7 +78,7 @@
 .csb-add-header-btn {
   background: none;
   border: 1px solid var(--border-default);
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-xs);
   padding: 0 4px;
   font-family: var(--font-ui);

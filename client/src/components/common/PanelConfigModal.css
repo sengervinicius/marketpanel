@@ -126,11 +126,11 @@
 
 .pcm-item-unselected {
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .pcm-item-name {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 9px;
 }
 
@@ -247,7 +247,7 @@
   border-radius: 3px;
   border: 1px solid var(--border-strong);
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-weight: normal;
 }
 

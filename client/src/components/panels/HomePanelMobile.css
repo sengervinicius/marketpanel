@@ -434,7 +434,7 @@
 
 .hpm-screen-card-subtitle {
   font-size: var(--text-2xs);
-  color: var(--text-faint);
+  color: var(--text-muted);
   margin-bottom: 8px;
   letter-spacing: 0.2px;
 }
@@ -491,7 +491,7 @@
 }
 .hpm-rightnow-time {
   font-size: var(--text-xs);
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 .hpm-rightnow-content {
   font-size: var(--text-base);

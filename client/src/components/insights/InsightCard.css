@@ -88,7 +88,7 @@
 
 .insight-card-time {
   font-size: 0.7rem;
-  color: var(--text-faint);
+  color: var(--text-muted);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -96,7 +96,7 @@
 .insight-card-dismiss {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 11px;
   cursor: pointer;
   padding: 0 2px;
@@ -167,7 +167,7 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .insight-feed-seeall {

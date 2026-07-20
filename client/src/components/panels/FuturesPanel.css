@@ -90,7 +90,7 @@
   font-size: 9px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: var(--text-muted);
   border: 1px solid var(--border-subtle);
   padding: 1px 4px;
   border-radius: 2px;
@@ -155,7 +155,7 @@
 }
 
 .fut-source-text {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 9px;
   letter-spacing: 0.04em;
 }

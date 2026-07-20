@@ -133,7 +133,7 @@
 }
 
 .am-alert-note {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 11px;
   margin-top: 1px;
   overflow: hidden;
@@ -170,13 +170,13 @@
 }
 
 .am-toggle-btn--inactive {
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .am-edit-btn {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 16px;
   padding: 4px;
 }

@@ -331,7 +331,7 @@
 .pricing-fine-print {
   text-align: center;
   font-size: 9px;
-  color: var(--color-text-faint);
+  color: var(--text-muted);
   letter-spacing: 0.04em;
   margin-top: 4px;
 }

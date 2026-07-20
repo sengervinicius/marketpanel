@@ -79,7 +79,7 @@
 
 .dp-state-detail {
   font-size: 9px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   letter-spacing: 0.02em;
 }
 

@@ -148,7 +148,7 @@
 }
 
 .vault-doctype-label {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 8.5px;
   letter-spacing: 0.05em;
 }

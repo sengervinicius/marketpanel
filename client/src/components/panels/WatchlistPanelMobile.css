@@ -140,7 +140,7 @@
   height: 40px;
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 18px;
   line-height: 1;
   padding: 0;
@@ -235,7 +235,7 @@
 .wp-why-sheet-close {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   padding: 0;
   font-size: 18px;
   cursor: pointer;

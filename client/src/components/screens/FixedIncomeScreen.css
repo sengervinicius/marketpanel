@@ -39,7 +39,7 @@
 .fi-header-updated {
   margin-left: auto;
   font: 400 9px var(--font-mono);
-  color: var(--text-faint);
+  color: var(--text-muted);
   letter-spacing: 0.02em;
 }
 
@@ -173,7 +173,7 @@
   background: var(--bg-elevated, var(--bg-active));
   font: 600 8px var(--font-mono);
   letter-spacing: 0.6px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   text-transform: uppercase;
   padding: 5px 6px;
   text-align: right;
@@ -307,7 +307,7 @@
 
 .fi-base-label {
   font: 600 9px var(--font-mono);
-  color: var(--text-faint);
+  color: var(--text-muted);
   padding: 4px 10px 0;
   letter-spacing: 0.3px;
 }

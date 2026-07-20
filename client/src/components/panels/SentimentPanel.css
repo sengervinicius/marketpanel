@@ -32,7 +32,7 @@
   line-height: 1;
 }
 .sp-section-note {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-sm);
   margin-left: 6px;
 }
@@ -110,7 +110,7 @@
   font-variant-numeric: tabular-nums;
 }
 .sp-policy-note {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-xs);
 }
 
@@ -139,7 +139,7 @@
 }
 
 .sp-loading {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-base);
   padding: var(--sp-2);
   text-align: center;

@@ -90,7 +90,7 @@
 
 .vi-date {
   font: var(--text-2xs) var(--font-mono);
-  color: var(--text-faint);
+  color: var(--text-muted);
   letter-spacing: 0.3px;
 }
 
@@ -125,7 +125,7 @@
 
 .vi-source-note {
   font: var(--text-2xs) var(--font-ui);
-  color: var(--text-faint);
+  color: var(--text-muted);
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid rgba(201, 168, 76, 0.1);

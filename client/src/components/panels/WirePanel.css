@@ -41,13 +41,13 @@
 
 .wire-subtitle {
   font-size: 11px;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .wire-refresh-btn {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 16px;
   cursor: pointer;
   padding: 4px 8px;
@@ -95,7 +95,7 @@
 
 .wire-entry-time {
   font-size: 11px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -151,7 +151,7 @@
   justify-content: center;
   gap: 12px;
   padding: 48px 16px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 13px;
 }
 
@@ -166,7 +166,7 @@
 .wire-empty {
   padding: 32px 16px;
   text-align: center;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 13px;
   line-height: 1.5;
 }

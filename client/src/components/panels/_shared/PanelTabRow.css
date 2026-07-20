@@ -46,7 +46,7 @@
 
 .pp-tab-count {
   font-size: 8.5px;
-  color: var(--color-text-faint);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
 }

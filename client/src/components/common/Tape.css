@@ -39,7 +39,7 @@
   font-family: var(--font-family-mono);
   font-variant-numeric: tabular-nums;
   font-size: 9.5px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   min-height: 12px;
   white-space: nowrap;
 }

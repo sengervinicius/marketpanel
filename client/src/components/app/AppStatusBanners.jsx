@@ -45,7 +45,7 @@ export function FeedStatusBar({ feedStatus }) {
       position: 'fixed', bottom: 0, left: 0, right: 0,
       zIndex: 50,
     }} className="flex-row">
-      <span style={{ color: '#282828', fontSize: 8.5, letterSpacing: '1px' }}>FEED</span>
+      <span style={{ color: 'var(--color-text-muted)', fontSize: 8.5, letterSpacing: '1px' }}>FEED</span>
       {feeds.map(({ key, label }) => {
         const val = feedStatus?.[key];
         const level = getLevel(val);
@@ -53,12 +53,12 @@ export function FeedStatusBar({ feedStatus }) {
         return (
           <span key={key} className="flex-row gap-4">
             <span style={{ color: color(level), fontSize: 9 }}>{dot(level)}</span>
-            <span style={{ color: '#3a3a3a', fontSize: 8.5, letterSpacing: '0.8px' }}>{label}</span>
+            <span style={{ color: 'var(--color-text-muted)', fontSize: 8.5, letterSpacing: '0.8px' }}>{label}</span>
             <span style={{ color: color(level), fontSize: 8.5, fontWeight: 700, letterSpacing: '0.5px', opacity: 0.9 }}>
               {level.toUpperCase()}
             </span>
             {latency && (
-              <span style={{ color: '#555', fontSize: 8.5, letterSpacing: '0.3px' }}>{latency}</span>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: 8.5, letterSpacing: '0.3px' }}>{latency}</span>
             )}
           </span>
         );
@@ -158,7 +158,7 @@ export function TrialBanner({ subscription, onUpgrade, onManageBilling, billingS
       padding: '3px 12px', flexShrink: 0, flexWrap: 'wrap',
     }}>
       {checkoutError && (
-        <span style={{ color: '#ff4444', fontSize: 8.5, letterSpacing: '0.5px', fontWeight: 600 }}>
+        <span style={{ color: 'var(--color-down)', fontSize: 8.5, letterSpacing: '0.5px', fontWeight: 600 }}>
           Error: {checkoutError}
         </span>
       )}

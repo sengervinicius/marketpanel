@@ -78,7 +78,7 @@
 .macro-insight-meta {
   display: block;
   font-size: var(--font-xs);
-  color: var(--text-faint);
+  color: var(--text-muted);
   margin-top: 4px;
 }
 .macro-ai-error {
@@ -95,7 +95,7 @@
   font-size: var(--font-xs);
   font-weight: 700;
   letter-spacing: 1.2px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   display: block;
   margin-bottom: 4px;
 }
@@ -113,7 +113,7 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.12s;
   white-space: nowrap;
@@ -136,7 +136,7 @@
 /* ── Loading / Error ───────────────────────────── */
 .macro-loading {
   font-size: var(--font-sm);
-  color: var(--text-faint);
+  color: var(--text-muted);
   padding: var(--sp-3) 0;
 }
 .macro-error {
@@ -193,7 +193,7 @@
 }
 .macro-source {
   font-size: var(--font-xs);
-  color: var(--text-faint);
+  color: var(--text-muted);
   margin-top: 6px;
   font-style: italic;
 }
@@ -217,7 +217,7 @@
   width: 28px;
   font-size: var(--font-xs);
   font-weight: 700;
-  color: var(--text-faint);
+  color: var(--text-muted);
   letter-spacing: 0.5px;
   flex-shrink: 0;
 }

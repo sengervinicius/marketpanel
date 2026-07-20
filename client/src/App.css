@@ -700,7 +700,7 @@ button:hover, .btn:hover, [role="button"]:hover,
   padding: var(--sp-4) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
   text-align: center;
   font-size: 10px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -715,7 +715,7 @@ button:hover, .btn:hover, [role="button"]:hover,
 .mm-footer-sub {
   font-size: 8.5px;
   letter-spacing: 2px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
@@ -1010,7 +1010,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   font-size: var(--font-sm); margin-top: 1px;
 }
 .chat-header-status--online  { color: var(--price-up); }
-.chat-header-status--offline { color: var(--text-faint); }
+.chat-header-status--offline { color: var(--text-muted); }
 
 /* ── Pop-out / utility buttons ─────────────────────────────── */
 .chat-btn-icon {
@@ -1087,13 +1087,13 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 }
 
 .chat-list-time {
-  color: var(--text-faint); font-size: var(--font-sm);
+  color: var(--text-muted); font-size: var(--font-sm);
 }
 
 .chat-list-preview {
   font-size: var(--font-sm); overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 .chat-list-preview--unread {
   color: var(--text-muted); font-weight: 600;
@@ -1121,7 +1121,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 /* ── Empty states ──────────────────────────────────────────── */
 .chat-empty {
   padding: var(--sp-8) var(--sp-4);
-  color: var(--text-faint); font-size: var(--font-base);
+  color: var(--text-muted); font-size: var(--font-base);
   text-align: center; line-height: 1.7;
   display: flex; flex-direction: column; align-items: center; gap: var(--sp-3);
 }
@@ -1172,12 +1172,12 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 }
 
 .chat-msg-time {
-  color: var(--text-faint); font-size: var(--font-sm);
+  color: var(--text-muted); font-size: var(--font-sm);
 }
 
 .chat-msg-status { font-size: var(--font-sm); }
-.chat-msg-status--sending   { color: var(--text-faint); }
-.chat-msg-status--sent      { color: var(--text-faint); }
+.chat-msg-status--sending   { color: var(--text-muted); }
+.chat-msg-status--sent      { color: var(--text-muted); }
 .chat-msg-status--delivered  { color: var(--text-muted); }
 .chat-msg-status--read       { color: var(--price-up); }
 .chat-msg-status--failed     { color: var(--price-down); }
@@ -1261,11 +1261,11 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 }
 
 .chat-page-subtitle {
-  color: var(--text-faint); font-size: var(--font-sm); letter-spacing: 1px;
+  color: var(--text-muted); font-size: var(--font-sm); letter-spacing: 1px;
 }
 
 .chat-page-user {
-  color: var(--text-faint); font-size: var(--font-sm);
+  color: var(--text-muted); font-size: var(--font-sm);
 }
 
 .chat-page-btn {
@@ -1276,7 +1276,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   transition: background 0.15s, border-color 0.15s;
 }
 .chat-page-btn:hover { background: var(--bg-hover); border-color: var(--border-strong); }
-.chat-page-btn--muted { color: var(--text-faint); }
+.chat-page-btn--muted { color: var(--text-muted); }
 .chat-page-btn--muted:hover { color: var(--text-muted); }
 
 /* ── Mobile chat overrides ─────────────────────────────────── */
@@ -1339,7 +1339,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 }
 
 .app-text-faint-small {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 8.5px;
   letter-spacing: 0.5px;
 }
@@ -1478,7 +1478,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 .mm-mission-preview-progress {
   font-size: 9px;
   font-weight: 600;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 .mm-mission-preview-xp {
@@ -1655,14 +1655,16 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 
 /* World clock label */
 .app-clock-label {
-  color: var(--text-faint);
+  /* design-lint C: was --text-faint (1.6:1 on bg) — city labels are real content */
+  color: var(--text-muted);
   font-size: 9px;
   letter-spacing: 0.06em;
   font-weight: 600;
 }
 
 .app-clock-time {
-  color: var(--text-muted);
+  /* design-lint C: was --text-muted (2.7:1) — times must be readable at a glance */
+  color: var(--text-secondary);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
@@ -1795,7 +1797,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 }
 
 .app-header-subtitle {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 8.5px;
   letter-spacing: 1.2px;
   opacity: 0.7;
@@ -1814,7 +1816,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
   font-size: 8.5px;
   font-weight: 600;
   letter-spacing: 0.8px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-family: var(--font-mono);
 }
 
@@ -1845,7 +1847,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 
 /* Feed/Alert indicators */
 .app-feed-label {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 8.5px;
   letter-spacing: 1px;
 }
@@ -2069,4 +2071,14 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 @keyframes integrity-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
+}
+
+
+/* ── Design-lint contrast pass (2026-07) ─────────────────────────────
+   Inactive top-nav buttons paint their inline color (muted); hover must
+   promote to secondary. !important is required because the color is set
+   via inline style in App.jsx. Active buttons keep inverse-on-accent. */
+.desktop-mode-btn[data-active="false"]:hover,
+.hdr-nav-btn[data-active="false"]:hover {
+  color: var(--text-secondary) !important;
 }

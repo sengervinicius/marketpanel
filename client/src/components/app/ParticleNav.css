@@ -872,7 +872,7 @@
 .particle-brief-dismiss {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -981,7 +981,7 @@
 .particle-wire-time {
   flex-shrink: 0;
   font-size: var(--text-xs);
-  color: var(--text-faint);
+  color: var(--text-muted);
   margin-top: 1px;
 }
 
@@ -1183,7 +1183,7 @@
 
 .particle-vault-citations-label {
   font-size: var(--text-xs);
-  color: var(--text-faint);
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.3px;
   margin-right: 2px;
@@ -1425,7 +1425,7 @@
   height: 100%;
   background: transparent;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
 }
@@ -1454,7 +1454,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 .particle-threads-btn {
   display: flex;
@@ -1465,7 +1465,7 @@
   border-radius: 5px;
   border: none;
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   transition: color 0.15s, background 0.15s;
 }
@@ -1486,7 +1486,7 @@
 .particle-threads-empty {
   padding: 16px 12px;
   font-size: 11px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   line-height: 1.5;
   text-align: center;
 }
@@ -1550,7 +1550,7 @@
   border-radius: 4px;
   border: none;
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   transition: color 0.12s, background 0.12s;
 }
@@ -1568,15 +1568,15 @@
   justify-content: space-between;
   gap: 6px;
   font-size: 9px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .particle-thread-item-count {
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 .particle-thread-item-time {
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 /* Mobile: hide thread sidebar (would be in a drawer) */

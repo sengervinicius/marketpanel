@@ -79,14 +79,14 @@
 }
 
 .rp-row-label {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 9px;
   font-family: var(--font-mono);
   letter-spacing: 0.03em;
 }
 
 .rp-row-label--live {
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .rp-row-label--static {

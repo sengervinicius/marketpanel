@@ -27,7 +27,7 @@
   font-size: var(--font-xs);
   font-weight: 700;
   letter-spacing: 1.2px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 .scr-preset-pills {
@@ -74,7 +74,7 @@
   border: 1px solid var(--border-default);
   border-radius: 3px;
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.12s;
 }
@@ -146,7 +146,7 @@
   font-size: var(--font-xs);
   font-weight: 700;
   letter-spacing: 1.2px;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 .scr-chips {
   display: flex;
@@ -162,7 +162,7 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.12s;
   white-space: nowrap;
@@ -182,7 +182,7 @@
 }
 .scr-range { flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 4px; }
 .scr-range-inputs { display: flex; align-items: center; gap: 4px; }
-.scr-range-sep { color: var(--text-faint); font-size: var(--font-sm); }
+.scr-range-sep { color: var(--text-muted); font-size: var(--font-sm); }
 .scr-input {
   width: 100%;
   padding: 5px 8px;
@@ -282,7 +282,7 @@
   font-size: var(--font-xs);
   font-weight: 700;
   letter-spacing: 1px;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 .scr-bulk-actions {
   display: flex;
@@ -312,7 +312,7 @@
 
 .scr-empty {
   font-size: var(--font-sm);
-  color: var(--text-faint);
+  color: var(--text-muted);
   padding: var(--sp-4) 0;
   text-align: center;
 }
@@ -417,7 +417,7 @@
 .scr-modal-close {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 18px;
   cursor: pointer;
   padding: 0 4px;
@@ -477,7 +477,7 @@
 }
 .scr-modal-radio small {
   font-size: var(--font-xs);
-  color: var(--text-faint);
+  color: var(--text-muted);
   margin-left: 20px;
 }
 

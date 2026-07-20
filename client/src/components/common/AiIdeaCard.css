@@ -37,13 +37,13 @@
 .aic-screen-label {
   font: 600 10px var(--font-mono);
   letter-spacing: 0.8px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   flex: 1;
 }
 
 .aic-refresh {
   font-size: 12px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   flex-shrink: 0;
   transition: color 0.15s;
 }
@@ -117,7 +117,7 @@
 }
 
 .aic-thesis {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 12px;
   font-style: italic;
   line-height: 1.4;

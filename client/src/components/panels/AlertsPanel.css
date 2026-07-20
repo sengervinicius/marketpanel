@@ -53,12 +53,12 @@
 }
 
 .ap-condition-inactive {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-sm);
 }
 
 .ap-condition-note {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-sm);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -68,7 +68,7 @@
 .ap-edit-btn {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   padding: 0;
   text-align: center;
   transition: color 0.15s;
@@ -90,7 +90,7 @@
 }
 
 .ap-toggle-btn--inactive {
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .ap-dismiss-btn {

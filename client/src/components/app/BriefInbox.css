@@ -7,7 +7,7 @@
   align-items: center;
   gap: 4px;
   padding: 2px 6px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   background: none;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -107,7 +107,7 @@
 .brief-inbox-close {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 4px;
   border-radius: 3px;
@@ -201,7 +201,7 @@
 }
 .brief-inbox-row-body p:last-of-type { margin-bottom: 10px; }
 .brief-inbox-empty {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-style: italic;
 }
 
@@ -231,7 +231,7 @@
 }
 .brief-inbox-dismiss {
   background: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   border: 1px solid var(--border-strong);
 }
 .brief-inbox-dismiss:hover {
@@ -243,7 +243,7 @@
   padding: 8px 14px;
   border-top: 1px solid var(--border-default);
   font-size: 10px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   text-align: center;
 }
 

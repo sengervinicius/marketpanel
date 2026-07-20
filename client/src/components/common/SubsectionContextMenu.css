@@ -20,7 +20,7 @@
 .scm-title {
   padding: 6px 8px;
   border-bottom: 1px solid var(--bg-active);
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 8.5px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -32,7 +32,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   border-bottom: 1px solid var(--bg-app);
   transition: background-color 0.1s;
 }
@@ -151,7 +151,7 @@
 
 .scm-custom-tag {
   font-size: 8.5px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   letter-spacing: 0.06em;
   margin-left: 2px;
 }

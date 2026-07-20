@@ -28,7 +28,7 @@
 }
 
 .ip-header-subtitle {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 8.5px;
 }
 
@@ -83,7 +83,7 @@
 .ip-loading {
   padding: 20px;
   text-align: center;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 
 .ip-row {

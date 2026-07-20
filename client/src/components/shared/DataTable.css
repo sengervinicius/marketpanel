@@ -186,7 +186,7 @@
 }
 
 .dt-cell-empty {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-style: italic;
 }
 

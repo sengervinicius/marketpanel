@@ -51,7 +51,7 @@ const ScreenItem = memo(function ScreenItem({ screen, isApplying, wasApplied, is
           {isCurrent && <span title="Currently active layout">●</span>}
           {screen.label}
         </div>
-        <div style={{ color: '#444', fontSize: 8.5, marginTop: 1, letterSpacing: '0.2px' }}>{screen.description}</div>
+        <div style={{ color: 'var(--color-text-muted)', fontSize: 8.5, marginTop: 1, letterSpacing: '0.2px' }}>{screen.description}</div>
       </div>
       <button className="btn"
         onClick={(e) => { e.stopPropagation(); onApply(); }}
@@ -108,7 +108,7 @@ export default function SuggestedScreens({ onApply }) {
       {error && (
         <div style={{
           padding: '6px 12px', borderBottom: '1px solid #3a1a1a',
-          color: '#ff4444', fontSize: 8.5, letterSpacing: '0.2px',
+          color: 'var(--color-down)', fontSize: 8.5, letterSpacing: '0.2px',
           background: '#1a0a0a',
         }}>
           {error}

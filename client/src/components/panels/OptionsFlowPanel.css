@@ -62,7 +62,7 @@
 
 .sm-hdr-ts {
   font-size: 9px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-family: var(--font-family-mono);
 }
 
@@ -120,7 +120,7 @@
 .sm-thesis--mix  .sm-thesis-label { color: var(--text-primary); }
 
 .sm-thesis-sep {
-  color: var(--text-faint);
+  color: var(--text-muted);
   margin: 0 2px;
 }
 
@@ -162,7 +162,7 @@
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-family: var(--font-family-mono);
   font-size: 9px;
   font-weight: 600;
@@ -180,7 +180,7 @@
 
 .sm-tab-count {
   font-size: 8.5px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   opacity: 0.7;
 }
 
@@ -200,7 +200,7 @@
   flex-shrink: 0;
 }
 .sm-clust-legend-r {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: none;
@@ -596,10 +596,10 @@
 }
 .sm-sig--bull { color: var(--price-up); }
 .sm-sig--bear { color: var(--price-down); }
-.sm-sig--neut { color: var(--text-faint); }
+.sm-sig--neut { color: var(--text-muted); }
 
 .sm-detail-time {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-family: var(--font-family-mono);
   font-size: 9.5px;
   text-align: right;
@@ -610,7 +610,7 @@
 .sm-empty {
   padding: 18px 12px;
   text-align: center;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 10.5px;
 }
 
@@ -629,7 +629,7 @@
 .sm-footer-src,
 .sm-footer-count {
   font-size: 8.5px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   letter-spacing: 0.04em;
   opacity: 0.7;
   font-family: var(--font-family-mono);
@@ -675,7 +675,7 @@
 }
 
 .sm-lane-empty {
-  color: var(--text-faint);
+  color: var(--text-muted);
   opacity: 0.6;
 }
 

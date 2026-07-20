@@ -22,7 +22,7 @@
   line-height: 1;
 }
 .cp-subtitle {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-xs);
 }
 .cp-sync-btn {
@@ -153,7 +153,7 @@
 .mc-remove {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   font-size: var(--font-base);
   padding: 0 2px;
@@ -172,7 +172,7 @@
   pointer-events: none;
 }
 .mc-stat-label {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 8.5px;
 }
 .mc-stat-val {
@@ -192,7 +192,7 @@
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-xs);
   cursor: pointer;
   font-family: inherit;
@@ -212,7 +212,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-sm);
 }
 .mc-skeleton-shimmer {
@@ -368,7 +368,7 @@
   font-size: var(--font-sm);
 }
 .cp-qr-note {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-sm);
 }
 
@@ -397,7 +397,7 @@
   border: 1px solid var(--border-default);
   border-radius: 3px;
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.1s;
@@ -514,7 +514,7 @@
   border: 1px solid var(--border-default, var(--border-subtle));
   border-radius: 4px;
   background: transparent;
-  color: var(--text-faint);
+  color: var(--text-muted);
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.12s;

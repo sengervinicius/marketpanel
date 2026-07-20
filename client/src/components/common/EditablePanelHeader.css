@@ -46,7 +46,7 @@
 }
 
 .eph-sub {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-xs);
   user-select: none;
   padding: 0 3px;
@@ -134,7 +134,7 @@
 .eph-search-close {
   background: none;
   border: none;
-  color: var(--text-faint);
+  color: var(--text-muted);
   padding: 0;
   line-height: 1;
   cursor: pointer;

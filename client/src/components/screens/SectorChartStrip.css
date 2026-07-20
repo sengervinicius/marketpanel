@@ -133,7 +133,7 @@
   justify-content: center;
   height: 100%;
   font-size: 8.5px;
-  color: var(--text-faint);
+  color: var(--text-muted);
   letter-spacing: 1px;
 }
 

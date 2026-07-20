@@ -79,7 +79,7 @@
   right: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-micro);
 }
 
@@ -89,7 +89,7 @@
   top: 50%;
   transform: translateY(-50%);
   font: 10px var(--font-mono);
-  color: var(--text-faint);
+  color: var(--text-muted);
   background: var(--bg-surface);
   border: 1px solid var(--border-default);
   border-radius: 3px;
@@ -218,7 +218,7 @@
 }
 
 .sp-results-header-text {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-micro);
   letter-spacing: 0.1em;
 }
@@ -414,7 +414,7 @@
 .sp-no-results {
   padding: 20px;
   text-align: center;
-  color: var(--text-faint);
+  color: var(--text-muted);
   letter-spacing: 0.1em;
 }
 
@@ -446,7 +446,7 @@
 }
 
 .sp-quote-loading {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-2xs);
   text-align: center;
   padding: 12px 0;
@@ -497,7 +497,7 @@
 }
 
 .sp-ticker-name {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: 8.5px;
   flex: 1;
   overflow: hidden;
@@ -539,7 +539,7 @@
 }
 
 .sp-ohlcv-value {
-  color: var(--text-faint);
+  color: var(--text-muted);
   font-size: var(--font-xs);
   font-variant-numeric: tabular-nums;
 }
@@ -603,7 +603,7 @@
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.8px;
-  color: var(--text-faint);
+  color: var(--text-muted);
 }
 .sp-result-row--ai {
   border-left: 2px solid rgba(229, 90, 0, 0.3);
