@@ -208,7 +208,28 @@ function DebtPanel() {
 
     apiFetch('/api/yield-curves', { signal: controller.signal })
       .then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then(json => {
+      .then(async (json) => {
+        // Fail-open (fix/us-curve-regression): if the aggregate payload
+        // ships an empty US entry (Treasury XML down + FRED fallback
+        // rate-limited server-side), heal it from /api/debt/sovereign/US
+        // (FRED -> Yahoo) so the main chart AND the UST board row — which
+        // both read this same payload via getCurve('US') — stay populated.
+        // The old panel had this as its "Step 2" fallback; Design v1
+        // dropped it, which made the empty entry user-fatal.
+        if (!Array.isArray(json?.US?.curve) || json.US.curve.length === 0) {
+          try {
+            const r2 = await apiFetch('/api/debt/sovereign/US', { signal: controller.signal });
+            const j2 = r2.ok ? await r2.json() : null;
+            if (Array.isArray(j2?.points) && j2.points.length > 0) {
+              json.US = {
+                curve: j2.points.map(pt => ({ tenor: pt.tenor, rate: pt.yield })),
+                source: j2.source === 'fred' ? 'FRED' : (j2.source || 'fallback'),
+                updatedAt: new Date().toISOString(),
+                // no ghost — fallback source has no 1M-ago history
+              };
+            }
+          } catch (e) { swallow(e, 'panel.debt.us_curve_fallback'); }
+        }
         liveDataRef.current = json;
         setLastUpdated(new Date());
       })

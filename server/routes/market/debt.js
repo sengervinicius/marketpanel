@@ -1083,14 +1083,6 @@ router.get('/yield-curves', async (req, res) => {
       );
     }
 
-    // —— US 1M-ago ghost curve (Design v1 RATES & CREDIT board) ——
-    // FRED, ~21 trading days back, 6h provider cache. Additive: failure
-    // or <3 resolved tenors degrades to no ghost field.
-    let usGhost = null;
-    try {
-      usGhost = await require('../../providers/fred').getUSTreasuryCurveGhost(21);
-    } catch (e) { swallow(e, 'market.debt.us_ghost_curve'); }
-
     // —— US curve (Treasury XML → FRED CSV fallback) ——
     let usCurve = [];
     let usSource = 'unavailable';
@@ -1113,6 +1105,27 @@ router.get('/yield-curves', async (req, res) => {
       } else {
         console.warn('[Yield] FRED fallback also insufficient:', fredCurve.length, 'points');
       }
+    }
+
+    // —— US 1M-ago ghost curve (Design v1 RATES & CREDIT board) ——
+    // Fetched strictly AFTER the US spot curve is resolved: the ghost hits
+    // the same 10 fredgraph.csv DGS series as the essential FRED CSV
+    // fallback above, and fredgraph.csv rate-limits bursts — awaiting the
+    // ghost first starved the fallback and dropped the US curve whenever
+    // Treasury XML failed (prod regression, fix/us-curve-regression).
+    // Fail-open: error, slowness (>5s) or <3 resolved tenors degrades to
+    // no ghost field; the spot curve is never affected.
+    let usGhost = null;
+    if (usCurve.length >= 3) {
+      try {
+        usGhost = await Promise.race([
+          require('../../providers/fred').getUSTreasuryCurveGhost(21),
+          new Promise((resolve) => {
+            const t = setTimeout(() => resolve(null), 5000);
+            if (typeof t.unref === 'function') t.unref();
+          }),
+        ]);
+      } catch (e) { swallow(e, 'market.debt.us_ghost_curve'); }
     }
 
     // —— UK curve ——
@@ -1174,7 +1187,9 @@ router.get('/yield-curves', async (req, res) => {
         source: usSource,
         updatedAt: now.toISOString(),
         // Additive (Design v1): 1-month-ago ghost curve for the main chart.
-        ...(usGhost ? { ghost: usGhost.points, ghostAsOf: usGhost.asOf } : {}),
+        ...(usGhost && Array.isArray(usGhost.points) && usGhost.points.length
+          ? { ghost: usGhost.points, ghostAsOf: usGhost.asOf }
+          : {}),
       },
       UK: { curve: ukCurve, source: ukSource, updatedAt: now.toISOString() },
       EU: { curve: euCurve, source: euSource, updatedAt: now.toISOString() },
