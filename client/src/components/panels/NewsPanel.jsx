@@ -11,9 +11,10 @@
 //     client-side keyword filter; ✦ AI toggles the briefing layer.
 //   · Click row → expands summary + full ticker chips (chip → 7-day AI
 //     ticker summary, unchanged fetch path).
-import { useState, useEffect, useRef, memo, useCallback } from 'react';
+import { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useWatchlist } from '../../context/WatchlistContext';
+import { useSettings } from '../../context/SettingsContext';
 import { apiFetch } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
 import PanelChrome from '../common/PanelChrome';
@@ -283,6 +284,24 @@ function NewsPanel() {
   // the user's tickers (empty watchlist falls back to ALL, chip disabled);
   // MACRO filters the general feed client-side by macro keywords.
   const { watchlist } = useWatchlist();
+
+  // Phase S W2 — the personalized BRIEF panel supersedes this panel's
+  // generic ✦ AI briefing layer. When 'brief' is anywhere in the user's
+  // layout (legacy desktopRows OR the active home_grid_v2 layout) we keep
+  // the wire but suppress the briefing layer + chip so the home screen
+  // never shows two briefings. Logged-out / brief-less layouts keep the
+  // generic layer exactly as before.
+  const { settings } = useSettings();
+  const briefInLayout = useMemo(() => {
+    try {
+      const rows = settings?.layout?.desktopRows || [];
+      if (rows.some(r => Array.isArray(r) && r.includes('brief'))) return true;
+      const layouts = settings?.layouts;
+      const grid = layouts?.items?.[layouts.activeId]?.grid;
+      if (Array.isArray(grid) && grid.some(g => g && g.i === 'brief')) return true;
+    } catch { /* malformed settings — keep the generic layer */ }
+    return false;
+  }, [settings]);
   const [scope, setScopeState] = useState(loadNewsScope);
   const hasWatchlist = watchlist.length > 0;
   const effectiveScope = scope === 'watchlist' && !hasWatchlist ? 'all' : scope;
@@ -294,8 +313,9 @@ function NewsPanel() {
 
   // ✦ AI chip — shows/hides the briefing layer (and gates its fetch).
   const [aiOn, setAiOnState] = useState(loadAiOn);
-  const aiOnRef = useRef(aiOn);
-  aiOnRef.current = aiOn;
+  const briefingLayerOn = aiOn && !briefInLayout;
+  const aiOnRef = useRef(briefingLayerOn);
+  aiOnRef.current = briefingLayerOn;
   const toggleAi = useCallback(() => {
     setAiOnState(v => {
       const next = !v;
@@ -419,8 +439,8 @@ function NewsPanel() {
   // Turning ✦ AI back on should (re)hydrate the briefing from the feed
   // we already have — no extra news fetch.
   useEffect(() => {
-    if (aiOn && news.length > 0) loadBriefing(news);
-  }, [aiOn]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (briefingLayerOn && news.length > 0) loadBriefing(news);
+  }, [briefingLayerOn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const displayed = effectiveScope === 'macro' ? news.filter(isMacroStory) : news;
 
@@ -452,16 +472,18 @@ function NewsPanel() {
               onClick={() => setScope('macro')}
               title="Macro stories only — central banks, inflation, rates, tariffs, OPEC"
             >MACRO</button>
-            <button
-              className={`np-chip np-chip--ai ${aiOn ? 'np-chip--on' : ''}`}
-              onClick={toggleAi}
-              title={aiOn ? 'Hide AI briefing layer' : 'Show AI briefing layer'}
-            >✦ AI</button>
+            {!briefInLayout && (
+              <button
+                className={`np-chip np-chip--ai ${aiOn ? 'np-chip--on' : ''}`}
+                onClick={toggleAi}
+                title={aiOn ? 'Hide AI briefing layer' : 'Show AI briefing layer'}
+              >✦ AI</button>
+            )}
           </div>
         )}
       />
 
-      {aiOn && (
+      {briefingLayerOn && (
         <WireBriefing
           briefing={briefing}
           loading={briefingLoading}

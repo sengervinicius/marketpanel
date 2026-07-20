@@ -309,6 +309,17 @@ export const PANEL_DEFINITIONS = {
   // to the day's biggest move) + the names driving the best/worst sector.
   // Replaces 'sectors' in the DEFAULT layout; SectorsPanel stays
   // registry-addable for the multi-horizon tinted grid.
+  brief: {
+    id:             'brief',
+    label:          'Daily Brief',
+    defaultTitle:   'Brief',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false, // content derives from the watchlist, not a symbol list
+    icon:           '\u2726', // ✦
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
   sectorPulse: {
     id:             'sectorPulse',
     label:          'Sector Pulse',
@@ -477,14 +488,18 @@ export function getEditablePanels() {
 // users' saved layouts that contain them are untouched.
 // H2 W1: the row-3 slots optionsFlow/predictions freed are taken by the
 // home-grade Movers and Calendar panels.
+// Phase S W2 (Daily Brief): 'brief' leads row 3. Six panels in one row is
+// too tight on the 12-col grid (2 cols each), so 'debt' moves to the end of
+// row 2 — row 3 stays at five panels split 3/3/2/2/2, giving BRIEF the wide
+// leftmost slot the mockup assumes. Calendar and sectorPulse both stay.
 export const DEFAULT_LAYOUT = {
   desktopRows: [
     ['charts',       'watchlist',     'globalIndices'],
-    ['forex',        'commodities',   'usEquities',    'brazilB3'],
+    ['forex',        'commodities',   'usEquities',    'brazilB3',      'debt'],
     // P2 item 4 gave row 3 a sector box; Phase S W1 item 2 swaps the tinted
     // grid ('sectors') for SECTOR PULSE. 12-col grid splits 5 panels as
     // 3/3/2/2/2 via migrateDesktopRowsToGrid (leftmost get the remainder).
-    ['debt',         'news',          'movers',        'calendar',      'sectorPulse'],
+    ['brief',        'news',          'movers',        'calendar',      'sectorPulse'],
   ],
   mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
 };

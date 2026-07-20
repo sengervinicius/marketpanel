@@ -19,6 +19,7 @@ export const PredictionPanel   = lazyWithRetry(() => import('./components/panels
 export const MoversPanel       = lazyWithRetry(() => import('./components/panels/MoversPanel'));
 export const SectorsPanel      = lazyWithRetry(() => import('./components/panels/SectorsPanel'));
 export const SectorPulsePanel  = lazyWithRetry(() => import('./components/panels/SectorPulsePanel'));
+export const BriefPanel       = lazyWithRetry(() => import('./components/panels/BriefPanel'));
 
 // ── Mobile-only panels ───────────────────────────────────────────────────
 export const PortfolioMobile   = lazyWithRetry(() => import('./components/panels/PortfolioMobile'));

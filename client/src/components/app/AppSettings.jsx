@@ -353,7 +353,7 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
       </Suspense>
 
       {/* ── Inbound Email → Personal Vault (P4) ── */}
-      <SettingsSection label="EMAIL → PERSONAL VAULT" />
+      <SettingsSection label="VAULT INBOX" />
       <InboundEmailRow />
 
       {/* ── Help ── */}
@@ -584,7 +584,7 @@ export function InboundEmailRow() {
   return (
     <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
       <div style={{ fontSize: 9, color: 'var(--text-faint)', lineHeight: 1.4 }}>
-        Forward emails (with PDF/DOCX attachments, or research notes in the body) to your personal address below. Anything you send lands in your private vault — nobody else on Particle sees it.
+        Forward research emails here — they auto-ingest into your vault. PDF/DOCX attachments and note bodies land in your private vault; nobody else on Particle sees them.
       </div>
       <div style={{
         fontFamily: 'var(--font-family-mono)',
