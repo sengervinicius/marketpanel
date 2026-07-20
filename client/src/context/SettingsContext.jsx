@@ -74,7 +74,7 @@ function defaultSettings() {
     settingsVersion: 3,
     panels: {
       brazilB3:     { title: 'Brazil B3',      symbols: [...CIO_BRAZIL_DEFAULTS] },
-      usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRK-B','GS','WMT','LLY'] },
+      usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRK-B','GS','WMT','LLY','V','ORCL'] },
       globalIndices:{ title: 'Global Indexes', symbols: [...CIO_GLOBAL_INDICES_DEFAULTS] },
       forex:        { title: 'FX Rates / Crypto', symbols: [...CIO_FOREX_DEFAULTS] },
       crypto:       { title: 'Crypto',         symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },

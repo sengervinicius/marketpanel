@@ -43,6 +43,7 @@ export const US_STOCKS = [
   { symbol: 'AMZN',  label: 'Amazon',       sector: 'Tech' },
   { symbol: 'META',  label: 'Meta',         sector: 'Tech' },
   { symbol: 'TSLA',  label: 'Tesla',        sector: 'Auto' },
+  { symbol: 'ORCL',  label: 'Oracle',       sector: 'Tech' },
   // Financials
   { symbol: 'BRK-B', label: 'Berkshire B',  sector: 'Fin'  },
   { symbol: 'JPM',   label: 'JPMorgan',     sector: 'Fin'  },

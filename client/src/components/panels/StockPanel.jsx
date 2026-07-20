@@ -1,4 +1,6 @@
-// StockPanel.jsx — US equities + Brazil ADRs with section headers and sortable columns
+// StockPanel.jsx — US equities with section headers and sortable columns
+// P2 item 3 (Brazil consolidation): the BRAZIL ADRs section moved to
+// BrazilPanel (with an ADR-premium view); this panel keeps US names only.
 // Features: feed-status badge, collapse, movers filter, heatmap view, custom subsections
 // Phase 8: ticker prop on PriceRow + HeatmapCell with PriceContext fallback
 // Fix 4: Heatmap cells show shimmer when data is loading
@@ -15,7 +17,7 @@ import { PriceRow } from '../common/PriceRow';
 import { SectionHeader } from '../common/SectionHeader';
 import ColumnHeaders from '../common/ColumnHeaders';
 import SkeletonLoader from '../shared/SkeletonLoader';
-import { US_STOCKS, BRAZIL_ADRS } from '../../utils/constants';
+import { US_STOCKS } from '../../utils/constants';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import IntegrityBadge from '../shared/IntegrityBadge';
 import { COLS_STANDARD_SPARK } from '../../utils/panelColumns';
@@ -35,9 +37,9 @@ const showInfo = (e, symbol, label, type) => {
 };
 
 // Vanish-trap fix (#230 CUSTOM-bucket pattern, generalized): saved/dropped
-// symbols that aren't in US_STOCKS or BRAZIL_ADRS used to be silently
-// filtered out. They now render in a CUSTOM section with the symbol as name.
-const KNOWN_STOCK_SYMBOLS = new Set([...US_STOCKS, ...BRAZIL_ADRS].map(s => s.symbol));
+// symbols that aren't in US_STOCKS used to be silently filtered out. They
+// now render in a CUSTOM section with the symbol as name.
+const KNOWN_STOCK_SYMBOLS = new Set(US_STOCKS.map(s => s.symbol));
 
 const SORT_COLS = [
   { key: 'symbol', label: 'TICKER', align: 'left' },
@@ -123,7 +125,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
   // Panel config from settings (with fallback defaults)
   const panelCfg = settings?.panels?.usEquities || {
     title: 'US Equities',
-    symbols: [...US_STOCKS.map(s => s.symbol), ...BRAZIL_ADRS.map(s => s.symbol)],
+    symbols: US_STOCKS.map(s => s.symbol),
     hiddenSubsections: [],
     customSubsections: [],
     subsectionLabels: {},
@@ -134,7 +136,6 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
   const customSubsections    = panelCfg.customSubsections    || [];
   const subsectionLabels     = panelCfg.subsectionLabels     || {};
   const availableSubsections = [
-    { key: 'brazilAdrs', label: 'BRAZIL ADRs' },
     { key: 'custom', label: 'CUSTOM' },
   ];
 
@@ -160,7 +161,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
 
   // Phase 2: Sparkline data for stock tickers (incl. user-added CUSTOM symbols)
   const stockSparkTickers = useMemo(
-    () => Array.from(new Set([...US_STOCKS.map(s => s.symbol), ...BRAZIL_ADRS.map(s => s.symbol), ...panelSymbols])),
+    () => Array.from(new Set([...US_STOCKS.map(s => s.symbol), ...panelSymbols])),
     [panelSymbols]
   );
   const sparklines = useSparklineData(stockSparkTickers);
@@ -193,10 +194,6 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
     ? US_STOCKS.filter(s => panelSymbols.includes(s.symbol))
     : US_STOCKS;
 
-  const baseBrazil = panelSymbols.length > 0
-    ? BRAZIL_ADRS.filter(s => panelSymbols.includes(s.symbol))
-    : BRAZIL_ADRS;
-
   // CUSTOM bucket — saved symbols not found in the hardcoded constants render
   // anyway with fallback metadata (symbol as name). Vanish-trap fix.
   const baseCustom = useMemo(
@@ -205,22 +202,19 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
   );
 
   const sortedUS     = useMemo(() => sortItems(baseUS,     data, sortKey, sortDir), [data, sortKey, sortDir, baseUS]);
-  const sortedBrazil = useMemo(() => sortItems(baseBrazil, data, sortKey, sortDir), [data, sortKey, sortDir, baseBrazil]);
   const sortedCustom = useMemo(() => sortItems(baseCustom, data, sortKey, sortDir), [data, sortKey, sortDir, baseCustom]);
 
   // Movers filter: abs(changePct) >= 2%
   const movedUS     = useMemo(() => moversOnly ? sortedUS.filter(s    => Math.abs(data?.[s.symbol]?.changePct ?? 0) >= 2)     : sortedUS,     [sortedUS,     data, moversOnly]);
-  const movedBrazil = useMemo(() => moversOnly ? sortedBrazil.filter(s => Math.abs(data?.[s.symbol]?.changePct ?? 0) >= 2)     : sortedBrazil, [sortedBrazil, data, moversOnly]);
   const movedCustom = useMemo(() => moversOnly ? sortedCustom.filter(s => Math.abs(data?.[s.symbol]?.changePct ?? 0) >= 2)     : sortedCustom, [sortedCustom, data, moversOnly]);
 
   // Search filter
   const sq = searchFilter.toLowerCase();
   const filteredUS     = useMemo(() => !sq ? movedUS     : movedUS.filter(s     => s.symbol.toLowerCase().includes(sq) || (s.name || '').toLowerCase().includes(sq)), [movedUS, sq]);
-  const filteredBrazil = useMemo(() => !sq ? movedBrazil : movedBrazil.filter(s => s.symbol.toLowerCase().includes(sq) || (s.name || '').toLowerCase().includes(sq)), [movedBrazil, sq]);
   const filteredCustom = useMemo(() => !sq ? movedCustom : movedCustom.filter(s => s.symbol.toLowerCase().includes(sq) || (s.name || '').toLowerCase().includes(sq)), [movedCustom, sq]);
 
   // All items for heatmap
-  const allItems = useMemo(() => [...filteredUS, ...filteredBrazil, ...filteredCustom], [filteredUS, filteredBrazil, filteredCustom]);
+  const allItems = useMemo(() => [...filteredUS, ...filteredCustom], [filteredUS, filteredCustom]);
 
   // --- Subsection handlers ---
   const handleToggleSubsection = (key) => {
@@ -369,40 +363,6 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
                 ))}
                 {moversOnly && filteredUS.length === 0 && (
                   <div className="stp-section-empty">No US movers ≥ 2%</div>
-                )}
-
-                {!hiddenSubsections.includes('brazilAdrs') && (
-                  <>
-                    {!isCustomized && <SectionHeader label={subsectionLabels['brazilAdrs'] || 'BRAZIL ADRs'} sectionKey="brazilAdrs" color="var(--section-brazil)" onRename={handleRenameSubsection} onToggleVisibility={handleToggleSubsection} isHideable={true} />}
-                    {filteredBrazil.map(s => (
-                      <PriceRow
-                        key={s.symbol}
-                        symbol={s.symbol}
-                        ticker={s.symbol}
-                        name={s.label}
-                        price={(data[s.symbol] || {}).price}
-                        changePct={(data[s.symbol] || {}).changePct}
-                        symbolColor="var(--section-brazil)"
-                        columns={COLS}
-                        draggable
-                        dragData={{ symbol: s.symbol, name: s.label, type: 'EQUITY' }}
-                        onClick={() => onTickerClick?.(s.symbol)}
-                        onDoubleClick={() => openDetail(s.symbol)}
-                        onTouchHold={() => openDetail(s.symbol)}
-                        touchRef={ptRef}
-                        sparklineData={sparklines[s.symbol]}
-                        onContextMenu={e => showInfo(e, s.symbol, s.label, 'ADR')}
-                        dataAttrs={{
-                          'data-ticker': s.symbol,
-                          'data-ticker-label': s.label,
-                          'data-ticker-type': 'ADR',
-                        }}
-                      />
-                    ))}
-                    {moversOnly && filteredBrazil.length === 0 && (
-                      <div className="stp-section-empty">No ADR movers ≥ 2%</div>
-                    )}
-                  </>
                 )}
 
                 {/* CUSTOM bucket — user-added symbols outside the hardcoded lists */}
