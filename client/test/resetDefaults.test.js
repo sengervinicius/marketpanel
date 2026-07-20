@@ -30,6 +30,21 @@ describe('buildResetDefaultsPayload', () => {
     expect(ids).toContain('calendar');
   });
 
+  it('includes the sectors grid in row 3 (P2 item 4) — layout, reset payload AND grid', () => {
+    // Row 3 of the canonical layout carries sectors alongside movers/calendar
+    const row3 = payload.layout.desktopRows[2];
+    expect(row3).toContain('sectors');
+    expect(row3).toContain('movers');
+    expect(row3).toContain('calendar');
+    // Grid migration: 5 panels in a 12-col row → widths 3/3/2/2/2, sum 12
+    const grid = payload.layouts.items[payload.layouts.activeId].grid;
+    const sectorsItem = grid.find(g => g.i === 'sectors');
+    expect(sectorsItem).toBeTruthy();
+    const row3Items = grid.filter(g => row3.includes(g.i));
+    expect(row3Items.reduce((s, g) => s + g.w, 0)).toBe(12);
+    expect(row3Items.every(g => g.w >= 2)).toBe(true);
+  });
+
   it('resets commodities to the current futures defaults, not legacy ETFs', () => {
     expect(payload.panels.commodities.symbols).toEqual(COMMODITY_DEFAULT_SYMBOLS);
     expect(payload.panels.commodities.symbols).toEqual(

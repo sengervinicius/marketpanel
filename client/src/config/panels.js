@@ -461,7 +461,9 @@ export const DEFAULT_LAYOUT = {
   desktopRows: [
     ['charts',       'watchlist',     'globalIndices', 'futures'],
     ['forex',        'commodities',   'usEquities',    'brazilB3'],
-    ['debt',         'news',          'movers',        'calendar'],
+    // P2 item 4 — 'sectors' joins row 3; 12-col grid splits 5 panels as
+    // 3/3/2/2/2 via migrateDesktopRowsToGrid (leftmost get the remainder).
+    ['debt',         'news',          'movers',        'calendar',      'sectors'],
   ],
   mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
 };
