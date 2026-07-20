@@ -24,11 +24,14 @@ const SettingsContext = createContext(null);
 // NOTE: a user who explicitly removed a symbol via PanelConfigModal
 // sees it come back once after the migration flag flips — this is a
 // known tradeoff. Post-migration, their removals are respected.
+// P2 item 6 — crypto defaults capped at BTC/ETH/SOL. Saved user lists
+// are unaffected: this list seeds NEW users and the v1→v2 back-fill only
+// ever APPENDS missing symbols (it never removes user entries).
 const CIO_FOREX_DEFAULTS = [
   'EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','USDCAD',
   'USDBRL','EURBRL','GBPBRL',
   'USDCNY','USDMXN',
-  'BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD',
+  'BTCUSD','ETHUSD','SOLUSD',
 ];
 // H0: commodities defaults are now real front-month futures. This list is
 // what NEW/reset users get. LEGACY_COMMODITIES_BACKFILL below is FROZEN to

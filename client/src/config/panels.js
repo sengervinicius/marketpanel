@@ -74,11 +74,13 @@ export const PANEL_DEFINITIONS = {
     defaultTitle:   'FX Rates / Crypto',
     // FX Pairs subsection: major pairs + BRL inverse pairs (source pairs USDBRL/EURBRL/GBPBRL included for data)
     // Crypto subsection: main cryptos
+    // P2 item 6 — crypto defaults capped at BTC/ETH/SOL (saved lists
+    // unaffected; DXY renders as a pinned row, not a symbols entry).
     defaultSymbols: [
       'EURUSD','GBPUSD','USDJPY','USDCHF','AUDUSD','USDCAD',
       'USDBRL','EURBRL','GBPBRL',
       'USDCNY','USDMXN',
-      'BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD',
+      'BTCUSD','ETHUSD','SOLUSD',
     ],
     allowedGroups:  ['Majors','BRL Crosses','LatAm','EM','Crypto'],
     editable:       true,
@@ -475,7 +477,7 @@ export const DEFAULT_LAYOUT = {
 export const DEFAULT_HOME_SECTIONS = [
   { id: 'indexes',    title: 'US Equities',     symbols: ['SPY','QQQ','DIA','AAPL','MSFT','NVDA','TSLA','AMZN'] },
   { id: 'global',     title: 'Global Indexes',   symbols: ['EWZ','EEM','VGK','EWJ','FXI','EFA','IWM'] },
-  { id: 'forex',      title: 'FX Rates / Crypto', symbols: ['EURUSD','USDJPY','GBPUSD','USDBRL','EURBRL','GBPBRL','USDCNY','BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
+  { id: 'forex',      title: 'FX Rates / Crypto', symbols: ['EURUSD','USDJPY','GBPUSD','USDBRL','EURBRL','GBPBRL','USDCNY','BTCUSD','ETHUSD','SOLUSD'] },
   { id: 'commodities',title: 'Commodities',      symbols: ['BZ=F','GLD','SLV','USO','UNG','CORN'] },
   { id: 'brazilB3',   title: 'Brazil B3',        symbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','WEGE3.SA','B3SA3.SA','ABEV3.SA','BBAS3.SA'] },
 ];
