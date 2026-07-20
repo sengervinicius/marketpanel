@@ -560,3 +560,49 @@
 .wp-rows-container { position: relative; }
 
 /* Hover mini-profile card → shared common/HoverProfileCard.css (ds-hcard) */
+
+/* ── Auto-sectorized buckets (Phase S W1 item 4) ─────────────────── */
+.wp-bucket-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 2px;
+  font-family: var(--font-family-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.wp-bucket-head:hover { color: var(--text-secondary); }
+
+.wp-bucket-caret {
+  width: 10px;
+  color: var(--text-faint);
+  font-size: 8px;
+}
+
+.wp-bucket-label { font-weight: 700; }
+
+.wp-bucket-count {
+  color: var(--text-faint);
+  font-size: 8px;
+}
+
+.wp-bucket-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.wp-bucket-chip {
+  font-variant-numeric: tabular-nums;
+  font-size: 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  padding: 0 5px;
+  color: var(--text-muted);
+}
+.wp-bucket-chip--up { color: var(--price-up); border-color: color-mix(in srgb, var(--price-up) 45%, transparent); }
+.wp-bucket-chip--dn { color: var(--price-down); border-color: color-mix(in srgb, var(--price-down) 45%, transparent); }
