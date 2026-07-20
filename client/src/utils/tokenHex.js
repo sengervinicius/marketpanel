@@ -38,6 +38,9 @@ export const TOKEN_HEX = {
   ai:             '#ce93d8',          /* AI / briefing identity */
   aiBg:           'rgba(206,147,216,0.12)',
 
+  // Pillars
+  terminal:       '#E0E0E0',         /* Terminal pillar silver */
+
   // Vault
   vaultAccent:    '#c9a84c',
 
