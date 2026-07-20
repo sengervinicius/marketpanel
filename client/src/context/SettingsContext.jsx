@@ -41,6 +41,18 @@ const LEGACY_COMMODITIES_BACKFILL = [
   'BZ=F','GLD','SLV','USO','UNG',
   'CORN','WEAT','SOYB','CPER','BHP',
 ];
+// P2 item 2 — Global Indexes defaults are now REAL index symbols (Yahoo ^),
+// not ETF proxies. Users who saved a custom list keep it; the v3 migration
+// below only swaps lists that exactly match a legacy default.
+const CIO_GLOBAL_INDICES_DEFAULTS = [
+  '^GSPC','^IXIC','^DJI','^BVSP','^STOXX50E','^FTSE','^N225','^HSI','^RUT',
+];
+const LEGACY_GLOBAL_INDICES_DEFAULTS = [
+  // pre-P2 short default (SettingsContext/templates)
+  ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'],
+  // pre-P2 long default (GlobalIndicesPanel fallback)
+  ['SPY','QQQ','DIA','EWZ','EWW','EWC','EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD','EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'],
+];
 const CIO_BRAZIL_DEFAULTS = [
   'VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA',
   'B3SA3.SA','MGLU3.SA','BBAS3.SA','GGBR4.SA','SUZB3.SA',
@@ -59,11 +71,11 @@ function defaultSettings() {
     watchlist: [],
     // Bumped when we add a new CIO-mandated ticker to defaults; the
     // migration below uses this version to decide whether to back-fill.
-    settingsVersion: 2,
+    settingsVersion: 3,
     panels: {
       brazilB3:     { title: 'Brazil B3',      symbols: [...CIO_BRAZIL_DEFAULTS] },
       usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRK-B','GS','WMT','LLY'] },
-      globalIndices:{ title: 'Global Indexes', symbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'] },
+      globalIndices:{ title: 'Global Indexes', symbols: [...CIO_GLOBAL_INDICES_DEFAULTS] },
       forex:        { title: 'FX Rates / Crypto', symbols: [...CIO_FOREX_DEFAULTS] },
       crypto:       { title: 'Crypto',         symbols: ['BTCUSD','ETHUSD','SOLUSD','XRPUSD','BNBUSD','DOGEUSD'] },
       commodities:  { title: 'Commodities',    symbols: [...CIO_COMMODITIES_DEFAULTS] },
@@ -91,86 +103,106 @@ function defaultSettings() {
  */
 function migrateLegacySettings(saved) {
   if (!saved || typeof saved !== 'object') return { settings: saved, migrated: false };
-  if (saved.settingsVersion >= 2) return { settings: saved, migrated: false };
+  if (saved.settingsVersion >= 3) return { settings: saved, migrated: false };
 
   const next = { ...saved, panels: { ...(saved.panels || {}) } };
   let changed = false;
+  const runV2 = !(saved.settingsVersion >= 2);
 
-  // ── Forex back-fill + drop ADDED bucket ────────────────────────
-  const fx = next.panels.forex;
-  if (fx && typeof fx === 'object') {
-    const cur = Array.isArray(fx.symbols) ? [...fx.symbols] : [];
-    let fxSymbols = cur;
-    const missing = CIO_FOREX_DEFAULTS.filter(s => !cur.includes(s));
-    if (missing.length) {
-      // Preserve user ordering; append missing CIO defaults at the end
-      // of the FX block (before any crypto). For simplicity: append.
-      fxSymbols = [...cur, ...missing];
-      changed = true;
-    }
+  if (runV2) {
 
-    // Merge legacy "ADDED" custom subsection symbols into main list.
-    let customSubs = Array.isArray(fx.customSubsections) ? fx.customSubsections : [];
-    const legacyDropped = customSubs.find(s => s && s.key === 'custom-dropped');
-    if (legacyDropped && Array.isArray(legacyDropped.symbols) && legacyDropped.symbols.length > 0) {
-      for (const sym of legacyDropped.symbols) {
-        // Strip any "C:" / "X:" polygon prefixes for the FX symbols list.
-        const clean = String(sym).replace(/^(C:|X:)/, '');
-        if (!fxSymbols.includes(clean)) fxSymbols.push(clean);
+    // ── Forex back-fill + drop ADDED bucket ────────────────────────
+    const fx = next.panels.forex;
+    if (fx && typeof fx === 'object') {
+      const cur = Array.isArray(fx.symbols) ? [...fx.symbols] : [];
+      let fxSymbols = cur;
+      const missing = CIO_FOREX_DEFAULTS.filter(s => !cur.includes(s));
+      if (missing.length) {
+        // Preserve user ordering; append missing CIO defaults at the end
+        // of the FX block (before any crypto). For simplicity: append.
+        fxSymbols = [...cur, ...missing];
+        changed = true;
       }
-      customSubs = customSubs.filter(s => s && s.key !== 'custom-dropped');
-      next.panels.forex = { ...fx, symbols: fxSymbols, customSubsections: customSubs };
-      changed = true;
-    } else if (changed) {
-      next.panels.forex = { ...fx, symbols: fxSymbols };
-    }
-  }
 
-  // ── Commodities back-fill + drop ADDED bucket ──────────────────
-  const cmd = next.panels.commodities;
-  if (cmd && typeof cmd === 'object') {
-    const cur = Array.isArray(cmd.symbols) ? [...cmd.symbols] : [];
-    let cmdSymbols = cur;
-    const missing = LEGACY_COMMODITIES_BACKFILL.filter(s => !cur.includes(s));
-    if (missing.length) {
-      cmdSymbols = [...cur, ...missing];
-      changed = true;
-    }
-
-    let customSubs = Array.isArray(cmd.customSubsections) ? cmd.customSubsections : [];
-    const legacyDropped = customSubs.find(s => s && s.key === 'custom-dropped');
-    if (legacyDropped && Array.isArray(legacyDropped.symbols) && legacyDropped.symbols.length > 0) {
-      for (const sym of legacyDropped.symbols) {
-        if (!cmdSymbols.includes(sym)) cmdSymbols.push(sym);
+      // Merge legacy "ADDED" custom subsection symbols into main list.
+      let customSubs = Array.isArray(fx.customSubsections) ? fx.customSubsections : [];
+      const legacyDropped = customSubs.find(s => s && s.key === 'custom-dropped');
+      if (legacyDropped && Array.isArray(legacyDropped.symbols) && legacyDropped.symbols.length > 0) {
+        for (const sym of legacyDropped.symbols) {
+          // Strip any "C:" / "X:" polygon prefixes for the FX symbols list.
+          const clean = String(sym).replace(/^(C:|X:)/, '');
+          if (!fxSymbols.includes(clean)) fxSymbols.push(clean);
+        }
+        customSubs = customSubs.filter(s => s && s.key !== 'custom-dropped');
+        next.panels.forex = { ...fx, symbols: fxSymbols, customSubsections: customSubs };
+        changed = true;
+      } else if (changed) {
+        next.panels.forex = { ...fx, symbols: fxSymbols };
       }
-      customSubs = customSubs.filter(s => s && s.key !== 'custom-dropped');
-      next.panels.commodities = { ...cmd, symbols: cmdSymbols, customSubsections: customSubs };
+    }
+
+    // ── Commodities back-fill + drop ADDED bucket ──────────────────
+    const cmd = next.panels.commodities;
+    if (cmd && typeof cmd === 'object') {
+      const cur = Array.isArray(cmd.symbols) ? [...cmd.symbols] : [];
+      let cmdSymbols = cur;
+      const missing = LEGACY_COMMODITIES_BACKFILL.filter(s => !cur.includes(s));
+      if (missing.length) {
+        cmdSymbols = [...cur, ...missing];
+        changed = true;
+      }
+
+      let customSubs = Array.isArray(cmd.customSubsections) ? cmd.customSubsections : [];
+      const legacyDropped = customSubs.find(s => s && s.key === 'custom-dropped');
+      if (legacyDropped && Array.isArray(legacyDropped.symbols) && legacyDropped.symbols.length > 0) {
+        for (const sym of legacyDropped.symbols) {
+          if (!cmdSymbols.includes(sym)) cmdSymbols.push(sym);
+        }
+        customSubs = customSubs.filter(s => s && s.key !== 'custom-dropped');
+        next.panels.commodities = { ...cmd, symbols: cmdSymbols, customSubsections: customSubs };
+        changed = true;
+      } else if (changed) {
+        next.panels.commodities = { ...cmd, symbols: cmdSymbols };
+      }
+    }
+
+    // ── Same for US equities / Brazil B3 custom-dropped bucket ─────
+    for (const pid of ['usEquities', 'brazilB3']) {
+      const p = next.panels[pid];
+      if (!p || typeof p !== 'object') continue;
+      const customSubs = Array.isArray(p.customSubsections) ? p.customSubsections : [];
+      const legacy = customSubs.find(s => s && s.key === 'custom-dropped');
+      if (!legacy || !Array.isArray(legacy.symbols) || legacy.symbols.length === 0) continue;
+      const cur = Array.isArray(p.symbols) ? [...p.symbols] : [];
+      for (const sym of legacy.symbols) {
+        if (!cur.includes(sym)) cur.push(sym);
+      }
+      next.panels[pid] = {
+        ...p,
+        symbols: cur,
+        customSubsections: customSubs.filter(s => s && s.key !== 'custom-dropped'),
+      };
       changed = true;
-    } else if (changed) {
-      next.panels.commodities = { ...cmd, symbols: cmdSymbols };
+    }
+
+  } // end v1 → v2
+
+  // ── v2 → v3 (P2 item 2): Global Indexes ETF proxies → real indices ──
+  // Only lists that EXACTLY match a legacy default are swapped; any
+  // user-customized list is left untouched.
+  const gi = next.panels.globalIndices;
+  if (gi && typeof gi === 'object' && Array.isArray(gi.symbols)) {
+    const savedKey = [...gi.symbols].sort().join(',');
+    const isLegacyDefault = LEGACY_GLOBAL_INDICES_DEFAULTS.some(
+      l => [...l].sort().join(',') === savedKey
+    );
+    if (isLegacyDefault) {
+      next.panels.globalIndices = { ...gi, symbols: [...CIO_GLOBAL_INDICES_DEFAULTS] };
+      changed = true;
     }
   }
 
-  // ── Same for US equities / Brazil B3 custom-dropped bucket ─────
-  for (const pid of ['usEquities', 'brazilB3']) {
-    const p = next.panels[pid];
-    if (!p || typeof p !== 'object') continue;
-    const customSubs = Array.isArray(p.customSubsections) ? p.customSubsections : [];
-    const legacy = customSubs.find(s => s && s.key === 'custom-dropped');
-    if (!legacy || !Array.isArray(legacy.symbols) || legacy.symbols.length === 0) continue;
-    const cur = Array.isArray(p.symbols) ? [...p.symbols] : [];
-    for (const sym of legacy.symbols) {
-      if (!cur.includes(sym)) cur.push(sym);
-    }
-    next.panels[pid] = {
-      ...p,
-      symbols: cur,
-      customSubsections: customSubs.filter(s => s && s.key !== 'custom-dropped'),
-    };
-    changed = true;
-  }
-
-  next.settingsVersion = 2;
+  next.settingsVersion = 3;
   return { settings: next, migrated: changed };
 }
 

@@ -60,7 +60,8 @@ export const PANEL_DEFINITIONS = {
     id:             'globalIndices',
     label:          'Global Indexes',
     defaultTitle:   'Global Indexes',
-    defaultSymbols: ['SPY','QQQ','DIA','EWZ','EEM','VGK','EWJ','FXI'],
+    // P2 item 2 — real index symbols (Yahoo ^), not ETF proxies.
+    defaultSymbols: ['^GSPC','^IXIC','^DJI','^BVSP','^STOXX50E','^FTSE','^N225','^HSI','^RUT'],
     allowedGroups:  ['US Indexes','Global Indexes'],
     editable:       true,
     icon:           'GX',

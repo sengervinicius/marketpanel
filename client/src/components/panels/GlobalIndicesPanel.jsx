@@ -18,10 +18,13 @@ const showInfo = (e, symbol, label, type) => {
   }));
 };
 
+// P2 item 2 — defaults switched from ETF proxies to REAL index symbols
+// (Yahoo ^ tickers). The legacy ETF tickers stay in each region's list so
+// saved user lists keep rendering under the right section header.
 const REGIONS = {
-  AMERICAS: { label: 'AMERICAS',  tickers: ['SPY','QQQ','DIA','EWZ','EWW','EWC'] },
-  EMEA:     { label: 'EMEA',      tickers: ['VGK','EWU','EZU','EWG','EWQ','EWP','EWI','EWL','EWD'] },
-  ASIA:     { label: 'ASIA-PAC',  tickers: ['EWJ','EWH','EWY','EWA','FXI','MCHI','EWT','EWS','INDA'] },
+  AMERICAS: { label: 'AMERICAS',  tickers: ['^GSPC','^IXIC','^DJI','^RUT','^BVSP','SPY','QQQ','DIA','EWZ','EWW','EWC'] },
+  EMEA:     { label: 'EMEA',      tickers: ['^STOXX50E','^FTSE','VGK','EWU','EZU','EWG','EWQ','EWP','EWI','EWL','EWD'] },
+  ASIA:     { label: 'ASIA-PAC',  tickers: ['^N225','^HSI','EWJ','EWH','EWY','EWA','FXI','MCHI','EWT','EWS','INDA'] },
   BROAD:    { label: 'BROAD',     tickers: ['EEM','EFA','IWM'] },
   // #230 P1.6b: CUSTOM bucket for user-dropped tickers that don't belong to a
   // hardcoded region. Without this, the REGIONS_filtered logic below silently
@@ -40,7 +43,10 @@ const CANONICAL_REGION_TICKERS = new Set(
 );
 
 const NAMES = {
-  SPY:'S&P 500', QQQ:'NASDAQ 100', DIA:'DOW JONES', IWM:'RUSSELL 2000',
+  '^GSPC':'S&P 500', '^IXIC':'NASDAQ', '^DJI':'DOW JONES', '^RUT':'RUSSELL 2000',
+  '^BVSP':'IBOVESPA', '^STOXX50E':'EURO STOXX 50', '^FTSE':'FTSE 100',
+  '^N225':'NIKKEI 225', '^HSI':'HANG SENG',
+  SPY:'S&P 500 ETF', QQQ:'NASDAQ 100 ETF', DIA:'DOW JONES ETF', IWM:'RUSSELL 2000 ETF',
   EWZ:'BRAZIL', EWW:'MEXICO', EWC:'CANADA',
   VGK:'EUROPE', EZU:'EURO STOXX', EWU:'UK FTSE', EWG:'GERMANY DAX', EWQ:'FRANCE CAC', EWP:'SPAIN IBEX',
   EWI:'ITALY MIB', EWL:'SWITZERLAND', EWD:'SWEDEN',
@@ -52,6 +58,18 @@ const NAMES = {
 // Was '44px 1fr 56px 52px' — both price and chg% too narrow.
 // Shared template: 44px symbol | 1fr name | 80px price | 76px chg%.
 const COLS = COLS_TIGHT_SPARK;
+
+// P2 item 2 — per-row ETF proxy fallback. When a real-index (^) quote is
+// missing from the snapshot (Yahoo hiccup, older server build), the row
+// falls back to the corresponding ETF proxy already in the batch instead
+// of rendering an em-dash. PriceRow's own useMergedTickerQuote (extras)
+// still tries the ^ symbol first via /api/snapshot/tickers.
+const ETF_PROXY = {
+  '^GSPC': 'SPY', '^IXIC': 'QQQ', '^DJI': 'DIA', '^RUT': 'IWM',
+  '^BVSP': 'EWZ', '^STOXX50E': 'FEZ', '^FTSE': 'EWU',
+  '^N225': 'EWJ', '^HSI': 'EWH',
+};
+const hasQuote = (d) => d != null && typeof d.price === 'number' && !Number.isNaN(d.price);
 
 const SORT_COLS = [
   { key: 'symbol', label: 'TICK', align: 'left' },
@@ -72,7 +90,7 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
 
   const panelCfg = settings?.panels?.globalIndices || {
     title: 'Global Indexes',
-    symbols: ['SPY','QQQ','DIA','EWZ','EWW','EWC','EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD','EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'],
+    symbols: ['^GSPC','^IXIC','^DJI','^BVSP','^STOXX50E','^FTSE','^N225','^HSI','^RUT'],
     hiddenSubsections: [],
     subsectionLabels: {},
   };
@@ -218,7 +236,13 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
               <>
                 <SectionHeader label={subsectionLabels[key] || region.label} sectionKey={key} color="var(--accent)" onRename={handleRenameSubsection} onToggleVisibility={handleToggleSubsection} isHideable={true} />
                 {region.tickers.map((ticker) => {
-                  const d = data[ticker] || {};
+                  // Real index first; ETF proxy fills in when the ^ quote is
+                  // missing (never the other way around).
+                  const primary = data[ticker] || {};
+                  const proxy = ETF_PROXY[ticker];
+                  const d = hasQuote(primary) ? primary
+                    : (proxy && hasQuote(data[proxy]) ? data[proxy] : primary);
+                  const instrumentType = ticker.startsWith('^') ? 'INDEX' : 'ETF';
                   return (
                     <PriceRow
                       key={ticker}
@@ -230,17 +254,17 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
                       symbolColor="var(--section-equity)"
                       columns={COLS}
                       draggable
-                      dragData={{ symbol: ticker, name: NAMES[ticker] || ticker, type: 'ETF' }}
+                      dragData={{ symbol: ticker, name: NAMES[ticker] || ticker, type: instrumentType }}
                       onClick={() => onTickerClick?.(ticker)}
                       onDoubleClick={() => openDetail(ticker)}
                       onTouchHold={() => openDetail(ticker)}
                       touchRef={ptRef}
                       sparklineData={sparklines[ticker]}
-                      onContextMenu={e => showInfo(e, ticker, NAMES[ticker] || ticker, 'ETF')}
+                      onContextMenu={e => showInfo(e, ticker, NAMES[ticker] || ticker, instrumentType)}
                       dataAttrs={{
                         'data-ticker': ticker,
                         'data-ticker-label': NAMES[ticker] || ticker,
-                        'data-ticker-type': 'ETF',
+                        'data-ticker-type': instrumentType,
                       }}
                     />
                   );
