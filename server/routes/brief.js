@@ -16,6 +16,74 @@ const logger = require('../utils/logger');
 const { swallow } = require('../utils/swallow');
 const { sendApiError } = require('../utils/apiError');
 const morningBrief = require('../services/morningBrief');
+const briefEngine = require('../services/briefEngine');
+const { dailyAILimit } = require('../middleware/dailyAILimit');
+const { aiQuotaGate } = require('../middleware/aiQuotaGate');
+
+// ── GET /api/brief — Phase S wave 2: the personalized Daily Brief ─────────
+// Structured JSON per the approved BRIEF panel mockup (§1): oneThing,
+// bucketed items with reason chips, macro rows with prediction odds, and
+// the VAULT CHECK. Built by services/briefEngine (cached 30 min per user);
+// ?force=1 bypasses the cache (the panel's refresh chip). AI-gated like
+// every other Haiku-composing route.
+router.get('/', dailyAILimit, aiQuotaGate, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const force = req.query.force === '1' || req.query.force === 'true';
+    const result = await briefEngine.getBrief(userId, { force });
+
+    let emailOptIn = false;
+    try {
+      const authStore = require('../authStore');
+      const user = authStore.getUserById(userId);
+      emailOptIn = user?.settings?.dailyBriefEmail === true;
+    } catch (e) { swallow(e, 'brief.daily.optin_read'); }
+
+    res.json({
+      ok: true,
+      data: result.brief,
+      cached: result.cached === true,
+      generatedAt: result.generatedAt,
+      emailOptIn,
+    });
+  } catch (e) {
+    logger.error('brief', 'GET / (daily brief) error', { error: e.message, userId: req.user.id });
+    sendApiError(res, 500, 'Failed to build daily brief');
+  }
+});
+
+// ── POST /api/brief/email-optin — { enabled: boolean } ────────────────────
+// Persists settings.dailyBriefEmail; the 07:30 BRT job
+// (jobs/dailyBriefEmail.js) only mails users with this flag true.
+router.post('/email-optin', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { enabled } = req.body || {};
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ ok: false, message: 'enabled must be a boolean' });
+    }
+
+    const updates = { dailyBriefEmail: enabled };
+    const db = require('../db/postgres');
+    if (db.isConnected && db.isConnected()) {
+      await db.query(
+        `UPDATE users SET settings = COALESCE(settings, '{}'::jsonb) || $1::jsonb WHERE id = $2`,
+        [JSON.stringify(updates), userId]
+      );
+    }
+    try {
+      const authStore = require('../authStore');
+      if (typeof authStore.mergeSettings === 'function') {
+        authStore.mergeSettings(userId, updates);
+      }
+    } catch (e) { swallow(e, 'brief.optin.merge_in_memory'); }
+
+    res.json({ ok: true, emailOptIn: enabled });
+  } catch (e) {
+    logger.error('brief', 'POST /email-optin error', { error: e.message, userId: req.user.id });
+    sendApiError(res, 500, 'Failed to update email opt-in');
+  }
+});
 
 // ── GET /api/brief/today ──────────────────────────────────────────────────
 router.get('/today', async (req, res) => {

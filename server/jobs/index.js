@@ -140,6 +140,14 @@ function initJobs(ctx = {}) {
   const { runOnce: dispatchMorningBriefs } = require('./morningBriefDispatcher');
   registerJob('morning-brief-dispatcher', '*/5 * * * *', dispatchMorningBriefs);
 
+  // ── Daily Brief email: weekdays 07:30 BRT = 10:30 UTC (Phase S W2) ───
+  // The structured personalized brief (briefEngine) mailed ONLY to users
+  // who opted in via the BRIEF panel's EMAIL chip
+  // (settings.dailyBriefEmail === true). Distinct from the prose
+  // morning-brief dispatcher above, which has its own settings.
+  const { runOnce: sendDailyBriefEmails } = require('./dailyBriefEmail');
+  registerJob('daily-brief-email', '30 10 * * 1-5', sendDailyBriefEmails);
+
   // ── One-time backfill: strip [SCREEN CONTEXT] from existing titles ──
   // Older conversations were titled with the raw context wrapper because
   // titleFromText() used to slice the first 80 chars unchanged. titleFromText
