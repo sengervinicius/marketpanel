@@ -305,6 +305,22 @@ export const PANEL_DEFINITIONS = {
     maxSymbols:     0,
   },
 
+  // Phase S W1 item 2 — SECTOR PULSE: 11 sector bars (best->worst, scaled
+  // to the day's biggest move) + the names driving the best/worst sector.
+  // Replaces 'sectors' in the DEFAULT layout; SectorsPanel stays
+  // registry-addable for the multi-horizon tinted grid.
+  sectorPulse: {
+    id:             'sectorPulse',
+    label:          'Sector Pulse',
+    defaultTitle:   'Sector Pulse',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           'SP',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
+
   predictions: {
     id:             'predictions',
     label:          'Predictions',
@@ -465,9 +481,10 @@ export const DEFAULT_LAYOUT = {
   desktopRows: [
     ['charts',       'watchlist',     'globalIndices'],
     ['forex',        'commodities',   'usEquities',    'brazilB3'],
-    // P2 item 4 — 'sectors' joins row 3; 12-col grid splits 5 panels as
+    // P2 item 4 gave row 3 a sector box; Phase S W1 item 2 swaps the tinted
+    // grid ('sectors') for SECTOR PULSE. 12-col grid splits 5 panels as
     // 3/3/2/2/2 via migrateDesktopRowsToGrid (leftmost get the remainder).
-    ['debt',         'news',          'movers',        'calendar',      'sectors'],
+    ['debt',         'news',          'movers',        'calendar',      'sectorPulse'],
   ],
   mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
 };
