@@ -38,7 +38,16 @@ const logger = require('../../utils/logger');
 const fmtDay = (d) => d.toISOString().slice(0, 10);
 const defaultCalRange = () => {
   const now = new Date();
-  return { from: fmtDay(now), to: fmtDay(new Date(now.getTime() + 7 * 86400000)) };
+  // UTC-rollover guard (root-cause fix, suspect (a)): fmtDay() is UTC. By
+  // evening in US markets the server's UTC date has already flipped to
+  // "tomorrow", so a default window starting at fmtDay(now) silently
+  // excludes companies reporting AMC *tonight* (their calendar date is the
+  // UTC-yesterday). Start the default window one day back; the extra day
+  // also surfaces last night's actuals, which the panel renders fine.
+  return {
+    from: fmtDay(new Date(now.getTime() - 86400000)),
+    to: fmtDay(new Date(now.getTime() + 7 * 86400000)),
+  };
 };
 const FINNHUB_TIMING = { bmo: 'BMO', amc: 'AMC', dmh: 'DMH' };
 
@@ -106,6 +115,9 @@ async function yahooEarningsFallback({ symbols = [], from, to }) {
   const rows = [];
   const seen = new Set();
   let sampled = 0;
+  // ?debug=1 instrumentation — why did sampled quotes NOT become rows.
+  const dropReasons = { noTimestamp: 0, outOfWindow: 0 };
+  let firstRawRow = null;
   const BATCH = 50;
   for (let i = 0; i < universe.length; i += BATCH) {
     const batch = universe.slice(i, i + BATCH);
@@ -125,7 +137,9 @@ async function yahooEarningsFallback({ symbols = [], from, to }) {
       sampled += 1;
       const ts = q.earningsTimestamp ?? q.earningsTimestampStart ?? null;
       const day = epochToDay(ts);
-      if (!day || day < from || day > to) continue;
+      if (!firstRawRow) firstRawRow = { keys: Object.keys(q), symbol: sym, date: day };
+      if (!day) { dropReasons.noTimestamp += 1; continue; }
+      if (day < from || day > to) { dropReasons.outOfWindow += 1; continue; }
       rows.push({
         ticker: sym,
         symbol: sym,
@@ -152,7 +166,9 @@ async function yahooEarningsFallback({ symbols = [], from, to }) {
   }));
 
   rows.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.symbol.localeCompare(b.symbol)));
-  const result = { rows, sampled };
+  // meta rides inside the cached value so ?debug=1 stays truthful on
+  // cache hits too.
+  const result = { rows, sampled, meta: { rawCount: sampled, dropReasons, firstRawRow } };
   if (sampled > 0) cacheSet(ck, result, YAHOO_EARNINGS_TTL);
   return result;
 }
@@ -166,6 +182,23 @@ router.get('/market/earnings-calendar', async (req, res) => {
       .split(',').map(sym => sym.trim()).filter(Boolean).slice(0, 100);
     const def = defaultCalRange();
     const range = { from: from || def.from, to: to || def.to };
+
+    // ?debug=1 — additive live-verification instrumentation (root-cause
+    // fix). Auth: this router is mounted behind requireAuth +
+    // requireActiveSubscription at the /api prefix (server/index.js), so
+    // the debug surface is never public. The business envelope is left
+    // byte-identical; a `debug` object is appended describing the window
+    // and what every provider attempted / returned / dropped.
+    const wantDebug = String(req.query.debug || '') === '1';
+    const dbg = wantDebug ? {
+      window: { from: range.from, to: range.to, defaulted: !from && !to },
+      providers: {
+        eulerpool: { attempted: false },
+        finnhub: { attempted: false },
+        yahoo: { attempted: false },
+      },
+    } : null;
+    const send = (payload) => res.json(dbg ? { ...payload, debug: dbg } : payload);
 
     // Preferred: Eulerpool when configured (original data source).
     //
@@ -185,19 +218,32 @@ router.get('/market/earnings-calendar', async (req, res) => {
 
       const ck = `earnings-cal:${JSON.stringify(opts)}`;
       const cached = cacheGet(ck);
-      if (cached) return res.json({ ok: true, data: cached, source: 'eulerpool' });
+      if (cached) {
+        if (dbg) dbg.providers.eulerpool = { attempted: true, cache: 'hit', normalizedCount: cached.length };
+        return send({ ok: true, data: cached, source: 'eulerpool' });
+      }
 
       try {
         const data = await eulerpool.getEarningsCalendar(opts);
         const result = Array.isArray(data) ? data : (data?.earnings ?? []);
+        if (dbg) {
+          const first = result[0] || null;
+          dbg.providers.eulerpool = {
+            attempted: true,
+            rawCount: result.length,
+            normalizedCount: result.length,
+            firstRawRow: first ? { keys: Object.keys(first), symbol: first.symbol ?? first.ticker ?? null, date: first.date ?? null } : null,
+          };
+        }
         if (result.length > 0) {
           cacheSet(ck, result, 600_000); // 10 min
-          return res.json({ ok: true, data: result, source: 'eulerpool' });
+          return send({ ok: true, data: result, source: 'eulerpool' });
         }
         eulerpoolState = 'empty';
         logger.warn('[earnings-calendar] eulerpool returned 0 rows — cascading to finnhub/yahoo');
       } catch (e) {
         eulerpoolState = 'error';
+        if (dbg) dbg.providers.eulerpool = { attempted: true, error: e.message };
         logger.warn(`[earnings-calendar] eulerpool degraded (${e.message}) — cascading to finnhub/yahoo`);
       }
     }
@@ -216,7 +262,10 @@ router.get('/market/earnings-calendar', async (req, res) => {
     if (earningsSvc.isConfigured()) {
       const ck = `earnings-cal:finnhub:${range.from}:${range.to}:${ticker || ''}`;
       const cached = cacheGet(ck);
-      if (cached) return res.json({ ok: true, data: cached, source: 'finnhub' });
+      if (cached) {
+        if (dbg) dbg.providers.finnhub = { attempted: true, cache: 'hit', normalizedCount: cached.length };
+        return send({ ok: true, data: cached, source: 'finnhub' });
+      }
 
       const detailed = typeof earningsSvc.getEarningsCalendarDetailed === 'function'
         ? await earningsSvc.getEarningsCalendarDetailed(range.from, range.to)
@@ -224,6 +273,8 @@ router.get('/market/earnings-calendar', async (req, res) => {
 
       if (detailed.ok) {
         let rows = Array.isArray(detailed.rows) ? detailed.rows : [];
+        const rawCount = rows.length;
+        const firstRaw = rows[0] || null;
         if (ticker) {
           const want = String(ticker).toUpperCase();
           rows = rows.filter(r => String(r.symbol || '').toUpperCase() === want);
@@ -238,24 +289,36 @@ router.get('/market/earnings-calendar', async (req, res) => {
           revenueEstimate: r.revenueEstimate ?? null,
           revenueActual: r.revenueActual ?? null,
         }));
+        if (dbg) {
+          dbg.providers.finnhub = {
+            attempted: true,
+            rawCount,
+            normalizedCount: data.length,
+            firstRawRow: firstRaw ? { keys: Object.keys(firstRaw), symbol: firstRaw.symbol ?? null, date: firstRaw.date ?? null } : null,
+            dropReasons: { tickerFilter: rawCount - data.length },
+          };
+        }
 
         if (data.length > 0) {
           cacheSet(ck, data, 600_000); // 10 min
-          return res.json({ ok: true, data, source: 'finnhub' });
+          return send({ ok: true, data, source: 'finnhub' });
         }
         finnhubState = 'empty';
       } else {
         finnhubState = 'error';
         finnhubError = detailed.error || 'unknown error';
+        if (dbg) dbg.providers.finnhub = { attempted: true, error: finnhubError };
         logger.warn(`[earnings-calendar] finnhub degraded: ${finnhubError}`);
       }
     }
 
     // Keyless Yahoo fallback — watchlist + S&P 100 universe (12h cache).
-    let fallback = { rows: [], sampled: 0 };
+    let fallback = { rows: [], sampled: 0, meta: null };
+    let yahooError = null;
     try {
       fallback = await yahooEarningsFallback({ symbols: watchSymbols, from: range.from, to: range.to });
     } catch (e) {
+      yahooError = e.message;
       logger.warn(`[earnings-calendar] yahoo fallback failed: ${e.message}`);
     }
     let yahooRows = fallback.rows;
@@ -263,8 +326,19 @@ router.get('/market/earnings-calendar', async (req, res) => {
       const want = String(ticker).toUpperCase();
       yahooRows = yahooRows.filter(r => String(r.symbol || '').toUpperCase() === want);
     }
+    if (dbg) {
+      dbg.providers.yahoo = yahooError
+        ? { attempted: true, error: yahooError }
+        : {
+            attempted: true,
+            rawCount: fallback.sampled,
+            normalizedCount: yahooRows.length,
+            dropReasons: fallback.meta?.dropReasons ?? {},
+            firstRawRow: fallback.meta?.firstRawRow ?? null,
+          };
+    }
     if (yahooRows.length > 0) {
-      return res.json({
+      return send({
         ok: true,
         data: yahooRows,
         source: 'yahoo',
@@ -278,7 +352,7 @@ router.get('/market/earnings-calendar', async (req, res) => {
     // empty:'no-data'     → a provider answered; the window is genuinely quiet.
     // empty:'no-provider' → every provider is unconfigured or down.
     if (eulerpoolState === 'empty' || finnhubState === 'empty' || fallback.sampled > 0) {
-      return res.json({
+      return send({
         ok: true,
         data: [],
         source: finnhubState === 'empty' ? 'finnhub'
@@ -288,7 +362,7 @@ router.get('/market/earnings-calendar', async (req, res) => {
         message: `All providers are live — no earnings scheduled between ${range.from} and ${range.to}.`,
       });
     }
-    return res.json({
+    return send({
       ok: true,
       data: [],
       source: 'unavailable',

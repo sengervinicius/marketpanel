@@ -87,7 +87,14 @@ async function getEarningsCalendarDetailed(from, to) {
     }
 
     const data = await response.json();
-    const results = (data.data || []).map((item) => ({
+    // Root-cause fix: Finnhub /calendar/earnings wraps rows in
+    // {earningsCalendar:[...]} — NOT {data:[...]}. Reading `data.data`
+    // silently parsed every live response to [] (the panel's eternal
+    // "no earnings this week"). Keep `data.data` as a defensive alias.
+    const rawRows = Array.isArray(data.earningsCalendar) ? data.earningsCalendar
+      : Array.isArray(data.data) ? data.data
+      : [];
+    const results = rawRows.map((item) => ({
       symbol: item.symbol || '',
       date: item.date || '',
       epsEstimate: item.epsEstimate,
@@ -158,7 +165,11 @@ async function getEarningsForTicker(symbol) {
     }
 
     const data = await response.json();
-    const earnings = data.data || [];
+    // Same envelope fix as getEarningsCalendarDetailed: rows live under
+    // `earningsCalendar`, not `data`.
+    const earnings = Array.isArray(data.earningsCalendar) ? data.earningsCalendar
+      : Array.isArray(data.data) ? data.data
+      : [];
 
     // Sort by date
     earnings.sort((a, b) => new Date(a.date) - new Date(b.date));

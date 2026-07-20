@@ -420,7 +420,12 @@ async function _yahooQuoteRaw(symbols) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const { crumb, cookie } = await getYahooCrumb();
     // H2b item 3 — pre/post-market fields appended for the watchlist EXT column.
-    const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency,marketCap,trailingPE,forwardPE,epsTrailingTwelveMonths,sharesOutstanding,trailingAnnualDividendYield,fiftyTwoWeekLow,fiftyTwoWeekHigh,averageDailyVolume3Month,preMarketPrice,preMarketChangePercent,postMarketPrice,postMarketChangePercent';
+    // Calendar root-cause fix: v7 `fields=` is an ALLOW-LIST — Yahoo strips
+    // everything not named here. The earnings-calendar Yahoo fallback reads
+    // q.earningsTimestamp / q.earningsTimestampStart off these quotes, so the
+    // timestamps must be requested explicitly or every fallback row is
+    // dropped as "no timestamp".
+    const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency,marketCap,trailingPE,forwardPE,epsTrailingTwelveMonths,sharesOutstanding,trailingAnnualDividendYield,fiftyTwoWeekLow,fiftyTwoWeekHigh,averageDailyVolume3Month,preMarketPrice,preMarketChangePercent,postMarketPrice,postMarketChangePercent,earningsTimestamp,earningsTimestampStart,earningsTimestampEnd';
     const host = HOSTS[attempt % HOSTS.length];
     const url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(crumb)}&fields=${fields}&lang=en-US`;
     const quoteController = new AbortController();
