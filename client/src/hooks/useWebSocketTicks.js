@@ -1,23 +1,7 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-
-/**
- * Utility: Check if US markets (NYSE/NASDAQ) are currently open.
- * NYSE hours: 9:30 AM - 4:00 PM ET, Monday-Friday
- */
-function isMarketOpen() {
-  const now = new Date();
-  const etTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-  const day = etTime.getDay(); // 0=Sun, 6=Sat
-  const hours = etTime.getHours();
-  const minutes = etTime.getMinutes();
-  const timeInMinutes = hours * 60 + minutes;
-
-  // Mon-Fri (1-5), 9:30 AM - 4:00 PM ET
-  const isWeekday = day >= 1 && day <= 5;
-  const isMarketHours = timeInMinutes >= 570 && timeInMinutes < 960; // 9:30=570, 16:00=960
-
-  return isWeekday && isMarketHours;
-}
+// Phase S W1 item 1 — US RTH check extracted to a shared pure util so
+// GlobalIndicesPanel (FUTURES section ordering) uses the same clock.
+import { isUsMarketOpen } from '../utils/marketHours';
 
 /**
  * Determine the status level for a feed based on current time and data recency.
@@ -29,7 +13,7 @@ function determineFeedStatus(feed, currentLevel) {
   // If current level is explicitly set by backend, respect it (unless overridden by market state)
   // For stocks, check market hours
   if (feed === 'stocks') {
-    if (!isMarketOpen()) {
+    if (!isUsMarketOpen()) {
       return 'closed';
     }
   }
