@@ -24,22 +24,36 @@ describe('buildResetDefaultsPayload', () => {
     expect(ids).not.toContain('predictions');
   });
 
+  it('does NOT restore the standalone futures panel (Phase S W1 item 1)', () => {
+    // Futures rows now live inside GlobalIndicesPanel's FUTURES section;
+    // the standalone panel stays registry-addable but leaves the defaults.
+    const ids = payload.layout.desktopRows.flat();
+    expect(ids).not.toContain('futures');
+    expect(payload.layout.desktopRows[0]).toEqual(['charts', 'watchlist', 'globalIndices']);
+    const grid = payload.layouts.items[payload.layouts.activeId].grid;
+    expect(grid.find(g => g.i === 'futures')).toBeUndefined();
+  });
+
   it('includes the H2a movers + calendar panels in the default rows', () => {
     const ids = payload.layout.desktopRows.flat();
     expect(ids).toContain('movers');
     expect(ids).toContain('calendar');
   });
 
-  it('includes the sectors grid in row 3 (P2 item 4) — layout, reset payload AND grid', () => {
-    // Row 3 of the canonical layout carries sectors alongside movers/calendar
+  it('includes SECTOR PULSE in row 3 (Phase S W1 item 2) — layout, reset payload AND grid', () => {
+    // Row 3 of the canonical layout carries sectorPulse alongside
+    // movers/calendar; the old tinted 'sectors' grid left the defaults
+    // (stays registry-addable).
     const row3 = payload.layout.desktopRows[2];
-    expect(row3).toContain('sectors');
+    expect(row3).toContain('sectorPulse');
+    expect(row3).not.toContain('sectors');
     expect(row3).toContain('movers');
     expect(row3).toContain('calendar');
     // Grid migration: 5 panels in a 12-col row → widths 3/3/2/2/2, sum 12
     const grid = payload.layouts.items[payload.layouts.activeId].grid;
-    const sectorsItem = grid.find(g => g.i === 'sectors');
-    expect(sectorsItem).toBeTruthy();
+    const pulseItem = grid.find(g => g.i === 'sectorPulse');
+    expect(pulseItem).toBeTruthy();
+    expect(grid.find(g => g.i === 'sectors')).toBeUndefined();
     const row3Items = grid.filter(g => row3.includes(g.i));
     expect(row3Items.reduce((s, g) => s + g.w, 0)).toBe(12);
     expect(row3Items.every(g => g.w >= 2)).toBe(true);

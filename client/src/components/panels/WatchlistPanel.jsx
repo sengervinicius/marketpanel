@@ -29,6 +29,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
+import { useSettings } from '../../context/SettingsContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { apiFetch, apiJSON } from '../../utils/api';
@@ -43,6 +44,7 @@ import Sparkline from '../common/Sparkline';
 import ViewChips, { loadPersistedChip } from '../common/ViewChips';
 import HoverProfileCard, { HoverProfileRow, HoverProfileRange } from '../common/HoverProfileCard';
 import { useSparklineData } from '../../hooks/useSparklineData';
+import { ASSET_CLASSES, classifyAssetClass } from '../../utils/assetClass';
 import '../common/Shimmer.css';
 import './WatchlistPanel.css';
 
@@ -55,6 +57,19 @@ const VIEWS = [
 ];
 
 const loadView = () => loadPersistedChip(WL_VIEW_KEY, VIEWS, 'trader');
+
+// ── Auto-sectorized buckets (Phase S W1 item 4, proposal S5.1) ──────
+// Symbols group under EQUITIES / FIXED INCOME / CRYPTO / FX & MACRO /
+// COMMODITIES via the pure classifier in utils/assetClass.js (shape
+// first, per-symbol override from settings.watchlistMeta second). The
+// collapsed-bucket set persists locally.
+const WL_BUCKETS_KEY = 'wlBucketsCollapsed_v1';
+const loadCollapsedBuckets = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(WL_BUCKETS_KEY));
+    return new Set(Array.isArray(v) ? v : []);
+  } catch { return new Set(); }
+};
 
 // Grid templates per view (ticker | LAST | … | actions).
 const GRID = {
@@ -332,6 +347,20 @@ function WatchlistPanel() {
     syncStatus, retrySync,
   } = usePortfolio();
   const openDetail = useOpenDetail();
+  // Phase S W1 item 4 — per-symbol asset-class overrides live in settings
+  // (watchlistMeta), edited through PositionEditor's BUCKET field.
+  const { settings } = useSettings();
+  const watchlistMeta = settings?.watchlistMeta || {};
+
+  const [collapsedBuckets, setCollapsedBuckets] = useState(loadCollapsedBuckets);
+  const toggleBucket = useCallback((id) => {
+    setCollapsedBuckets(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { localStorage.setItem(WL_BUCKETS_KEY, JSON.stringify([...next])); } catch { /* private mode */ }
+      return next;
+    });
+  }, []);
 
   // UI state
   const [sortMode, setSortMode] = useState('default'); // 'default' | 'heat' | 'pnl'
@@ -669,6 +698,32 @@ function WatchlistPanel() {
     });
   }, [positions, sortMode, getPriceData]);
 
+  // ── Bucket grouping (order: EQ / FI / CRYPTO / FX / COMM) ────────
+  // Grouping happens AFTER sorting so HEAT/P&L order is preserved
+  // within each bucket; empty buckets don't render.
+  const buckets = useMemo(() => {
+    const byId = new Map(ASSET_CLASSES.map(c => [c.id, []]));
+    for (const pos of sortedPositions) {
+      const id = classifyAssetClass(pos.symbol, {
+        override: watchlistMeta?.[pos.symbol]?.assetClass,
+      });
+      (byId.get(id) || byId.get('EQ')).push(pos);
+    }
+    return ASSET_CLASSES
+      .filter(c => byId.get(c.id).length > 0)
+      .map(c => ({ ...c, positions: byId.get(c.id) }));
+  }, [sortedPositions, watchlistMeta]);
+
+  // Equal-weight day-% aggregate per bucket (the header chip).
+  const bucketDayPct = useCallback((bucketPositions) => {
+    let sum = 0, n = 0;
+    for (const pos of bucketPositions) {
+      const chg = getPriceData(pos.symbol)?.changePct;
+      if (chg != null && isFinite(chg)) { sum += chg; n += 1; }
+    }
+    return n > 0 ? sum / n : null;
+  }, [getPriceData]);
+
   // ── Render ──────────────────────────────────────────────────────
   const sortBtn = (key, label) => (
     <button
@@ -782,25 +837,46 @@ function WatchlistPanel() {
             message="Add a symbol to start tracking. Alt+click any row later to add qty + entry for P&L."
           />
         ) : (
-          sortedPositions.map(pos => (
-            <WatchlistRow
-              key={pos.id}
-              position={pos}
-              view={view}
-              sparkData={rowSparklines[pos.symbol]}
-              snap={snapData[pos.symbol] || null}
-              earn={earnData[pos.symbol] || null}
-              rec={recData[pos.symbol] || null}
-              fund={fundData[pos.symbol] || null}
-              onOpen={handleOpen}
-              onEdit={handleEdit}
-              onRemove={handleRemove}
-              onWhy={handleWhy}
-              onReportPrice={reportPrice}
-              onHoverStart={handleHoverStart}
-              onHoverEnd={handleHoverEnd}
-            />
-          ))
+          buckets.map(bucket => {
+            const isCollapsed = collapsedBuckets.has(bucket.id);
+            const agg = bucketDayPct(bucket.positions);
+            return (
+              <div key={bucket.id}>
+                <div
+                  className="wp-bucket-head"
+                  onClick={() => toggleBucket(bucket.id)}
+                  title={`${bucket.label} — ${bucket.positions.length} symbol${bucket.positions.length === 1 ? '' : 's'} · equal-weight day % · click to ${isCollapsed ? 'expand' : 'collapse'}`}
+                >
+                  <span className="wp-bucket-caret">{isCollapsed ? '▸' : '▾'}</span>
+                  <span className="wp-bucket-label">{bucket.label}</span>
+                  <span className="wp-bucket-count">{bucket.positions.length}</span>
+                  <span className="wp-bucket-line" />
+                  <span className={`wp-bucket-chip ${
+                    agg == null ? '' : agg >= 0 ? 'wp-bucket-chip--up' : 'wp-bucket-chip--dn'
+                  }`}>{agg == null ? '—' : fmtPct(agg)}</span>
+                </div>
+                {!isCollapsed && bucket.positions.map(pos => (
+                  <WatchlistRow
+                    key={pos.id}
+                    position={pos}
+                    view={view}
+                    sparkData={rowSparklines[pos.symbol]}
+                    snap={snapData[pos.symbol] || null}
+                    earn={earnData[pos.symbol] || null}
+                    rec={recData[pos.symbol] || null}
+                    fund={fundData[pos.symbol] || null}
+                    onOpen={handleOpen}
+                    onEdit={handleEdit}
+                    onRemove={handleRemove}
+                    onWhy={handleWhy}
+                    onReportPrice={reportPrice}
+                    onHoverStart={handleHoverStart}
+                    onHoverEnd={handleHoverEnd}
+                  />
+                ))}
+              </div>
+            );
+          })
         )}
         {/* Hover mini-profile card — pointer-events:none, absolute in the
             rows scroller, hides on row mouseleave. */}

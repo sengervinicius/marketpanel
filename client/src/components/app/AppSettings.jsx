@@ -40,6 +40,7 @@ const SETTINGS_PANEL_IDS = [
   'calendar',
   'movers',
   'sectors',
+  'sectorPulse',
   'heatmap',
   'predictions',
   'optionsFlow',

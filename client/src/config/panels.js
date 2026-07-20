@@ -305,6 +305,22 @@ export const PANEL_DEFINITIONS = {
     maxSymbols:     0,
   },
 
+  // Phase S W1 item 2 — SECTOR PULSE: 11 sector bars (best->worst, scaled
+  // to the day's biggest move) + the names driving the best/worst sector.
+  // Replaces 'sectors' in the DEFAULT layout; SectorsPanel stays
+  // registry-addable for the multi-horizon tinted grid.
+  sectorPulse: {
+    id:             'sectorPulse',
+    label:          'Sector Pulse',
+    defaultTitle:   'Sector Pulse',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           'SP',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
+
   predictions: {
     id:             'predictions',
     label:          'Predictions',
@@ -446,12 +462,14 @@ export function getEditablePanels() {
  * @property {Array<string>} mobileTabs - Mobile tab order
  */
 // Layout spec (2026-04-20, CIO request; updated 2026-04-23 for #226):
-//   Row 1: charts, watchlist, globalIndices, futures
+//   Row 1: charts, watchlist, globalIndices
 //   Row 2: forex (FX/Crypto, GBPBRL already in defaultSymbols), commodities, usEquities, brazilB3
 //   Row 3: debt (yields), news
-// #226: 'futures' joins row 1 so the CIO sees regional futures/cash-index
-// prints alongside the charts/watchlist/global-index block — the overnight
-// read goes in the same visual band as the rest of the market-state context.
+// Phase S W1 item 1: the standalone 'futures' panel leaves the DEFAULT
+// layout — GlobalIndicesPanel now renders the same /api/futures rows as a
+// FUTURES section (leading when US cash is closed). The panel definition
+// and PANEL_REGISTRY entry stay so saved layouts keep working and Cmd+K
+// can still add it.
 // This is the new-user default; existing users keep whatever they've saved in
 // settings.rowFlexSizes / settings.panelVisible.
 // H0.4d: optionsFlow + predictions removed from the DEFAULT layout only —
@@ -461,11 +479,12 @@ export function getEditablePanels() {
 // home-grade Movers and Calendar panels.
 export const DEFAULT_LAYOUT = {
   desktopRows: [
-    ['charts',       'watchlist',     'globalIndices', 'futures'],
+    ['charts',       'watchlist',     'globalIndices'],
     ['forex',        'commodities',   'usEquities',    'brazilB3'],
-    // P2 item 4 — 'sectors' joins row 3; 12-col grid splits 5 panels as
+    // P2 item 4 gave row 3 a sector box; Phase S W1 item 2 swaps the tinted
+    // grid ('sectors') for SECTOR PULSE. 12-col grid splits 5 panels as
     // 3/3/2/2/2 via migrateDesktopRowsToGrid (leftmost get the remainder).
-    ['debt',         'news',          'movers',        'calendar',      'sectors'],
+    ['debt',         'news',          'movers',        'calendar',      'sectorPulse'],
   ],
   mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
 };

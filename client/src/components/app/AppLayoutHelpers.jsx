@@ -20,6 +20,7 @@ import {
   PredictionPanel,
   MoversPanel,
   SectorsPanel,
+  SectorPulsePanel,
   DefenceScreen,
   CommoditiesScreen,
   GlobalMacroScreen,
@@ -202,6 +203,7 @@ const PANEL_REGISTRY = {
   optionsFlow:    { component: OptionsFlowPanel },
   movers:         { component: MoversPanel,        getProps: (c) => ({ onTickerClick: c.setChartTicker }) }, // H2 W1
   sectors:        { component: SectorsPanel,       getProps: (c) => ({ onTickerClick: c.setChartTicker }) }, // H2 W1 (registry-only, not in default layout)
+  sectorPulse:    { component: SectorPulsePanel,   getProps: (c) => ({ onTickerClick: c.setChartTicker }) }, // Phase S W1 item 2 — default row 3
 
 
   // ── Phase D1 sector screens ──────────────────────────────────────────────

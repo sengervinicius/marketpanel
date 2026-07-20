@@ -13,6 +13,8 @@
 
 import { memo, useState, useCallback, useRef, useEffect } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
+import { useSettings } from '../../context/SettingsContext';
+import { ASSET_CLASSES, classifyAssetClass, assetClassLabel } from '../../utils/assetClass';
 import { apiJSON } from '../../utils/api';
 import './PositionEditor.css';
 
@@ -25,6 +27,9 @@ function PositionEditor({
   mobile = false,
 }) {
   const { portfolios, addPosition, updatePosition, removePosition } = usePortfolio();
+  // Phase S W1 item 4 — per-symbol watchlist bucket override (S5.1).
+  // Persisted in settings.watchlistMeta[SYM].assetClass; 'AUTO' clears it.
+  const { settings, updateSettings } = useSettings();
 
   const isEditing = !!position;
 
@@ -43,6 +48,11 @@ function PositionEditor({
   const [purchaseDate, setPurchaseDate] = useState(position?.purchaseDate || '');
   const [note, setNote] = useState(position?.note || '');
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [bucketOverride, setBucketOverride] = useState(() => {
+    const sym = (position?.symbol || defaultSymbol || '').toUpperCase();
+    const cur = settings?.watchlistMeta?.[sym]?.assetClass;
+    return ASSET_CLASSES.some(c => c.id === cur) ? cur : 'AUTO';
+  });
 
   // Search dropdown state
   const [searchResults, setSearchResults] = useState([]);
@@ -165,8 +175,28 @@ function PositionEditor({
       });
     }
 
+    // Phase S W1 item 4 — persist the watchlist bucket override for this
+    // symbol ('AUTO' removes it so shape detection takes back over).
+    try {
+      const sym = symbol.trim().toUpperCase();
+      const meta = settings?.watchlistMeta || {};
+      const current = ASSET_CLASSES.some(c => c.id === meta[sym]?.assetClass)
+        ? meta[sym].assetClass : 'AUTO';
+      if (bucketOverride !== current) {
+        const next = { ...meta };
+        if (bucketOverride === 'AUTO') {
+          const { assetClass, ...rest } = next[sym] || {};
+          if (Object.keys(rest).length > 0) next[sym] = rest;
+          else delete next[sym];
+        } else {
+          next[sym] = { ...(next[sym] || {}), assetClass: bucketOverride };
+        }
+        updateSettings({ watchlistMeta: next });
+      }
+    } catch { /* never block the position save on a meta write */ }
+
     onClose();
-  }, [symbol, portfolioId, validSubportfolioId, investedAmount, quantity, entryPrice, purchaseDate, currency, note, isEditing, position, updatePosition, addPosition, onClose]);
+  }, [symbol, portfolioId, validSubportfolioId, investedAmount, quantity, entryPrice, purchaseDate, currency, note, isEditing, position, updatePosition, addPosition, onClose, bucketOverride, settings, updateSettings]);
 
   const handleDelete = useCallback(() => {
     if (deleteConfirm) {
@@ -339,6 +369,24 @@ function PositionEditor({
             >
               {subportfolios.map(sp => (
                 <option key={sp.id} value={sp.id}>{sp.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Watchlist bucket (Phase S W1 item 4) */}
+          <div className="pf-editor-field-group">
+            <label className="pf-editor-label">WATCHLIST BUCKET</label>
+            <select
+              className="pf-editor-select"
+              value={bucketOverride}
+              onChange={(e) => setBucketOverride(e.target.value)}
+              title="Which watchlist section this symbol groups under. AUTO = detected from the symbol shape."
+            >
+              <option value="AUTO">
+                AUTO · {assetClassLabel(classifyAssetClass(symbol))}
+              </option>
+              {ASSET_CLASSES.map(c => (
+                <option key={c.id} value={c.id}>{c.label}</option>
               ))}
             </select>
           </div>
