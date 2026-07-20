@@ -10,7 +10,6 @@
  * 6. HY Corporate Bonds table
  * 7. Credit Spreads Dashboard (IG OAS, HY OAS, EM spread)
  * 8. Bond ETF Comparison Grid (live prices)
- * 9. Duration Risk Calculator (interactive sliders)
  *
  * ~550 lines, using FullPageScreenLayout + Recharts + useSectionData
  */
@@ -83,6 +82,29 @@ async function fetchYieldCurves(countries) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const json = await res.json();
   return json.curves || [];
+}
+
+// P2 item 8 — the standalone US Treasury curve reads the SAME payload the
+// home RATES & CREDIT board (DebtPanel) uses: /api/yield-curves US block.
+// One data source, one truth — the two charts can no longer disagree.
+// Falls back to the legacy /api/bonds/yield-curves aggregate if the home
+// endpoint is unavailable or has no US points.
+async function fetchUsCurveFromHomeBoard() {
+  try {
+    const res = await apiFetch('/api/yield-curves');
+    if (res.ok) {
+      const json = await res.json();
+      const pts = json?.US?.curve;
+      if (Array.isArray(pts) && pts.length > 0) {
+        return [{
+          country: 'US',
+          source: json.US.source || 'home-board',
+          curve: pts.map(pt => ({ tenor: pt.tenor, yield: pt.rate ?? pt.yield })),
+        }];
+      }
+    }
+  } catch { /* fall through to legacy endpoint */ }
+  return fetchYieldCurves(['US']);
 }
 
 async function fetchCorporateBonds(rating, limit = 15) {
@@ -170,7 +192,8 @@ function SectorChartsSection() {
 function USTreasuryCurveSection() {
   const { data: curves, loading, error, refresh } = useSectionData({
     cacheKey: 'fi-ustreasury-curve',
-    fetcher: () => fetchYieldCurves(['US']),
+    // P2 item 8 — deduped: same data as the home RATES & CREDIT board.
+    fetcher: fetchUsCurveFromHomeBoard,
   });
 
   if (loading) return <FISkeleton rows={5} />;
@@ -550,171 +573,6 @@ function BondETFGridSection() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   SECTION 9: Duration Risk Calculator
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-function DurationRiskCalculator() {
-  const [shortPct, setShortPct] = useState(20);
-  const [midPct, setMidPct] = useState(50);
-  const [longPct, setLongPct] = useState(30);
-
-  const shortDuration = 2;  // 2-year
-  const midDuration = 5;    // 5-year
-  const longDuration = 20;  // 20-year
-
-  const portfolioDuration = (
-    (shortPct / 100) * shortDuration +
-    (midPct / 100) * midDuration +
-    (longPct / 100) * longDuration
-  );
-
-  // P&L scenarios for 25bp, 50bp, 100bp moves
-  const pnl25 = -portfolioDuration * 0.25;
-  const pnl50 = -portfolioDuration * 0.50;
-  const pnl100 = -portfolioDuration * 1.00;
-
-  const handleShortChange = (e) => {
-    const val = parseInt(e.target.value, 10);
-    setShortPct(val);
-    const remaining = 100 - val;
-    const midVal = Math.round(remaining * 0.625);
-    setMidPct(midVal);
-    setLongPct(remaining - midVal);
-  };
-
-  const handleMidChange = (e) => {
-    const val = parseInt(e.target.value, 10);
-    setMidPct(val);
-    const remaining = 100 - val;
-    const longVal = Math.round(remaining * 0.6);
-    setLongPct(longVal);
-    setShortPct(remaining - longVal);
-  };
-
-  const handleLongChange = (e) => {
-    const val = parseInt(e.target.value, 10);
-    setLongPct(val);
-    const remaining = 100 - val;
-    const shortVal = Math.round(remaining * 0.4);
-    setShortPct(shortVal);
-    setMidPct(remaining - shortVal);
-  };
-
-  return (
-    <div style={{ padding: '0 10px' }}>
-      <div style={{ marginBottom: '12px' }}>
-        <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-          Short (2Y): {shortPct}%
-        </div>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={shortPct}
-          onChange={handleShortChange}
-          style={{ width: '100%' }}
-        />
-      </div>
-
-      <div style={{ marginBottom: '12px' }}>
-        <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-          Mid (5Y): {midPct}%
-        </div>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={midPct}
-          onChange={handleMidChange}
-          style={{ width: '100%' }}
-        />
-      </div>
-
-      <div style={{ marginBottom: '12px' }}>
-        <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-          Long (20Y): {longPct}%
-        </div>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={longPct}
-          onChange={handleLongChange}
-          style={{ width: '100%' }}
-        />
-      </div>
-
-      <div style={{
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-default)',
-        borderRadius: '3px',
-        padding: '8px',
-        marginBottom: '8px',
-      }}>
-        <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginBottom: '2px' }}>
-          Portfolio Duration
-        </div>
-        <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--semantic-info)' }}>
-          {portfolioDuration.toFixed(2)} years
-        </div>
-      </div>
-
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: '6px',
-      }}>
-        <div style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-default)',
-          borderRadius: '3px',
-          padding: '6px',
-        }}>
-          <div style={{ fontSize: '8.5px', color: 'var(--text-secondary)' }}>+25bp</div>
-          <div style={{
-            fontSize: '11px',
-            fontWeight: 600,
-            color: pnl25 < 0 ? 'var(--semantic-down)' : 'var(--semantic-up)',
-          }}>
-            {pnl25.toFixed(3)}%
-          </div>
-        </div>
-        <div style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-default)',
-          borderRadius: '3px',
-          padding: '6px',
-        }}>
-          <div style={{ fontSize: '8.5px', color: 'var(--text-secondary)' }}>+50bp</div>
-          <div style={{
-            fontSize: '11px',
-            fontWeight: 600,
-            color: pnl50 < 0 ? 'var(--semantic-down)' : 'var(--semantic-up)',
-          }}>
-            {pnl50.toFixed(3)}%
-          </div>
-        </div>
-        <div style={{
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-default)',
-          borderRadius: '3px',
-          padding: '6px',
-        }}>
-          <div style={{ fontSize: '8.5px', color: 'var(--text-secondary)' }}>+100bp</div>
-          <div style={{
-            fontSize: '11px',
-            fontWeight: 600,
-            color: pnl100 < 0 ? 'var(--semantic-down)' : 'var(--semantic-up)',
-          }}>
-            {pnl100.toFixed(3)}%
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
    SECTION 10: Central Bank Rates
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -952,19 +810,12 @@ function FixedIncomeScreenImpl({ onBack }) {
       component: EurBondETFSection,
       badge: '5 ETFs',
     },
-    {
-      id: 'duration',
-      title: 'Duration Risk Calculator',
-      span: 'full',
-      component: DurationRiskCalculator,
-      badge: 'Interactive',
-    },
   ];
 
   return (
     <FullPageScreenLayout
       title="FIXED INCOME"
-      subtitle="Treasury curves, credit spreads, corporate bonds, and duration analysis"
+      subtitle="Treasury curves, credit spreads, and corporate bonds"
       accentColor="var(--sector-fixed)"
       vaultSector="fixed-income"
       onBack={onBack}
