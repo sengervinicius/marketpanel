@@ -38,13 +38,35 @@ export function fmt(n, dec = 2) {
   return n.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 }
 
-export function fmtLabel(ts, timespan) {
+export function fmtLabel(ts, timespan, days = 0) {
   if (!ts) return '';
   const d = new Date(ts);
-  if (timespan === 'minute') {
+  if (timespan === 'minute' || timespan === 'hour') {
     return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
   }
+  // FEAT-1c: ranges longer than ~3 months carry a 2-digit year so the
+  // x-axis (and tooltip) can disambiguate — "Jul 14, 26".
+  if (days > 92) {
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+  }
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/**
+ * FEAT-1c — compact, readable x-axis ticks for the detail chart.
+ * Label-driven (works for preset AND custom ranges):
+ *   intraday  "Jul 21, 14:30" → "14:30"
+ *   ≤3M       "Jul 14"        → "JUL 14"
+ *   >3M       "Jul 14, 26"    → "JUL 26"
+ */
+export function xAxisTickFormatter(value) {
+  const s = String(value ?? '');
+  if (!s) return '';
+  let m = s.match(/,\s*(\d{1,2}:\d{2})$/);
+  if (m) return m[1];
+  m = s.match(/^([A-Za-z]{3,})\.?\s+\d{1,2},\s*(\d{2})$/);
+  if (m) return `${m[1].slice(0, 3)} ${m[2]}`.toUpperCase();
+  return s.toUpperCase();
 }
 
 export function timeAgo(utc) {

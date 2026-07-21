@@ -6,6 +6,7 @@ import SkeletonLoader from '../shared/SkeletonLoader';
 import { WORLD_INDEXES } from '../../utils/constants';
 import { COLS_STANDARD } from '../../utils/panelColumns';
 import './IndexPanel.css';
+import { openDetailWindow } from '../../utils/detailWindow';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -75,7 +76,7 @@ function IndexPanel({ data = {}, loading, onTickerClick }) {
                 e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: idx.symbol, name: idx.label, type: 'ETF' }));
               }}
               onClick={() => onTickerClick?.(idx.symbol)}
-              onDoubleClick={() => openDetail(idx.symbol)}
+              onDoubleClick={() => openDetailWindow(idx.symbol)}
               onTouchStart={e => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => openDetail(idx.symbol), 500); }}
               onTouchEnd={() => clearTimeout(ptRef.current)}
               onTouchMove={() => clearTimeout(ptRef.current)}

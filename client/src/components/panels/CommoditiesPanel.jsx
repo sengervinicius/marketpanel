@@ -15,6 +15,7 @@ import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
 import { COLS_TIGHT_SPARK } from '../../utils/panelColumns';
+import { openDetailWindow } from '../../utils/detailWindow';
 
 // Was '44px 1fr 68px 60px' — chg% too narrow for 2-digit moves.
 const COLS = COLS_TIGHT_SPARK;
@@ -281,7 +282,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
                         draggable
                         dragData={{ symbol: c.symbol, name: c.label, type: 'ETF' }}
                         onClick={() => onTickerClick?.(c.symbol)}
-                        onDoubleClick={() => openDetail(c.symbol)}
+                        onDoubleClick={() => openDetailWindow(c.symbol)}
                         onTouchHold={() => openDetail(c.symbol)}
                         touchRef={ptRef}
                         sparklineData={sparklines[c.symbol]}

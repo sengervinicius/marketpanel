@@ -48,6 +48,7 @@ import { useSparklineData } from '../../hooks/useSparklineData';
 import { ASSET_CLASSES, classifyAssetClass } from '../../utils/assetClass';
 import '../common/Shimmer.css';
 import './WatchlistPanel.css';
+import { openDetailWindow } from '../../utils/detailWindow';
 
 // ── Named column VIEWS (Design v1) ──────────────────────────────────
 const WL_VIEW_KEY = 'wlView_v1';
@@ -182,6 +183,7 @@ const WatchlistRow = memo(function WatchlistRow({
 }) {
   const priceCtx = useTickerPrice(position.symbol);
   const ptRef    = useRef(null);
+  const clickRef = useRef(null); // FEAT-1b: single-click delay vs double-click window
 
   const price     = priceCtx?.price     ?? null;
   const changePct = priceCtx?.changePct ?? null;
@@ -227,8 +229,16 @@ const WatchlistRow = memo(function WatchlistRow({
       data-ticker-label={position.symbol}
       data-ticker-type={assetType}
       onClick={(e) => {
-        if (e.ctrlKey || e.altKey || e.metaKey) onEdit(position);
-        else onOpen(position.symbol); // Design v1: click → full InstrumentDetail
+        if (e.ctrlKey || e.altKey || e.metaKey) { onEdit(position); return; }
+        // Design v1: click → full InstrumentDetail (in-app overlay).
+        // FEAT-1b: small delay so a double-click (→ separate window)
+        // doesn't also flash the overlay open underneath.
+        clearTimeout(clickRef.current);
+        clickRef.current = setTimeout(() => onOpen(position.symbol), 250);
+      }}
+      onDoubleClick={() => {
+        clearTimeout(clickRef.current);
+        openDetailWindow(position.symbol); // FEAT-1b: real separate window
       }}
       onMouseEnter={(e) => onHoverStart(position.symbol, e)}
       onMouseLeave={onHoverEnd}

@@ -21,6 +21,7 @@ import { useSparklineData } from '../../hooks/useSparklineData';
 import { COLS_STANDARD_SPARK } from '../../utils/panelColumns';
 import { isUsMarketOpen, isB3MarketOpen } from '../../utils/marketHours';
 import './MoversPanel.css';
+import { openDetailWindow } from '../../utils/detailWindow';
 
 const TABS = [
   { id: 'gainers', label: 'GAINERS' },
@@ -148,7 +149,7 @@ function MoversPanel({ onTickerClick }) {
                 columns={COLS_STANDARD_SPARK}
                 sparklineData={spark}
                 onClick={() => onTickerClick?.(r.symbol)}
-                onDoubleClick={() => openDetail(exchange === 'BR' ? `${r.symbol}.SA` : r.symbol, 'Movers')}
+                onDoubleClick={() => openDetailWindow(exchange === 'BR' ? `${r.symbol}.SA` : r.symbol, 'Movers')}
                 draggable
                 dragData={{ symbol: exchange === 'BR' ? `${r.symbol}.SA` : r.symbol }}
               />

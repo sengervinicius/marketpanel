@@ -37,6 +37,22 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 // AND the user has granted the 'analytics' consent bucket.
 initAnalytics();
 
+// FEAT-interaction-wave 1a/2 — query-param deep links. The app uses
+// HashRouter, so plain-path links like /?detail=AAPL or /?sector=XLK
+// would land on the dashboard. Bridge them onto the hash routes here,
+// before the router mounts (auth still applies — routes only render
+// once the user is logged in).
+try {
+  const _qs = new URLSearchParams(window.location.search);
+  const _detail = _qs.get('detail');
+  const _sector = _qs.get('sector');
+  if (_detail && !window.location.hash.startsWith('#/detail')) {
+    window.location.hash = '#/detail/' + encodeURIComponent(_detail.toUpperCase());
+  } else if (_sector && !window.location.hash.startsWith('#/sector')) {
+    window.location.hash = '#/sector/' + encodeURIComponent(_sector.toUpperCase());
+  }
+} catch { /* malformed query string — ignore */ }
+
 // LandingPage removed — LoginScreen IS the landing page
 import InstrumentDetailPage from './pages/InstrumentDetailPage.jsx'
 import { lazyWithRetry } from './utils/lazyWithRetry.js'

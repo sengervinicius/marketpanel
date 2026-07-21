@@ -35,7 +35,7 @@ import { useToast } from '../../context/ToastContext';
 import { apiFetch } from '../../utils/api';
 import {
   ORANGE, GREEN, RED, RANGES,
-  fmt, fmtLabel, timeAgo, pct, exportToCSV, getFromDate, displayTicker,
+  fmt, fmtLabel, xAxisTickFormatter, timeAgo, pct, exportToCSV, getFromDate, displayTicker,
 } from './InstrumentDetailHelpers';
 import { DeltaLineOverlay, CandlestickOverlay } from './InstrumentDetailCharts';
 import { Section, StatRow } from './InstrumentDetailSections';
@@ -455,7 +455,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
       // Normalize bar format to match main chart bars
       const newBars = rawBars.map(b => ({
-        t: b.t, label: fmtLabel(b.t, range.timespan),
+        t: b.t, label: fmtLabel(b.t, range.timespan, range.days),
         open: b.o ?? b.open, high: b.h ?? b.high, low: b.l ?? b.low,
         close: b.c ?? b.close, volume: b.v ?? b.volume ?? 0,
       }));
@@ -514,9 +514,10 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       if (!res.ok) throw new Error('Failed to fetch custom range');
       const data = await res.json();
       const rawBars = Array.isArray(data.results) ? data.results : [];
+      const customSpanDays = Math.max(0, Math.round((new Date(toStr) - new Date(fromStr)) / 86400000));
       const fetchedBars = rawBars.map(bar => ({
         t: bar.t,
-        label: fmtLabel(bar.t, 'day'),
+        label: fmtLabel(bar.t, 'day', customSpanDays),
         date: bar.t ? new Date(bar.t).toISOString().slice(0, 10) : '',
         open: parseFloat(bar.o ?? bar.open ?? 0),
         high: parseFloat(bar.h ?? bar.high ?? 0),
@@ -748,7 +749,13 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
               <XAxis
                 dataKey="label"
-                tick={{ fill: 'var(--text-faint)', fontSize: 9 }}
+                /* FEAT-1c: readable dates — 10px mono, secondary color,
+                   smart per-range formatter (HH:MM intraday, "JUL 14"
+                   ≤3M, "JUL 26" >3M), no rotation, ~40px min gap. */
+                tick={{ fill: 'var(--text-secondary)', fontSize: 10, fontFamily: 'var(--font-family-mono)' }}
+                tickFormatter={xAxisTickFormatter}
+                minTickGap={40}
+                angle={0}
                 interval="preserveStartEnd"
                 tickLine={false}
                 axisLine={{ stroke: 'var(--border-default)' }}

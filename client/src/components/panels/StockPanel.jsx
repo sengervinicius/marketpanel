@@ -23,6 +23,7 @@ import IntegrityBadge from '../shared/IntegrityBadge';
 import { COLS_STANDARD_SPARK } from '../../utils/panelColumns';
 import '../common/Shimmer.css';
 import './StockPanel.css';
+import { openDetailWindow } from '../../utils/detailWindow';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -104,7 +105,7 @@ function HeatmapCell({ s, data, onTickerClick }) {
       data-ticker-label={s.label}
       data-ticker-type="EQUITY"
       onClick={() => onTickerClick?.(s.symbol)}
-      onDoubleClick={() => openDetail(s.symbol)}
+      onDoubleClick={() => openDetailWindow(s.symbol)}
       onContextMenu={e => showInfo(e, s.symbol, s.label, 'EQUITY')}
       title={`${s.symbol}\n${fmtPct(pct)}`}
       style={{ width: 54, height: 38, background: bg, border: '1px solid var(--border-subtle)' }}
@@ -349,7 +350,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
                     draggable
                     dragData={{ symbol: s.symbol, name: s.label, type: 'EQUITY' }}
                     onClick={() => onTickerClick?.(s.symbol)}
-                    onDoubleClick={() => openDetail(s.symbol)}
+                    onDoubleClick={() => openDetailWindow(s.symbol)}
                     onTouchHold={() => openDetail(s.symbol)}
                     touchRef={ptRef}
                     sparklineData={sparklines[s.symbol]}
@@ -382,7 +383,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
                         draggable
                         dragData={{ symbol: s.symbol, name: s.label, type: 'EQUITY' }}
                         onClick={() => onTickerClick?.(s.symbol)}
-                        onDoubleClick={() => openDetail(s.symbol)}
+                        onDoubleClick={() => openDetailWindow(s.symbol)}
                         onTouchHold={() => openDetail(s.symbol)}
                         touchRef={ptRef}
                         sparklineData={sparklines[s.symbol]}

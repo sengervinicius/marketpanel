@@ -12,6 +12,7 @@ import SkeletonLoader from '../shared/SkeletonLoader';
 import { COLS_INDEX_SPARK } from '../../utils/panelColumns';
 import { apiFetch } from '../../utils/api';
 import { isUsMarketOpen } from '../../utils/marketHours';
+import { openDetailWindow } from '../../utils/detailWindow';
 
 const showInfo = (e, symbol, label, type) => {
   e.preventDefault();
@@ -310,7 +311,7 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
             draggable
             dragData={{ symbol: it.symbol, name: it.name || short, type: 'FUT' }}
             onClick={() => onTickerClick?.(it.symbol)}
-            onDoubleClick={() => openDetail(it.symbol)}
+            onDoubleClick={() => openDetailWindow(it.symbol)}
             onTouchHold={() => openDetail(it.symbol)}
             touchRef={ptRef}
             sparklineData={sparklines[it.symbol]}
@@ -400,7 +401,7 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
                       draggable
                       dragData={{ symbol: ticker, name: NAMES[ticker] || ticker, type: instrumentType }}
                       onClick={() => onTickerClick?.(ticker)}
-                      onDoubleClick={() => openDetail(ticker)}
+                      onDoubleClick={() => openDetailWindow(ticker)}
                       onTouchHold={() => openDetail(ticker)}
                       touchRef={ptRef}
                       sparklineData={sparklines[ticker]}

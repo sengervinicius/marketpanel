@@ -16,6 +16,7 @@ import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
 import IntegrityBadge from '../shared/IntegrityBadge';
 import { COLS_FOREX_SPARK } from '../../utils/panelColumns';
+import { openDetailWindow } from '../../utils/detailWindow';
 
 // Was '72px 1fr 76px 64px' — chg% too narrow for 2-digit moves (USDARS can spike).
 const COLS = COLS_FOREX_SPARK;
@@ -308,7 +309,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
                 draggable
                 dragData={{ symbol: DXY_TICKER, name: DXY_LABEL, type: 'INDEX' }}
                 onClick={() => onTickerClick?.(DXY_TICKER)}
-                onDoubleClick={() => openDetail(DXY_TICKER)}
+                onDoubleClick={() => openDetailWindow(DXY_TICKER)}
                 onTouchHold={() => openDetail(DXY_TICKER)}
                 touchRef={ptRef}
                 onContextMenu={e => showInfo(e, DXY_TICKER, DXY_LABEL, 'INDEX')}
@@ -338,7 +339,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
                   draggable
                   dragData={{ symbol: chartSym, name: pair.label, type: 'CURRENCY' }}
                   onClick={() => onTickerClick?.(chartSym)}
-                  onDoubleClick={() => openDetail(chartSym)}
+                  onDoubleClick={() => openDetailWindow(chartSym)}
                   onTouchHold={() => openDetail(chartSym)}
                   touchRef={ptRef}
                   onContextMenu={e => showInfo(e, pair.symbol, pair.label, 'FX')}
@@ -377,7 +378,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
                   draggable
                   dragData={{ symbol: chartSym, name: c.label, type: 'CRYPTO' }}
                   onClick={() => onTickerClick?.(chartSym)}
-                  onDoubleClick={() => openDetail(chartSym)}
+                  onDoubleClick={() => openDetailWindow(chartSym)}
                   onTouchHold={() => openDetail(chartSym)}
                   touchRef={ptRef}
                   onContextMenu={e => showInfo(e, c.symbol, c.label, 'CRYPTO')}
@@ -416,7 +417,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
                       draggable
                       dragData={{ symbol: p.symbol, name: p.label, type: 'FX' }}
                       onClick={() => onTickerClick?.(p.symbol)}
-                      onDoubleClick={() => openDetail(p.symbol)}
+                      onDoubleClick={() => openDetailWindow(p.symbol)}
                       onTouchHold={() => openDetail(p.symbol)}
                       touchRef={ptRef}
                       onContextMenu={e => showInfo(e, p.symbol, p.label, 'FX')}

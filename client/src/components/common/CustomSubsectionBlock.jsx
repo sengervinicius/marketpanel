@@ -8,6 +8,7 @@ import { useState, useRef, useEffect, memo } from 'react';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import useMergedTickerQuote from './useMergedTickerQuote';
 import './CustomSubsectionBlock.css';
+import { openDetailWindow } from '../../utils/detailWindow';
 
 const fmt = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -42,7 +43,7 @@ function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onRe
         onDragStart?.(e, sym);
       }}
       onClick={() => onTickerClick?.(sym)}
-      onDoubleClick={() => openDetail?.(sym)}
+      onDoubleClick={() => openDetailWindow(sym)}
       className={`csb-row${flash ? ' price-row-flash' : ''}`}
       style={{ gridTemplateColumns: gridCols }}
       role="button"
