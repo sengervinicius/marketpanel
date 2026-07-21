@@ -292,6 +292,10 @@ export function useInstrumentSearch({ debounceMs = 220, registryLimit = 20, enab
           primaryExchange: r.primaryExchange || r.market || '',
           exchange: r.exchange || '',
           active: r.active,
+          // FEAT-4: server-side primary-ticker ranking metadata
+          primary: r.primary === true,
+          groupId: r.groupId || null,
+          listings: r.listings || 1,
           _source: 'polygon',
         }));
 

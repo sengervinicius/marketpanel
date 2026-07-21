@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, memo, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, memo, useMemo } from 'react';
 import { TOKEN_HEX } from '../../utils/tokenHex';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
 import { useSettings } from '../../context/SettingsContext';
@@ -288,6 +288,12 @@ function EnhancedResultRow({ item, idx, isSelected, onSelect, onDragStart, cover
 
       {/* Badges container */}
       <div className="sp-badge-container">
+        {/* FEAT-4: best listing of a multi-venue company group */}
+        {item.primary && (item.listings || 1) > 1 && (
+          <span className="sp-primary-badge" title={`Primary listing — ${(item.listings || 1) - 1} other venue${(item.listings || 1) > 2 ? 's' : ''} collapsed below`}>
+            PRIMARY
+          </span>
+        )}
         {(() => {
           const assetType = deriveAssetType(item);
           const typeBadge = ASSET_TYPE_BADGE[assetType];
@@ -315,6 +321,8 @@ function SearchPanel({ onTickerSelect }) {
   const openDetail = useOpenDetail();
 
   const [addedToHome,   setAddedToHome]   = useState(null);
+  // FEAT-4: per-group "+ N other listings" expansion state (reset per query)
+  const [expandedGroups, setExpandedGroups] = useState(() => new Set());
   const [isFocused,     setIsFocused]     = useState(false);
   const [searchError,   setSearchError]   = useState(null);
   const [isAIMode,      setIsAIMode]      = useState(false);
@@ -336,11 +344,39 @@ function SearchPanel({ onTickerSelect }) {
     return trimmed.startsWith('@ai ') || trimmed.startsWith('?');
   };
 
+  // FEAT-4: collapse secondary listings under their primary. Builds the
+  // render list: item rows (secondaries hidden unless expanded) plus one
+  // expander row per collapsed group.
+  const displayEntries = useMemo(() => {
+    const entries = [];
+    const groupCounts = {};
+    for (const item of results) {
+      if (item.groupId) groupCounts[item.groupId] = (groupCounts[item.groupId] || 0) + 1;
+    }
+    for (const item of results) {
+      const gid = item.groupId;
+      if (!gid || item.primary) {
+        entries.push({ kind: 'item', item });
+        if (gid && !expandedGroups.has(gid) && groupCounts[gid] > 1) {
+          entries.push({ kind: 'expander', gid, count: groupCounts[gid] - 1 });
+        }
+      } else if (expandedGroups.has(gid)) {
+        entries.push({ kind: 'item', item, secondary: true });
+      }
+    }
+    return entries;
+  }, [results, expandedGroups]);
+  const displayResults = useMemo(
+    () => displayEntries.filter(e => e.kind === 'item').map(e => e.item),
+    [displayEntries],
+  );
+  useEffect(() => { setExpandedGroups(new Set()); }, [query]);
+
   // Arrow key navigation, Enter, Escape
   const handleKeyDown = useCallback((e) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIdx(i => Math.min(i + 1, results.length - 1));
+      setSelectedIdx(i => Math.min(i + 1, displayResults.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedIdx(i => Math.max(i - 1, -1));
@@ -355,8 +391,8 @@ function SearchPanel({ onTickerSelect }) {
       } else {
         // In ticker mode: select from results
         const targetIdx = selectedIdx >= 0 ? selectedIdx : 0;
-        if (results.length > targetIdx && targetIdx >= 0) {
-          handleSelect(results[targetIdx]);
+        if (displayResults.length > targetIdx && targetIdx >= 0) {
+          handleSelect(displayResults[targetIdx]);
         }
       }
     } else if (e.key === 'Escape') {
@@ -365,7 +401,7 @@ function SearchPanel({ onTickerSelect }) {
       setIsFocused(false);
       setIsAIMode(false);
     }
-  }, [results, selectedIdx, isAIMode, query, searchAI]);
+  }, [displayResults, selectedIdx, isAIMode, query, searchAI]);
 
   const handleSelect = useCallback((item) => {
     addToRecents(item);
@@ -487,20 +523,39 @@ function SearchPanel({ onTickerSelect }) {
           <div className="sp-results-header">
             <span className="sp-results-header-text">DRAG RESULTS TO ANY PANEL TO ADD TICKERS</span>
           </div>
-          {results.map((item, idx) => (
-            <EnhancedResultRow
-              key={item.symbol || item.symbolKey}
-              item={item}
-              idx={idx}
-              isSelected={selectedIdx}
-              onSelect={handleSelect}
-              onDragStart={handleDragStart}
-              coverageLevel={coverageLevel}
-              COVERAGE_DOT={COVERAGE_DOT}
-              COVERAGE_TAG={COVERAGE_TAG}
-              ASSET_TYPE_BADGE={ASSET_TYPE_BADGE}
-            />
-          ))}
+          {(() => {
+            let itemIdx = -1;
+            return displayEntries.map((entry) => {
+              if (entry.kind === 'expander') {
+                return (
+                  <button
+                    key={`exp-${entry.gid}`}
+                    className="sp-group-expander"
+                    onClick={() => setExpandedGroups(prev => { const next = new Set(prev); next.add(entry.gid); return next; })}
+                    title="Show secondary venues (OTC, foreign floors, ADR mirrors) for this company"
+                  >
+                    + {entry.count} other listing{entry.count === 1 ? '' : 's'}
+                  </button>
+                );
+              }
+              const item = entry.item;
+              itemIdx += 1;
+              return (
+                <EnhancedResultRow
+                  key={item.symbol || item.symbolKey}
+                  item={item}
+                  idx={itemIdx}
+                  isSelected={selectedIdx}
+                  onSelect={handleSelect}
+                  onDragStart={handleDragStart}
+                  coverageLevel={coverageLevel}
+                  COVERAGE_DOT={COVERAGE_DOT}
+                  COVERAGE_TAG={COVERAGE_TAG}
+                  ASSET_TYPE_BADGE={ASSET_TYPE_BADGE}
+                />
+              );
+            });
+          })()}
         </div>
       )}
 
