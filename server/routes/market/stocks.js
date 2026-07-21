@@ -74,6 +74,9 @@ const DEFAULT_STOCK_TICKERS = [
   // the GlobalIndicesPanel defaults; the ETF proxies below remain as
   // per-row fallbacks and for saved user lists.
   '^GSPC','^IXIC','^DJI','^BVSP','^STOXX50E','^FTSE','^N225','^HSI','^RUT',
+  // wave-nov item 2 — broadened Global Indexes defaults (DAX, CAC 40, TSX,
+  // MEXBOL, Shanghai Composite, KOSPI, ASX 200, SENSEX).
+  '^GDAXI','^FCHI','^GSPTSE','^MXX','000001.SS','^KS11','^AXJO','^BSESN',
   // P2 item 6 — DXY (US Dollar Index) for the FX panel's first row.
   'DX-Y.NYB',
   'SPY','QQQ','IWM','DIA','EWZ','EWW','EEM','EFA','FXI','EWJ',
@@ -633,6 +636,8 @@ router.get('/snapshot/global-indices', async (req, res) => {
     const tickers = [
       // P2 item 2 — real indices first, ETF proxies retained for fallback.
       '^GSPC','^IXIC','^DJI','^BVSP','^STOXX50E','^FTSE','^N225','^HSI','^RUT',
+      // wave-nov item 2 — new default indices.
+      '^GDAXI','^FCHI','^GSPTSE','^MXX','000001.SS','^KS11','^AXJO','^BSESN',
       'SPY','QQQ','DIA','EWZ','EWW','EWC',
       'EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD',
       'EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'

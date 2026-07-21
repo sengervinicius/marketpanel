@@ -47,7 +47,16 @@ const LEGACY_COMMODITIES_BACKFILL = [
 // P2 item 2 — Global Indexes defaults are now REAL index symbols (Yahoo ^),
 // not ETF proxies. Users who saved a custom list keep it; the v3 migration
 // below only swaps lists that exactly match a legacy default.
+// wave-nov item 2 (v4) — broadened default coverage: DAX/CAC under EMEA,
+// TSX/MEXBOL under AMERICAS, Shanghai/KOSPI/ASX/SENSEX under ASIA-PAC.
 const CIO_GLOBAL_INDICES_DEFAULTS = [
+  '^GSPC','^IXIC','^DJI','^RUT','^GSPTSE','^MXX','^BVSP',
+  '^STOXX50E','^FTSE','^GDAXI','^FCHI',
+  '^N225','^HSI','000001.SS','^KS11','^AXJO','^BSESN',
+];
+// The v3 default (pre wave-nov) — users still on this unmodified list are
+// migrated to the v4 default above.
+const CIO_GLOBAL_INDICES_DEFAULTS_V3 = [
   '^GSPC','^IXIC','^DJI','^BVSP','^STOXX50E','^FTSE','^N225','^HSI','^RUT',
 ];
 const LEGACY_GLOBAL_INDICES_DEFAULTS = [
@@ -74,7 +83,7 @@ function defaultSettings() {
     watchlist: [],
     // Bumped when we add a new CIO-mandated ticker to defaults; the
     // migration below uses this version to decide whether to back-fill.
-    settingsVersion: 3,
+    settingsVersion: 4,
     panels: {
       brazilB3:     { title: 'Brazil B3',      symbols: [...CIO_BRAZIL_DEFAULTS] },
       usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRK-B','GS','WMT','LLY','V','ORCL'] },
@@ -106,7 +115,7 @@ function defaultSettings() {
  */
 function migrateLegacySettings(saved) {
   if (!saved || typeof saved !== 'object') return { settings: saved, migrated: false };
-  if (saved.settingsVersion >= 3) return { settings: saved, migrated: false };
+  if (saved.settingsVersion >= 4) return { settings: saved, migrated: false };
 
   const next = { ...saved, panels: { ...(saved.panels || {}) } };
   let changed = false;
@@ -193,19 +202,38 @@ function migrateLegacySettings(saved) {
   // ── v2 → v3 (P2 item 2): Global Indexes ETF proxies → real indices ──
   // Only lists that EXACTLY match a legacy default are swapped; any
   // user-customized list is left untouched.
-  const gi = next.panels.globalIndices;
-  if (gi && typeof gi === 'object' && Array.isArray(gi.symbols)) {
-    const savedKey = [...gi.symbols].sort().join(',');
-    const isLegacyDefault = LEGACY_GLOBAL_INDICES_DEFAULTS.some(
-      l => [...l].sort().join(',') === savedKey
-    );
-    if (isLegacyDefault) {
-      next.panels.globalIndices = { ...gi, symbols: [...CIO_GLOBAL_INDICES_DEFAULTS] };
-      changed = true;
+  if (!(saved.settingsVersion >= 3)) {
+    const gi = next.panels.globalIndices;
+    if (gi && typeof gi === 'object' && Array.isArray(gi.symbols)) {
+      const savedKey = [...gi.symbols].sort().join(',');
+      const isLegacyDefault = LEGACY_GLOBAL_INDICES_DEFAULTS.some(
+        l => [...l].sort().join(',') === savedKey
+      );
+      if (isLegacyDefault) {
+        next.panels.globalIndices = { ...gi, symbols: [...CIO_GLOBAL_INDICES_DEFAULTS_V3] };
+        changed = true;
+      }
     }
   }
 
-  next.settingsVersion = 3;
+  // ── v3 → v4 (wave-nov item 2): broadened Global Indexes defaults ──
+  // DAX, CAC 40, TSX, MEXBOL, Shanghai, KOSPI, ASX 200, SENSEX join the
+  // default list — but ONLY for users still on an unmodified default
+  // (the v3 default or, defensively, any older legacy default).
+  {
+    const gi = next.panels.globalIndices;
+    if (gi && typeof gi === 'object' && Array.isArray(gi.symbols)) {
+      const savedKey = [...gi.symbols].sort().join(',');
+      const isUnmodifiedDefault = [CIO_GLOBAL_INDICES_DEFAULTS_V3, ...LEGACY_GLOBAL_INDICES_DEFAULTS]
+        .some(l => [...l].sort().join(',') === savedKey);
+      if (isUnmodifiedDefault) {
+        next.panels.globalIndices = { ...gi, symbols: [...CIO_GLOBAL_INDICES_DEFAULTS] };
+        changed = true;
+      }
+    }
+  }
+
+  next.settingsVersion = 4;
   return { settings: next, migrated: changed };
 }
 
