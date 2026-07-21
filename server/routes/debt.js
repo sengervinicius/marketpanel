@@ -431,15 +431,60 @@ const RATES_TAPE_SERIES = [
   { id: 'igOas',        label: 'IG OAS',   seriesId: 'BAMLC0A0CM',   unit: 'bp' },
 ];
 
+// ── Global 10Y monthly sovereigns (MORE SOVEREIGNS, additive) ────────────────
+// FRED mirrors the OECD "long-term interest rate" (10Y benchmark) series
+// monthly. These back the 10Y-only rows on the GLOBAL 10Y board for countries
+// that have no live intraday curve source in this app. Monthly data -> 12h
+// cache (a shorter TTL would just re-fetch the same observation). Each row
+// carries freq:'M' so the client can render the monthly staleness badge.
+const GLOBAL_10Y_MONTHLY = [
+  { country: 'JP', label: 'JAPAN',     seriesId: 'IRLTLT01JPM156N' },
+  { country: 'MX', label: 'MEXICO',    seriesId: 'IRLTLT01MXM156N' },
+  { country: 'AU', label: 'AUSTRALIA', seriesId: 'IRLTLT01AUM156N' },
+  { country: 'NO', label: 'NORWAY',    seriesId: 'IRLTLT01NOM156N' },
+  { country: 'SE', label: 'SWEDEN',    seriesId: 'IRLTLT01SEM156N' },
+];
+const GLOBAL_10Y_TTL = 12 * 60 * 60 * 1000; // 12h — series prints ~monthly
+
+async function getGlobal10yMonthly() {
+  const ck = 'debt:global10y:monthly';
+  const c  = cacheGet(ck);
+  if (c) return c;
+
+  const settled = await Promise.allSettled(
+    GLOBAL_10Y_MONTHLY.map(s => fred.fetchLatestPair(s.seriesId))
+  );
+  const rows = GLOBAL_10Y_MONTHLY.map((s, i) => {
+    const r = settled[i].status === 'fulfilled' ? settled[i].value : null;
+    return {
+      country:  s.country,
+      label:    s.label,
+      seriesId: s.seriesId,
+      tenor:    '10Y',
+      freq:     'M',
+      value:    r && r.value != null ? parseFloat(r.value.toFixed(2)) : null,
+      asOfDate: r ? r.date : null,
+    };
+  });
+  // Cache only when at least one country resolved; a total FRED outage
+  // should retry on the next request, not be pinned for 12h.
+  if (rows.some(r => r.value != null)) cacheSet(ck, rows, GLOBAL_10Y_TTL);
+  return rows;
+}
+
 router.get('/rates-tape', async (req, res) => {
   try {
     const ck = 'debt:rates-tape';
     const c  = cacheGet(ck);
     if (c) return res.json(c);
 
-    const settled = await Promise.allSettled(
-      RATES_TAPE_SERIES.map(sr => fred.fetchLatestPair(sr.seriesId))
-    );
+    const [settled, global10y] = await Promise.all([
+      Promise.allSettled(
+        RATES_TAPE_SERIES.map(sr => fred.fetchLatestPair(sr.seriesId))
+      ),
+      // Additive block — its own 12h cache; a failure degrades to [].
+      getGlobal10yMonthly().catch(() => []),
+    ]);
 
     const tape = RATES_TAPE_SERIES.map((sr, i) => {
       const r = settled[i].status === 'fulfilled' ? settled[i].value : null;
@@ -457,7 +502,7 @@ router.get('/rates-tape', async (req, res) => {
     });
 
     const ok = tape.some(t => t.value != null);
-    const resp = { ok, tape, source: 'fred', asOf: Date.now() };
+    const resp = { ok, tape, global10y, source: 'fred', asOf: Date.now() };
     if (ok) cacheSet(ck, resp, 30 * 60 * 1000);
     return res.json(resp);
   } catch (err) {
