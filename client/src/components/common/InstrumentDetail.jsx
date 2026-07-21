@@ -2321,7 +2321,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       onMouseDown={asPage ? undefined : (e => { if (e.target === e.currentTarget) handleClose(); })}
     >
       {/* ── HERO PRICE BLOCK (hidden on mobile asPage to save space) ── */}
-      <div className={`id-hero${asPage && isMobile ? ' id-hero--hidden' : ''}`}>
+      <div className={"id-hero" + (asPage ? " id-hero--hidden" : "")}>
         <div className="id-hero-meta">
           <div>
             <div className="id-hero-ticker" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
