@@ -63,6 +63,8 @@ import {
 } from './lazyPanels';
 import ToastContainer from './components/common/ToastContainer';
 import SectorScreenSelector from './components/common/SectorScreenSelector';
+import { OverlayProvider } from './components/overlay/OverlayContext';
+import OverlayHost from './components/overlay/OverlayHost';
 import MarketStatus from './components/common/MarketStatus';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import PanelErrorBoundary from './components/common/PanelErrorBoundary';
@@ -819,6 +821,7 @@ export default function App() {
       <PriceProvider marketData={mergedData}>
       <PanelProvider value={panelCtx}>
       <ParticleChatProvider>
+      <OverlayProvider>
       <div className="flex-col" style={{
         height: '100vh',
         background: 'var(--bg-app)',
@@ -1382,6 +1385,8 @@ export default function App() {
         <TickerTooltip />
         <ToastContainer />
       </div>
+      <OverlayHost />
+      </OverlayProvider>
       </ParticleChatProvider>
       </PanelProvider>
       </PriceProvider>
@@ -1412,6 +1417,7 @@ export default function App() {
     <PriceProvider marketData={mergedData}>
     <PanelProvider value={panelCtx}>
     <ParticleChatProvider>
+    <OverlayProvider>
     <div className="m-app-shell">
 
       {/* Terms of Service acceptance (first login, mobile) */}
@@ -1795,6 +1801,8 @@ export default function App() {
       <TickerTooltip />
       <ToastContainer />
     </div>
+    <OverlayHost />
+    </OverlayProvider>
     </ParticleChatProvider>
     </PanelProvider>
     </PriceProvider>
