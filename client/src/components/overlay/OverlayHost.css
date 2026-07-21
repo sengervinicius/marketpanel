@@ -1,0 +1,178 @@
+/* OverlayHost — full-viewport overlay frame (Phase S §4).
+ * Sits over the terminal (z below the command palette's 10000 so Cmd+K
+ * still wins), slides/fades in ~150ms. */
+
+.ol-root {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  animation: ol-enter 150ms ease-out;
+}
+
+@keyframes ol-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ol-root { animation: none; }
+}
+
+.ol-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-strong);
+  background: var(--color-surface);
+  flex: none;
+}
+
+.ol-title {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.ol-tabs { display: flex; gap: 6px; align-items: center; }
+
+.ol-chip {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+  background: none;
+  padding: 1px 7px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.ol-chip:hover { color: var(--text-secondary); }
+.ol-chip--on { color: var(--accent); border-color: var(--accent); }
+
+.ol-spacer { flex: 1; }
+
+.ol-esc {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+  background: none;
+  padding: 1px 7px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.ol-esc:hover { color: var(--text-secondary); border-color: var(--text-muted); }
+
+.ol-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.ol-loading {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 40px;
+  text-align: center;
+}
+
+/* ── Shared overlay primitives (grid + cells per mockup §4) ───────── */
+
+.ol-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border-subtle);
+  border: 1px solid var(--border-subtle);
+}
+@media (max-width: 1100px) { .ol-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 700px)  { .ol-grid { grid-template-columns: 1fr; } }
+
+.ol-cell {
+  background: var(--color-surface);
+  padding: 8px 10px;
+  min-height: 120px;
+}
+
+.ol-cell-h {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.ol-cell-h .ol-cell-note { color: var(--text-faint); letter-spacing: 0.04em; text-transform: none; }
+
+.ol-mini { font-size: 11px; color: var(--text-secondary); line-height: 1.7; font-family: var(--font-mono); }
+.ol-mini .num { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.ol-up   { color: var(--color-up); }
+.ol-down { color: var(--color-down); }
+.ol-acc  { color: var(--accent); }
+.ol-dim  { color: var(--text-muted); }
+
+.ol-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.ol-row .sym { font-weight: 700; color: var(--text-primary); }
+.ol-row .nm  { color: var(--text-muted); font-size: 9.5px; margin-left: 6px; font-family: var(--font-ui); }
+
+.ol-placeholder {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 6px 0;
+  line-height: 1.6;
+}
+
+/* Section head inside wide tabs (RATES / FILINGS) */
+.ol-sechead {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 14px 0 6px;
+}
+.ol-sechead::after { content: ''; flex: 1; height: 1px; background: var(--border-subtle); }
+.ol-sechead:first-child { margin-top: 0; }
+
+/* Simple mono table (Tesouro / spreads matrix / filings) */
+.ol-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; }
+.ol-table th {
+  text-align: right; font-size: 8.5px; letter-spacing: 0.1em; color: var(--text-muted);
+  font-weight: 400; text-transform: uppercase; padding: 3px 8px; border-bottom: 1px solid var(--border-subtle);
+}
+.ol-table th:first-child, .ol-table td:first-child { text-align: left; }
+.ol-table td {
+  text-align: right; padding: 3px 8px; border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary); font-variant-numeric: tabular-nums;
+}
+.ol-table td.strong { color: var(--text-primary); font-weight: 700; }
+.ol-table tr:hover td { background: var(--color-surface-2); }
+
+/* Country multi-select chips (Rates overlay CURVES tab) */
+.ol-ctry-chips { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }

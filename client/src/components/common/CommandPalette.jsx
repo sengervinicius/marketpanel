@@ -23,16 +23,9 @@ const COMMAND_GROUPS = [
     commands: [
       { id: 'home', label: 'Go to Home', action: 'navigate', target: 'home', shortcut: 'Cmd+H' },
       { id: 'options-flow', label: 'Go to Options Flow', action: 'navigate', target: 'options-flow' },
-      { id: 'defence', label: 'Go to Defence Screen', action: 'navigate', target: 'defence', shortcut: 'Cmd+1' },
-      { id: 'commodities', label: 'Go to Commodities Screen', action: 'navigate', target: 'commodities', shortcut: 'Cmd+2' },
-      { id: 'brazil-em', label: 'Go to Brazil EM Screen', action: 'navigate', target: 'brazil-em', shortcut: 'Cmd+3' },
-      { id: 'technology', label: 'Go to Technology Screen', action: 'navigate', target: 'technology', shortcut: 'Cmd+4' },
-      { id: 'global-macro', label: 'Go to Global Macro Screen', action: 'navigate', target: 'global-macro', shortcut: 'Cmd+5' },
-      { id: 'fixed-income', label: 'Go to Fixed Income Screen', action: 'navigate', target: 'fixed-income', shortcut: 'Cmd+6' },
-      { id: 'global-retail', label: 'Go to Global Retail Screen', action: 'navigate', target: 'global-retail', shortcut: 'Cmd+7' },
-      { id: 'asian-markets', label: 'Go to Asian Markets Screen', action: 'navigate', target: 'asian-markets', shortcut: 'Cmd+8' },
-      { id: 'european-markets', label: 'Go to European Markets Screen', action: 'navigate', target: 'european-markets', shortcut: 'Cmd+9' },
-      { id: 'crypto', label: 'Go to Crypto Screen', action: 'navigate', target: 'crypto', shortcut: 'Cmd+0' },
+      // Phase S §4 — deep-view overlays (successors of the sector screens)
+      { id: 'overlay-brazil', label: 'Open Brazil view', action: 'overlay', target: 'brazil' },
+      { id: 'overlay-rates', label: 'Open Rates view', action: 'overlay', target: 'rates' },
     ],
   },
   {

@@ -48,21 +48,12 @@ import {
   WelcomeTour,
   VaultPanel,
   AdminDashboard,
-  DefenceScreen,
-  CommoditiesScreen,
-  GlobalMacroScreen,
-  FixedIncomeScreen,
-  BrazilScreen,
-  TechAIScreen,
-  GlobalRetailScreen,
-  AsianMarketsScreen,
-  EuropeanMarketsScreen,
-  CryptoScreen,
   InstrumentDetail,
   AlertEditor,
 } from './lazyPanels';
 import ToastContainer from './components/common/ToastContainer';
-import SectorScreenSelector from './components/common/SectorScreenSelector';
+import { OverlayProvider } from './components/overlay/OverlayContext';
+import OverlayHost from './components/overlay/OverlayHost';
 import MarketStatus from './components/common/MarketStatus';
 import { TickerTooltip } from './components/common/TickerTooltip';
 import PanelErrorBoundary from './components/common/PanelErrorBoundary';
@@ -114,7 +105,6 @@ import PricingModal from './components/app/PricingModal';
 import {
   TermsAcceptanceModal,
   AppErrorBoundary,
-  ScreenFallback,
   InstrumentDetailSkeleton,
 } from './components/app/AppBoundaries';
 import SentimentStrip from './components/SentimentStrip';
@@ -363,9 +353,9 @@ export default function App() {
   // ── Global alert composer (opened from Particle AI action button) ────────
   const [alertComposerTicker, setAlertComposerTicker] = useState(null);
 
-  // ── Sector screen state (Wave 2) ────────────────────────────────────────
-  const [activeSectorScreen, setActiveSectorScreen] = useState(null);
-  const [sectorSelectorOpen, setSectorSelectorOpen] = useState(false);
+  // Phase S §4 — sector screens are dead: the full-viewport overlays
+  // (OverlayHost) replaced them. The screen components remain in the repo
+  // (unreachable) pending a dead-code sweep; see components/screens/.
   // Phase 10.7: Morning Brief inbox drawer
   const [briefInboxOpen, setBriefInboxOpen] = useState(false);
   const { inbox: briefInbox, unread: briefUnread, loading: briefInboxLoading,
@@ -388,40 +378,9 @@ export default function App() {
     try { localStorage.setItem('particle_layout_seen', '1'); } catch (e) { swallow(e, 'App.ls.layout_seen_set'); }
   }, []);
 
-  // Map selector IDs → screen components
-  const SCREEN_MAP = useMemo(() => ({
-    'defence':          DefenceScreen,
-    'commodities':      CommoditiesScreen,
-    'brazil-em':        BrazilScreen,
-    'technology':       TechAIScreen,
-    'global-macro':     GlobalMacroScreen,
-    'fixed-income':     FixedIncomeScreen,
-    // Wave 4 — all 10 screens fully built:
-    'global-retail':    GlobalRetailScreen,
-    'asian-markets':    AsianMarketsScreen,
-    'european-markets': EuropeanMarketsScreen,
-    'crypto':           CryptoScreen,
-  }), []);
-
-  const handleSelectSectorScreen = useCallback((screenId) => {
-    // Phase 4: special navigation targets
-    if (screenId === 'vault') {
-      setMobileModePersist('vault');
-      return;
-    }
-    if (screenId === 'predictions') {
-      // Navigate to predictions via More tab sub-view
-      setActiveTabPersist('more');
-      setMoreView('predictions');
-      return;
-    }
-    setActiveSectorScreen(screenId);
-    setSectorSelectorOpen(false);
-  }, []);
-
   const handleGoHome = useCallback(() => {
-    setActiveSectorScreen(null);
-    setSectorSelectorOpen(false);
+    // Home = the terminal grid; close any deep-view overlay.
+    window.dispatchEvent(new CustomEvent('particle-close-overlay'));
   }, []);
 
   // Global keyboard shortcuts (placed after state/callback declarations it depends on)
@@ -443,27 +402,13 @@ export default function App() {
         if (searchInput) searchInput.focus();
       }
 
-      // Ctrl/Cmd + 1-9 and 0 = sector screens
-      if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '9') {
-        e.preventDefault();
-        const screens = ['defence', 'commodities', 'brazil-em', 'technology', 'global-macro', 'fixed-income', 'global-retail', 'asian-markets', 'european-markets'];
-        const idx = parseInt(e.key) - 1;
-        if (idx < screens.length) setActiveSectorScreen(screens[idx]);
-      } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
-        e.preventDefault();
-        setActiveSectorScreen('crypto');
-      }
+      // Ctrl/Cmd + 1-9/0 (sector screens) retired with the screens —
+      // overlays open from the things themselves (panel titles, Cmd+K).
 
       // Ctrl/Cmd + H = home
       if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
         e.preventDefault();
         handleGoHome();
-      }
-
-      // Escape = close selector or go home
-      if (e.key === 'Escape') {
-        if (sectorSelectorOpen) setSectorSelectorOpen(false);
-        else if (activeSectorScreen) handleGoHome();
       }
 
       // ? = show keyboard shortcuts
@@ -474,7 +419,7 @@ export default function App() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [setActiveSectorScreen, handleGoHome, sectorSelectorOpen, activeSectorScreen, setSectorSelectorOpen]);
+  }, [handleGoHome]);
 
   // Listen for particle-prefill events from HeaderSearchBar / TickerContextMenu
   // Navigates to ParticleScreen and persists query for mount-time pickup
@@ -788,7 +733,7 @@ export default function App() {
   }, []);
   const mobileScreenTitle = useMemo(() => {
     if (activeTab === 'more' && moreView) {
-      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel', sectors: 'Sector Screens', predictions: 'Prediction Markets' };
+      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel', predictions: 'Prediction Markets' };
       return titles[moreView] || moreView;
     }
     return null;
@@ -819,6 +764,7 @@ export default function App() {
       <PriceProvider marketData={mergedData}>
       <PanelProvider value={panelCtx}>
       <ParticleChatProvider>
+      <OverlayProvider>
       <div className="flex-col" style={{
         height: '100vh',
         background: 'var(--bg-app)',
@@ -869,10 +815,14 @@ export default function App() {
               else addPanel(cmd.target);
               return;
             }
+            if (cmd.action === 'overlay') {
+              // Phase S §4 — full-screen deep views (OverlayProvider listens)
+              window.dispatchEvent(new CustomEvent('particle-open-overlay', { detail: { id: cmd.target } }));
+              return;
+            }
             if (cmd.action === 'navigate') {
               if (cmd.target === 'home') handleGoHome();
               else if (cmd.target === 'admin') { if (isAdmin) setMobileModePersist('admin'); }
-              else setActiveSectorScreen(cmd.target);
             } else if (cmd.action === 'chat') {
               if (isMobile) setChatOpen(true);
               else { const el = document.querySelector('[data-tour="header"] input, .search-panel input'); if (el) el.focus(); }
@@ -888,14 +838,6 @@ export default function App() {
               } else if (cmd.target === 'clear-chat') window.dispatchEvent(new CustomEvent('particle-clear-chat'));
             }
           }}
-        />
-
-        {/* Sector Screen Selector overlay */}
-        <SectorScreenSelector
-          isOpen={sectorSelectorOpen}
-          onClose={() => setSectorSelectorOpen(false)}
-          onSelect={handleSelectSectorScreen}
-          activeScreen={activeSectorScreen}
         />
 
         {/* Global feedback pill — bottom-right, always available */}
@@ -964,11 +906,12 @@ export default function App() {
             )}
           </div>
 
-          {/* Navigation buttons (terminal mode only) */}
-          {mobileMode === 'terminal' && (<>
+          {/* Navigation (terminal mode only). SECTOR SCREENS died with
+              Phase S §4 — overlays open from panel titles and Cmd+K. */}
+          {mobileMode === 'terminal' && (
           <button
             className="btn hdr-nav-btn"
-            data-active={!activeSectorScreen}
+            data-active={true}
             onClick={handleGoHome}
             title="Home Screen"
             aria-label="Go to home screen"
@@ -978,33 +921,13 @@ export default function App() {
               fontSize: 11,
               fontWeight: 600,
               letterSpacing: '0.5px',
-              color: !activeSectorScreen ? 'var(--color-text-inverse)' : 'var(--text-muted)',
-              border: `1px solid ${!activeSectorScreen ? 'var(--accent)' : 'var(--border-strong)'}`,
-              background: !activeSectorScreen ? 'var(--accent)' : 'none',
+              color: 'var(--color-text-inverse)',
+              border: '1px solid var(--accent)',
+              background: 'var(--accent)',
               borderRadius: 4,
             }}
           >HOME</button>
-          <button
-            className="btn hdr-nav-btn"
-            data-active={Boolean(sectorSelectorOpen || activeSectorScreen)}
-            onClick={() => setSectorSelectorOpen(s => !s)}
-            data-tour="sector-screens"
-            title="Open Sector Screens"
-            aria-label="Open sector screens"
-            aria-expanded={sectorSelectorOpen}
-            style={{
-              marginLeft: 6,
-              padding: '3px 10px',
-              fontSize: 11,
-              fontWeight: 600,
-              letterSpacing: '0.5px',
-              color: sectorSelectorOpen || activeSectorScreen ? 'var(--color-text-inverse)' : 'var(--text-muted)',
-              border: `1px solid ${sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'var(--border-strong)'}`,
-              background: sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'none',
-              borderRadius: 4,
-            }}
-          >SECTOR SCREENS</button>
-          </>)}
+          )}
           <div style={{ flex: 1 }} />
           <WorldClock />
           <MarketStatus />
@@ -1150,7 +1073,7 @@ export default function App() {
           <HeaderSearchBar />
         </div>
 
-        {/* (MarketScreenGallery removed — Wave 2: use Sector Screens button instead) */}
+        {/* (MarketScreenGallery removed — Wave 2; sector screens retired for overlays in Phase S) */}
 
         {/* Trial banner */}
         <TrialBanner
@@ -1185,36 +1108,8 @@ export default function App() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'row', minHeight: 0, overflow: 'hidden' }}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
 
-            {/* Sector screen — ALWAYS mounted when active, hidden when not */}
-            {activeSectorScreen && (
-              <div className="screen-transition-enter" style={{ flex: 1, overflow: 'auto', display: SCREEN_MAP[activeSectorScreen] ? 'block' : 'flex', alignItems: SCREEN_MAP[activeSectorScreen] ? undefined : 'center', justifyContent: SCREEN_MAP[activeSectorScreen] ? undefined : 'center', flexDirection: SCREEN_MAP[activeSectorScreen] ? undefined : 'column', gap: SCREEN_MAP[activeSectorScreen] ? undefined : 12 }}>
-                {SCREEN_MAP[activeSectorScreen] ? (
-                  <Suspense fallback={<ScreenFallback />}>
-                    <PanelErrorBoundary name={`Screen:${activeSectorScreen}`}>
-                      {(() => {
-                        const ScreenComp = SCREEN_MAP[activeSectorScreen];
-                        return <ScreenComp />;
-                      })()}
-                    </PanelErrorBoundary>
-                  </Suspense>
-                ) : (
-                  <>
-                    <div style={{ fontSize: 36, color: 'var(--text-faint)' }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="8" rx="1"/><path d="M17 14v7"/><path d="M7 14v7"/><path d="M17 3v3"/><path d="M7 3v3"/><path d="M10 14 2.3 6.3"/><path d="m14 6 7.7 7.7"/><path d="M8 6h8"/></svg></div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
-                      {activeSectorScreen.replace(/-/g, ' ').toUpperCase()} — Coming in Wave 3/4
-                    </div>
-                    <button
-                      className="btn"
-                      onClick={handleGoHome}
-                      style={{ marginTop: 8, padding: '6px 16px', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 4, fontSize: 11, letterSpacing: '0.5px' }}
-                    >{'<'} BACK TO HOME</button>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Home grid — ALWAYS mounted, hidden via display:none when sector screen is active */}
-            <div data-tour="workspace" style={{ flex: 1, display: activeSectorScreen ? 'none' : 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            {/* Home grid */}
+            <div data-tour="workspace" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
               {/* H1.3: sentiment (mood gauge) + cross-asset spread pairs share
                   ONE ~30px strip row — mood left, pairs right (h-scroll when
                   narrow). Both components unchanged, just composed side by side. */}
@@ -1382,6 +1277,8 @@ export default function App() {
         <TickerTooltip />
         <ToastContainer />
       </div>
+      <OverlayHost />
+      </OverlayProvider>
       </ParticleChatProvider>
       </PanelProvider>
       </PriceProvider>
@@ -1412,6 +1309,7 @@ export default function App() {
     <PriceProvider marketData={mergedData}>
     <PanelProvider value={panelCtx}>
     <ParticleChatProvider>
+    <OverlayProvider>
     <div className="m-app-shell">
 
       {/* Terms of Service acceptance (first login, mobile) */}
@@ -1444,21 +1342,16 @@ export default function App() {
             togglePanel(cmd.target);
             return;
           }
+          if (cmd.action === 'overlay') {
+            window.dispatchEvent(new CustomEvent('particle-open-overlay', { detail: { id: cmd.target } }));
+            return;
+          }
           if (cmd.action === 'navigate') {
             if (cmd.target === 'home') handleGoHome();
-            else setActiveSectorScreen(cmd.target);
           } else if (cmd.action === 'chat') {
             setChatOpen(true);
           }
         }}
-      />
-
-      {/* Sector Screen Selector overlay (mobile) */}
-      <SectorScreenSelector
-        isOpen={sectorSelectorOpen}
-        onClose={() => setSectorSelectorOpen(false)}
-        onSelect={handleSelectSectorScreen}
-        activeScreen={activeSectorScreen}
       />
 
       {/* Global feedback pill (mobile) */}
@@ -1467,9 +1360,9 @@ export default function App() {
       {/* ── Mobile header ── */}
       <div className="m-header" style={mobileMode === 'particle' ? { borderBottom: 'none' } : undefined}>
         {/* Back button for secondary views or active sector screen (terminal only) */}
-        {mobileMode === 'terminal' && ((activeTab === 'more' && moreView) || activeSectorScreen) ? (
+        {mobileMode === 'terminal' && activeTab === 'more' && moreView ? (
           <button className="btn m-header-back"
-            onClick={activeSectorScreen ? handleGoHome : handleMoreBack}
+            onClick={handleMoreBack}
             aria-label="Back"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1478,30 +1371,6 @@ export default function App() {
           </button>
         ) : null}
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ParticleLogo size={22} /><span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13, letterSpacing: '2.5px' }}>PARTICLE</span></span>
-        {/* Sector Screens pill (terminal mode only) */}
-        {mobileMode === 'terminal' && (
-        <button
-          className="btn"
-          onClick={() => setSectorSelectorOpen(s => !s)}
-          title="Sector Screens"
-          aria-label="Open sector screens"
-          aria-expanded={sectorSelectorOpen}
-          style={{
-            marginLeft: 8,
-            padding: '3px 10px',
-            fontSize: 9,
-            fontWeight: 600,
-            letterSpacing: '0.08em',
-            color: sectorSelectorOpen || activeSectorScreen ? '#000' : 'var(--text-muted)',
-            border: 'none',
-            background: sectorSelectorOpen || activeSectorScreen ? 'var(--accent)' : 'rgba(255,255,255,0.06)',
-            borderRadius: 9999,
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-            transition: 'all 0.15s ease',
-          }}
-        >SCREENS</button>
-        )}
         {/* Feed status dot */}
         <div className="m-feed-dot" data-status={
           Object.values(feedStatus).every(s => s === 'live') ? 'live'
@@ -1548,7 +1417,7 @@ export default function App() {
       ) : (
         <>
           {/* ── Terminal sub-nav (compact pills) — shown only in terminal mode ── */}
-          {mobileMode === 'terminal' && !activeSectorScreen && (
+          {mobileMode === 'terminal' && (
             <TerminalSubNav
               activeTab={activeTab}
               onTabChange={(tabId) => {
@@ -1587,52 +1456,28 @@ export default function App() {
               </Suspense>
             </div>
 
-            {/* Full-page sector screen on mobile — ALWAYS mounted when active, hidden when not */}
-            {activeSectorScreen && mobileMode === 'terminal' && (
-              <div style={{ flex: 1, overflow: 'auto', display: SCREEN_MAP[activeSectorScreen] ? 'block' : 'flex', alignItems: SCREEN_MAP[activeSectorScreen] ? undefined : 'center', justifyContent: SCREEN_MAP[activeSectorScreen] ? undefined : 'center', flexDirection: SCREEN_MAP[activeSectorScreen] ? undefined : 'column', gap: SCREEN_MAP[activeSectorScreen] ? undefined : 12, padding: SCREEN_MAP[activeSectorScreen] ? undefined : 24 }}>
-                {SCREEN_MAP[activeSectorScreen] ? (
-                  <Suspense fallback={<ScreenFallback />}>
-                    <PanelErrorBoundary name={`Screen:${activeSectorScreen}`}>
-                      {(() => { const S = SCREEN_MAP[activeSectorScreen]; return <S />; })()}
-                    </PanelErrorBoundary>
-                  </Suspense>
-                ) : (
-                  <>
-                    <div style={{ fontSize: 36, color: 'var(--text-faint)' }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="8" rx="1"/><path d="M17 14v7"/><path d="M7 14v7"/><path d="M17 3v3"/><path d="M7 3v3"/><path d="M10 14 2.3 6.3"/><path d="m14 6 7.7 7.7"/><path d="M8 6h8"/></svg></div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: 12, fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
-                      {activeSectorScreen.replace(/-/g, ' ').toUpperCase()} — Coming Soon
-                    </div>
-                    <button className="btn" onClick={handleGoHome}
-                      style={{ marginTop: 8, padding: '6px 16px', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 4, fontSize: 11 }}
-                    >{'<'} BACK TO HOME</button>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Mobile tabs — ALWAYS mounted, hidden via display:none when not active, sector screen showing, or in particle mode */}
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'home' ? 'none' : 'flex' }}>
+            {/* Mobile tabs — ALWAYS mounted, hidden via display:none when not active or in particle mode */}
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'home' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Home">
                 <HomePanelMobile
                   onSearchClick={() => setActiveTabPersist('search')}
-                  onSectorScreen={handleSelectSectorScreen}
                 />
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'charts' ? 'none' : 'flex' }}>
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'charts' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Charts">
                 <ChartsPanelMobile />
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'search' ? 'none' : 'flex' }}>
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'search' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Search">
                 <SearchPanel onTickerSelect={goDetail} />
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'watchlist' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'watchlist' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
               <PanelErrorBoundary name="Portfolio">
                 <PortfolioMobile
                   onManage={() => setActiveTabPersist('search')}
@@ -1640,7 +1485,7 @@ export default function App() {
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'alerts' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'alerts' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
               <PanelErrorBoundary name="Alerts">
                 <Suspense fallback={null}>
                   <AlertCenterPanel />
@@ -1648,7 +1493,7 @@ export default function App() {
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'more' || moreView ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
               <MobileMoreScreen
                 onNavigate={handleMoreNavigate}
                 onOpenChat={() => setChatOpen(true)}
@@ -1661,7 +1506,7 @@ export default function App() {
               />
             </div>
 
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'more' || moreView !== 'news' ? 'none' : 'flex' }}>
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'news' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="News">
                 <Suspense fallback={null}>
                   <NewsPanel />
@@ -1669,13 +1514,13 @@ export default function App() {
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'more' || moreView !== 'etf' ? 'none' : 'flex' }}>
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'etf' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="ETF">
                 <ETFPanel />
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'more' || moreView !== 'screener' ? 'none' : 'flex' }}>
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'screener' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Screener">
                 <Suspense fallback={null}>
                   <ScreenerPanel />
@@ -1683,7 +1528,7 @@ export default function App() {
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'more' || moreView !== 'macro' ? 'none' : 'flex' }}>
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'macro' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Macro">
                 <Suspense fallback={null}>
                   <MacroPanel />
@@ -1691,23 +1536,12 @@ export default function App() {
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'more' || moreView !== 'sectors' ? 'none' : 'flex' }}>
-              <PanelErrorBoundary name="Sectors">
-                <SectorScreenSelector
-                  isOpen={true}
-                  onClose={() => setMoreView(null)}
-                  onSelect={handleSelectSectorScreen}
-                  activeScreen={activeSectorScreen}
-                />
-              </PanelErrorBoundary>
-            </div>
-
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'more' || moreView !== 'notification-prefs' ? 'none' : 'flex' }}>
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'notification-prefs' ? 'none' : 'flex' }}>
               <NotificationPrefs onClose={() => setMoreView(null)} />
             </div>
 
             {/* Phase 4: Prediction Markets mobile view */}
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeSectorScreen || activeTab !== 'more' || moreView !== 'predictions' ? 'none' : 'flex' }}>
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'predictions' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Predictions">
                 <Suspense fallback={null}>
                   <PredictionPanel />
@@ -1722,10 +1556,6 @@ export default function App() {
             mode={mobileMode}
             onModeChange={(m) => {
               setMobileModePersist(m);
-              // When switching to terminal, clear any sector screen overlay
-              if (m === 'terminal' && activeSectorScreen) {
-                handleGoHome();
-              }
             }}
           />
         </>
@@ -1795,6 +1625,8 @@ export default function App() {
       <TickerTooltip />
       <ToastContainer />
     </div>
+    <OverlayHost />
+    </OverlayProvider>
     </ParticleChatProvider>
     </PanelProvider>
     </PriceProvider>

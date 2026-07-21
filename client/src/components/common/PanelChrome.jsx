@@ -35,6 +35,9 @@ const PENCIL = (
 
 export function PanelChrome({
   title,
+  // Phase S §4 — when set, the title becomes the panel's deep-view
+  // overlay entry point (subtle hover ↗ affordance, CSS only).
+  onTitleClick,
   subtitle,
   count,
   status,
@@ -60,7 +63,13 @@ export function PanelChrome({
   return (
     <div className={`panel-chrome ${className}`.trim()}>
       {status ? <span className="panel-chrome-status">{status}</span> : null}
-      <span className="panel-chrome-title">{title}</span>
+      {onTitleClick ? (
+        <button type="button" className="panel-chrome-title panel-chrome-title--overlay" onClick={onTitleClick} title="Click to open deep view">
+          {title}
+        </button>
+      ) : (
+        <span className="panel-chrome-title">{title}</span>
+      )}
       {count != null ? <span className="panel-chrome-count">{count}</span> : null}
       {onEdit ? (
         <button type="button" className="panel-chrome-edit" onClick={onEdit} title="Edit panel">

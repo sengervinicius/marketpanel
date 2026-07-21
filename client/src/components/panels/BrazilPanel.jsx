@@ -20,6 +20,7 @@ import { apiFetch } from '../../utils/api';
 import { COLS_STANDARD_SPARK } from '../../utils/panelColumns';
 import { useTickerPrice } from '../../context/PriceContext';
 import { ADR_PAIRS, computeAdrPremium } from '../../utils/adrPremium';
+import { useOverlay } from '../overlay/OverlayContext';
 import Tape from '../common/Tape';
 
 // CIO-note (2026-04-20): was '52px 1fr 64px 52px' — CHG% of 52px crushed
@@ -447,6 +448,8 @@ function AdrPremiumSection({ batchMap, onTickerClick, openDetail }) {
 
 function BrazilPanel({ onTickerClick }) {
   const openDetail = useOpenDetail();
+  // Phase S §4 — title click opens the Brazil deep-view overlay.
+  const { open: openOverlay } = useOverlay();
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
 
@@ -626,6 +629,7 @@ function BrazilPanel({ onTickerClick }) {
       {/* Header */}
       <EditablePanelHeader
         title={panelTitle}
+        onTitleClick={() => openOverlay('brazil')}
         onTitleChange={(t) => updatePanelConfig('brazilB3', { title: t, symbols: panelSymbols })}
         onConfigOpen={() => setConfigOpen(true)}
         onDropTicker={handleDropTicker}

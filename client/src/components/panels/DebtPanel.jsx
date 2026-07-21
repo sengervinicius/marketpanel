@@ -34,6 +34,7 @@ import PanelChrome from '../common/PanelChrome';
 import Tape from '../common/Tape';
 import BoardRow, { BoardSectionLabel } from '../common/BoardRow';
 import ViewChips from '../common/ViewChips';
+import { useOverlay } from '../overlay/OverlayContext';
 import './DebtPanel.css';
 
 // Region chips — switch the main curve only.
@@ -165,6 +166,8 @@ function MiniCurveSvg({ points, stroke }) {
 
 /* ── Main panel ─────────────────────────────────────────────────── */
 function DebtPanel() {
+  // Phase S §4 — title click opens the Rates deep-view overlay.
+  const { open: openOverlay } = useOverlay();
   const [region, setRegion]           = useState('US');
   const [liveReady, setLiveReady]     = useState(false);
   const [error, setError]             = useState(null);
@@ -328,6 +331,7 @@ function DebtPanel() {
     <div className="dp-panel">
       <PanelChrome
         title="RATES & CREDIT"
+        onTitleClick={() => openOverlay('rates')}
         subtitle={region === 'ALL' ? 'US · BR · EU · UK CURVES' : `${regionMeta?.label || region} CURVE${single?.source ? ` · ${single.source.toUpperCase()}` : ''}`}
         badge={<IntegrityBadge domain="yield-curves" />}
         updatedAt={lastUpdated}
