@@ -65,17 +65,23 @@ export const SECTOR_MAP_META = {
 };
 
 // Same tint ramp as SectorsPanel.cellTint: per-horizon "full tint" scale,
-// token color mixed in at 5–42% so a flat tape reads calm.
-const FULL_SCALE = { '1D': 2, '1W': 4, '1M': 8, 'YTD': 20 };
-const MAX_TINT = 42;
-const MIN_TINT = 5;
+// token color mixed into the OPAQUE panel base so every block is a solid,
+// always-visible tinted swatch (never a near-black hole on a flat tape).
+// The map's whole job is showing rotation direction, so even small moves
+// must read green/red — hence the higher MIN/MAX ramp and a more sensitive
+// 1D scale. v===0/null → solid neutral base (not a black gap).
+const FULL_SCALE = { '1D': 1.5, '1W': 4, '1M': 8, 'YTD': 20 };
+const MAX_TINT = 80;
+const MIN_TINT = 22;
 
 export function blockTint(horizon, v) {
-  if (v == null || !Number.isFinite(v) || v === 0) return undefined;
+  if (v == null || !Number.isFinite(v) || v === 0) {
+    return { background: 'var(--bg-elevated)' };
+  }
   const token = v > 0 ? 'var(--price-up)' : 'var(--price-down)';
   const frac = Math.min(1, Math.abs(v) / (FULL_SCALE[horizon] || 5));
   const pctMix = Math.round(MIN_TINT + frac * (MAX_TINT - MIN_TINT));
-  return { background: `color-mix(in srgb, ${token} ${pctMix}%, transparent)` };
+  return { background: `color-mix(in srgb, ${token} ${pctMix}%, var(--bg-elevated))` };
 }
 
 function fmtPct(v) {
