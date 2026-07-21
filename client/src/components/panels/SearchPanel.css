@@ -679,3 +679,32 @@
   pointer-events: none;
   opacity: 0.6;
 }
+
+/* ── FEAT-4: primary-ticker ranking ─────────────────────────────────── */
+.sp-primary-badge {
+  font-family: var(--font-family-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 1px 4px;
+  border-radius: 2px;
+  color: var(--color-accent, #ff6b00);
+  border: 1px solid color-mix(in srgb, var(--color-accent, #ff6b00) 45%, transparent);
+  background: color-mix(in srgb, var(--color-accent, #ff6b00) 12%, transparent);
+  white-space: nowrap;
+}
+.sp-group-expander {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle, #141414);
+  padding: 2px 12px 4px 44px; /* aligns under the symbol column */
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #777);
+  cursor: pointer;
+}
+.sp-group-expander:hover { color: var(--text-primary, #ddd); }

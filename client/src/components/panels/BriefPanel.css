@@ -207,3 +207,74 @@
 }
 
 .bp-shimmer-cell { height: 10px; flex: none; }
+
+/* ── FEAT-5: EMAIL self-serve settings popover ───────────────────────── */
+.bp-container { position: relative; }
+.bp-email-pop {
+  position: absolute;
+  top: 26px; right: 6px;
+  z-index: 30;
+  width: 230px;
+  background: var(--bg-surface, #101010);
+  border: 1px solid var(--border-strong, #2a2a2a);
+  border-radius: 3px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  padding: 8px 10px 6px;
+  font-family: var(--font-family-mono);
+}
+.bp-email-pop-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 9px; letter-spacing: 0.12em; color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+.bp-email-pop-close {
+  background: none; border: none; color: var(--text-faint);
+  font-size: 10px; cursor: pointer; padding: 0 2px;
+}
+.bp-email-pop-close:hover { color: var(--text-primary); }
+.bp-email-field {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.bp-email-label {
+  width: 58px; flex-shrink: 0;
+  font-size: 8px; letter-spacing: 0.1em; color: var(--text-faint);
+}
+.bp-email-input {
+  flex: 1; min-width: 0;
+  background: var(--bg-base, #0a0a0a);
+  border: 1px solid var(--border-default, #1e1e1e);
+  border-radius: 2px;
+  color: var(--text-primary, #ddd);
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  padding: 3px 5px;
+}
+.bp-email-input:focus { outline: none; border-color: var(--border-strong, #333); }
+.bp-email-input--time { flex: 0 0 auto; width: 84px; }
+.bp-email-toggle {
+  font-family: var(--font-family-mono);
+  font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+  padding: 1px 8px; border-radius: 2px; cursor: pointer;
+  background: none; border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+}
+.bp-email-toggle--on { color: var(--semantic-up, #2ecc71); border-color: var(--semantic-up, #2ecc71); }
+.bp-email-toggle:disabled { opacity: 0.5; cursor: default; }
+.bp-email-actions {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  margin-top: 2px;
+}
+.bp-email-status { font-size: 8px; letter-spacing: 0.08em; color: var(--semantic-up, #2ecc71); }
+.bp-email-status--err { color: var(--semantic-down, #e74c3c); }
+.bp-email-save {
+  font-family: var(--font-family-mono);
+  font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+  padding: 2px 10px; border-radius: 2px; cursor: pointer;
+  background: none; border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+}
+.bp-email-save:hover { color: var(--text-primary); border-color: var(--text-muted); }
+.bp-email-note {
+  margin-top: 5px; font-size: 7.5px; letter-spacing: 0.05em;
+  color: var(--text-faint);
+}

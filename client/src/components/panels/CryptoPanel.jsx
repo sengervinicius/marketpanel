@@ -13,6 +13,7 @@ import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
 import IntegrityBadge from '../shared/IntegrityBadge';
 import { COLS_STANDARD_SPARK } from '../../utils/panelColumns';
+import { openDetailWindow } from '../../utils/detailWindow';
 
 // Was '56px 1fr 80px 64px' — chg% 64px tight for crypto volatility (+50% days happen).
 const COLS = COLS_STANDARD_SPARK;
@@ -168,7 +169,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick }) {
                 draggable
                 dragData={{ symbol: chartSym, name: c.label, type: 'CRYPTO' }}
                 onClick={() => onTickerClick?.(chartSym)}
-                onDoubleClick={() => openDetail(chartSym)}
+                onDoubleClick={() => openDetailWindow(chartSym)}
                 onTouchHold={() => openDetail(c.symbol)}
                 touchRef={ptRef}
                 sparklineData={sparklines['X:' + c.symbol]}

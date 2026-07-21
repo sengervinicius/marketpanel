@@ -22,6 +22,7 @@ import { useTickerPrice } from '../../context/PriceContext';
 import { ADR_PAIRS, computeAdrPremium } from '../../utils/adrPremium';
 import { useOverlay } from '../overlay/OverlayContext';
 import Tape from '../common/Tape';
+import { openDetailWindow } from '../../utils/detailWindow';
 
 // CIO-note (2026-04-20): was '52px 1fr 64px 52px' — CHG% of 52px crushed
 // 2-digit % values into the price column (ONCO3 +15.33% case). The
@@ -186,7 +187,7 @@ function FiiRow({ sym, meta, editMode, onRemove, onTickerClick, openDetail }) {
       style={fiiStyles.row}
       title={`${meta?.name || sym} — DY = trailing dividend yield (brapi fundamentals)`}
       onClick={() => onTickerClick?.(sym + '.SA')}
-      onDoubleClick={() => openDetail(sym + '.SA')}
+      onDoubleClick={() => openDetailWindow(sym + '.SA')}
       data-ticker={sym + '.SA'}
       data-ticker-label={meta?.name || sym}
       data-ticker-type="FII"
@@ -399,7 +400,7 @@ function AdrRow({ pair, localQuote, onTickerClick, openDetail }) {
       style={adrStyles.row}
       title={`${pair.name} — 1 ${pair.adr} = ${pair.ratio} × ${pair.local}. Premium vs B3 line via USD/BRL.`}
       onClick={() => onTickerClick?.(pair.adr)}
-      onDoubleClick={() => openDetail(pair.adr)}
+      onDoubleClick={() => openDetailWindow(pair.adr)}
       data-ticker={pair.adr}
       data-ticker-label={pair.name}
       data-ticker-type="ADR"
@@ -697,7 +698,7 @@ function BrazilPanel({ onTickerClick }) {
                 draggable
                 dragData={{ symbol: sym, name: s.name || s.symbol, type: 'BR', revenueMix: mix }}
                 onClick={() => onTickerClick?.(sym)}
-                onDoubleClick={() => openDetail(sym)}
+                onDoubleClick={() => openDetailWindow(sym)}
                 onTouchHold={() => openDetail(sym)}
                 touchRef={ptRef}
                 sparklineData={sparklines[sym]}

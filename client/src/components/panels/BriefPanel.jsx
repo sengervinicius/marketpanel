@@ -24,6 +24,8 @@
 
 import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { apiFetch } from '../../utils/api';
+import { useSettings } from '../../context/SettingsContext';
+import { useAuth } from '../../context/AuthContext';
 import PanelChrome from '../common/PanelChrome';
 import useMergedTickerQuote from '../common/useMergedTickerQuote';
 import './BriefPanel.css';
@@ -122,6 +124,14 @@ function BriefPanel({ onTickerClick }) {
   const [error, setError]         = useState(null);
   const [emailOptIn, setEmailOptIn] = useState(false);
   const [emailBusy, setEmailBusy] = useState(false);
+  // FEAT-5: EMAIL settings popover (address / local time / timezone / toggle)
+  const { settings, updateSettings } = useSettings();
+  const { user } = useAuth();
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [draftEmail, setDraftEmail] = useState('');
+  const [draftTime, setDraftTime] = useState('07:30');
+  const [draftTz, setDraftTz] = useState('America/Sao_Paulo');
+  const [saveState, setSaveState] = useState(null); // null|'saved'|'error'
   const mounted = useRef(true);
   useEffect(() => () => { mounted.current = false; }, []);
 
@@ -167,6 +177,31 @@ function BriefPanel({ onTickerClick }) {
     }
   }, [emailOptIn, emailBusy]);
 
+  // FEAT-5: open the popover with drafts seeded from persisted settings
+  // (email prefilled with the account email — username IS the email).
+  const openEmailSettings = useCallback(() => {
+    setDraftEmail(settings?.briefEmail || user?.username || '');
+    setDraftTime(/^([01]?\d|2[0-3]):[0-5]\d$/.test(settings?.briefTime || '') ? settings.briefTime : '07:30');
+    setDraftTz(settings?.briefTz || 'America/Sao_Paulo');
+    setSaveState(null);
+    setEmailOpen(o => !o);
+  }, [settings, user]);
+
+  const saveEmailSettings = useCallback(async () => {
+    const email = draftEmail.trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      setSaveState('error');
+      return;
+    }
+    try {
+      await updateSettings({ briefEmail: email, briefTime: draftTime, briefTz: draftTz });
+      setSaveState('saved');
+      setTimeout(() => { if (mounted.current) setSaveState(null); }, 1600);
+    } catch {
+      setSaveState('error');
+    }
+  }, [draftEmail, draftTime, draftTz, updateSettings]);
+
   const buckets = brief?.buckets || [];
   const macro = brief?.macro || [];
   const vaultCheck = brief?.vaultCheck || [];
@@ -183,11 +218,10 @@ function BriefPanel({ onTickerClick }) {
             <button
               type="button"
               className={`bp-chip bp-chip--btn ${emailOptIn ? 'bp-chip--on' : ''}`}
-              onClick={toggleEmail}
-              disabled={emailBusy}
+              onClick={openEmailSettings}
               title={emailOptIn
-                ? 'Daily Brief email is ON (07:30 BRT) — click to turn off'
-                : 'Get this brief by email every weekday at 07:30 BRT'}
+                ? `Daily Brief email is ON (${settings?.briefTime || '07:30'} ${settings?.briefTz || 'America/Sao_Paulo'}) — click for settings`
+                : 'Get this brief by email every weekday — click to set up'}
             >
               {emailOptIn ? 'EMAIL ✓' : 'EMAIL'}
             </button>
@@ -203,6 +237,77 @@ function BriefPanel({ onTickerClick }) {
           </>
         )}
       />
+
+      {/* FEAT-5: EMAIL self-serve settings popover */}
+      {emailOpen && (
+        <div className="bp-email-pop" onKeyDown={(e) => { if (e.key === 'Escape') setEmailOpen(false); }}>
+          <div className="bp-email-pop-head">
+            <span>BRIEF EMAIL</span>
+            <button type="button" className="bp-email-pop-close" onClick={() => setEmailOpen(false)} title="Close">✕</button>
+          </div>
+
+          <label className="bp-email-field">
+            <span className="bp-email-label">ENABLED</span>
+            <button
+              type="button"
+              className={`bp-email-toggle ${emailOptIn ? 'bp-email-toggle--on' : ''}`}
+              onClick={toggleEmail}
+              disabled={emailBusy}
+              title={emailOptIn ? 'Click to stop the daily email' : 'Click to start the daily email'}
+            >
+              {emailOptIn ? 'ON' : 'OFF'}
+            </button>
+          </label>
+
+          <label className="bp-email-field">
+            <span className="bp-email-label">ADDRESS</span>
+            <input
+              type="email"
+              className="bp-email-input"
+              value={draftEmail}
+              onChange={(e) => { setDraftEmail(e.target.value); setSaveState(null); }}
+              placeholder={user?.username || 'you@example.com'}
+              spellCheck={false}
+            />
+          </label>
+
+          <label className="bp-email-field">
+            <span className="bp-email-label">TIME</span>
+            <input
+              type="time"
+              className="bp-email-input bp-email-input--time"
+              value={draftTime}
+              onChange={(e) => { setDraftTime(e.target.value); setSaveState(null); }}
+            />
+          </label>
+
+          <label className="bp-email-field">
+            <span className="bp-email-label">TIMEZONE</span>
+            <select
+              className="bp-email-input"
+              value={draftTz}
+              onChange={(e) => { setDraftTz(e.target.value); setSaveState(null); }}
+            >
+              {[
+                'America/Sao_Paulo', 'America/New_York', 'America/Chicago',
+                'America/Denver', 'America/Los_Angeles', 'America/Mexico_City',
+                'America/Buenos_Aires', 'UTC', 'Europe/London', 'Europe/Lisbon',
+                'Europe/Madrid', 'Europe/Paris', 'Europe/Berlin', 'Europe/Zurich',
+                'Asia/Dubai', 'Asia/Singapore', 'Asia/Hong_Kong', 'Asia/Tokyo',
+                'Australia/Sydney',
+              ].map(tz => <option key={tz} value={tz}>{tz}</option>)}
+            </select>
+          </label>
+
+          <div className="bp-email-actions">
+            <span className={`bp-email-status ${saveState === 'error' ? 'bp-email-status--err' : ''}`}>
+              {saveState === 'saved' ? 'SAVED ✓' : saveState === 'error' ? 'INVALID EMAIL' : ''}
+            </span>
+            <button type="button" className="bp-email-save" onClick={saveEmailSettings}>SAVE</button>
+          </div>
+          <div className="bp-email-note">Weekdays only · empty address = account email</div>
+        </div>
+      )}
 
       <div className="bp-body">
         {loading ? (

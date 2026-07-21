@@ -15,6 +15,7 @@ import { memo, useState, useCallback, useRef, useEffect } from 'react';
 import { usePortfolio } from '../../context/PortfolioContext';
 import { useSettings } from '../../context/SettingsContext';
 import { ASSET_CLASSES, classifyAssetClass, assetClassLabel } from '../../utils/assetClass';
+import { SECTOR_BUCKET_ORDER, SECTOR_BUCKET_LABELS } from '../../hooks/useSymbolSectors';
 import { apiJSON } from '../../utils/api';
 import './PositionEditor.css';
 
@@ -52,6 +53,13 @@ function PositionEditor({
     const sym = (position?.symbol || defaultSymbol || '').toUpperCase();
     const cur = settings?.watchlistMeta?.[sym]?.assetClass;
     return ASSET_CLASSES.some(c => c.id === cur) ? cur : 'AUTO';
+  });
+  // FEAT-3 — EQUITIES sector sub-class override. Persisted in
+  // settings.watchlistMeta[SYM].sector; 'AUTO' clears it (server lookup wins).
+  const [sectorOverride, setSectorOverride] = useState(() => {
+    const sym = (position?.symbol || defaultSymbol || '').toUpperCase();
+    const cur = settings?.watchlistMeta?.[sym]?.sector;
+    return SECTOR_BUCKET_ORDER.includes(cur) ? cur : 'AUTO';
   });
 
   // Search dropdown state
@@ -182,21 +190,24 @@ function PositionEditor({
       const meta = settings?.watchlistMeta || {};
       const current = ASSET_CLASSES.some(c => c.id === meta[sym]?.assetClass)
         ? meta[sym].assetClass : 'AUTO';
-      if (bucketOverride !== current) {
+      const currentSector = SECTOR_BUCKET_ORDER.includes(meta[sym]?.sector)
+        ? meta[sym].sector : 'AUTO';
+      if (bucketOverride !== current || sectorOverride !== currentSector) {
         const next = { ...meta };
-        if (bucketOverride === 'AUTO') {
-          const { assetClass, ...rest } = next[sym] || {};
-          if (Object.keys(rest).length > 0) next[sym] = rest;
-          else delete next[sym];
-        } else {
-          next[sym] = { ...(next[sym] || {}), assetClass: bucketOverride };
-        }
+        let entry = { ...(next[sym] || {}) };
+        if (bucketOverride === 'AUTO') delete entry.assetClass;
+        else entry.assetClass = bucketOverride;
+        // FEAT-3: sector sub-class override rides the same meta entry.
+        if (sectorOverride === 'AUTO') delete entry.sector;
+        else entry.sector = sectorOverride;
+        if (Object.keys(entry).length > 0) next[sym] = entry;
+        else delete next[sym];
         updateSettings({ watchlistMeta: next });
       }
     } catch { /* never block the position save on a meta write */ }
 
     onClose();
-  }, [symbol, portfolioId, validSubportfolioId, investedAmount, quantity, entryPrice, purchaseDate, currency, note, isEditing, position, updatePosition, addPosition, onClose, bucketOverride, settings, updateSettings]);
+  }, [symbol, portfolioId, validSubportfolioId, investedAmount, quantity, entryPrice, purchaseDate, currency, note, isEditing, position, updatePosition, addPosition, onClose, bucketOverride, sectorOverride, settings, updateSettings]);
 
   const handleDelete = useCallback(() => {
     if (deleteConfirm) {
@@ -390,6 +401,24 @@ function PositionEditor({
               ))}
             </select>
           </div>
+
+          {/* FEAT-3: EQUITIES sector sub-class override */}
+          {(bucketOverride === 'EQ' || (bucketOverride === 'AUTO' && classifyAssetClass(symbol) === 'EQ')) && (
+            <div className="pf-editor-field-group">
+              <label className="pf-editor-label">SECTOR (EQUITIES SUB-GROUP)</label>
+              <select
+                className="pf-editor-select"
+                value={sectorOverride}
+                onChange={(e) => setSectorOverride(e.target.value)}
+                title="Which sector sub-group this equity shows under inside EQUITIES. AUTO = looked up from the company profile."
+              >
+                <option value="AUTO">AUTO · profile lookup</option>
+                {SECTOR_BUCKET_ORDER.map(b => (
+                  <option key={b} value={b}>{SECTOR_BUCKET_LABELS[b] || b}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Invested Amount */}
           <div className="pf-editor-field-group">

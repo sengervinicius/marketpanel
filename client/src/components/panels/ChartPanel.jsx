@@ -31,6 +31,7 @@ import {
   readGridMeta, markGridDirty, clearGridDirtyIfSynced, resolveIncomingServerGrid,
 } from '../../utils/chartGridSync';
 import './ChartPanel.css';
+import { openDetailWindow } from '../../utils/detailWindow';
 
 const LS_KEY = 'chartGrid_v3';
 const MAX = 12;
@@ -433,7 +434,7 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
     <div draggable={!isMobileDevice}
       data-ticker={ticker}
       data-ticker-label={displayTicker(ticker)}
-      onDoubleClick={() => openDetail(ticker)}
+      onDoubleClick={() => openDetailWindow(ticker)}
       data-ticker-type={assetType(ticker)}
       className={cellClass}
       onDragStart={isMobileDevice ? undefined : e => { setIsDragging(true); e.dataTransfer.setData('application/x-chart-index', String(index)); e.dataTransfer.effectAllowed = 'move'; }}

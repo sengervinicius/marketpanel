@@ -22,6 +22,7 @@ const dataRouter         = require('./data');
 const intelligenceRouter = require('./intelligence');
 const moversRouter       = require('./movers');   // H2 W1 — home Movers panel
 const sectorsRouter      = require('./sectors');  // H2 W1 — sector performance grid
+const sectorLookupRouter = require('./sectorLookup'); // FEAT-3 — watchlist sector buckets
 const moodRouter         = require('./mood');     // H2b — composite market mood + breadth consumer
 const watchlistExtrasRouter = require('./watchlistExtras'); // H2b — watchlist EARN/REC batch columns
 const brazilFocusRouter  = require('./brazilFocus');     // H2b — BCB Focus strip (BrazilPanel)
@@ -35,6 +36,7 @@ const cvmFilingsRouter   = require('./cvmFilings');      // Phase S overlays —
 // but explicit ordering keeps intent obvious.
 router.use(moversRouter);
 router.use(sectorsRouter);
+router.use(sectorLookupRouter);
 router.use(moodRouter);
 router.use(watchlistExtrasRouter);
 router.use(brazilFocusRouter);

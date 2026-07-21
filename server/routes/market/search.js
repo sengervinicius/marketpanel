@@ -7,6 +7,7 @@ const router  = express.Router();
 const { sanitizeText, clampInt } = require('../../utils/validate');
 const { yahooCache } = require('./lib/cache');
 const { polyFetch, eulerpool, sendError, fetch, YF_UA } = require('./lib/providers');
+const { rankSearchResults } = require('./lib/searchRanking'); // FEAT-4
 
 // ── /search ─────────────────────────────────────────────────────────
 router.get('/search', async (req, res) => {
@@ -84,7 +85,9 @@ router.get('/search', async (req, res) => {
       }
     }
 
-    res.json({ results: results.slice(0, 20) });
+    // FEAT-4: group multi-venue listings by company-name similarity and
+    // rank primary-exchange listings first (see lib/searchRanking.js).
+    res.json({ results: rankSearchResults(results).slice(0, 20) });
   } catch (e) {
     console.error('[API] /search error:', e.message);
     sendError(res, e);

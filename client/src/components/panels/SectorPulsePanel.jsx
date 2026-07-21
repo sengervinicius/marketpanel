@@ -33,6 +33,7 @@ import PanelChrome from '../common/PanelChrome';
 import ViewChips, { loadPersistedChip } from '../common/ViewChips';
 import { SECTOR_ETF_HOLDINGS, getSectorHoldings } from '../../config/sectorConstituents';
 import './SectorPulsePanel.css';
+import { openSectorWindow } from '../../utils/detailWindow';
 
 const HORIZON_KEY = 'sectorPulseHorizon_v1';
 const HORIZONS = [
@@ -203,7 +204,8 @@ function SectorPulsePanel() {
               key={b.symbol}
               className="mm-block"
               style={{ gridArea: b.area, ...(blockTint(horizon, b.v) || {}) }}
-              title={`${b.name} · ${horizon} ${fmtPct(b.v)}${b.mover ? ` · top mover ${b.mover.sym} ${fmtPct(b.mover.pct)}` : ''}`}
+              title={`${b.name} · ${horizon} ${fmtPct(b.v)}${b.mover ? ` · top mover ${b.mover.sym} ${fmtPct(b.mover.pct)}` : ''} · dbl-click → constituents`}
+              onDoubleClick={() => openSectorWindow(b.symbol)}
             >
               <div className="mm-block-inner">
                 <span className="mm-name">{b.name}</span>

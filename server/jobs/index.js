@@ -140,13 +140,16 @@ function initJobs(ctx = {}) {
   const { runOnce: dispatchMorningBriefs } = require('./morningBriefDispatcher');
   registerJob('morning-brief-dispatcher', '*/5 * * * *', dispatchMorningBriefs);
 
-  // ── Daily Brief email: weekdays 07:30 BRT = 10:30 UTC (Phase S W2) ───
+  // ── Daily Brief email: every 15 minutes (Phase S W2 / FEAT-5) ────────
   // The structured personalized brief (briefEngine) mailed ONLY to users
-  // who opted in via the BRIEF panel's EMAIL chip
-  // (settings.dailyBriefEmail === true). Distinct from the prose
-  // morning-brief dispatcher above, which has its own settings.
+  // who opted in via the BRIEF panel's EMAIL settings popover
+  // (settings.dailyBriefEmail === true). Each tick delivers to users whose
+  // LOCAL settings.briefTime/briefTz window elapsed since the last tick;
+  // settings.briefLastSentDate makes re-ticks idempotent per local day
+  // (see jobs/briefWindow.js). Distinct from the prose morning-brief
+  // dispatcher above, which has its own settings.
   const { runOnce: sendDailyBriefEmails } = require('./dailyBriefEmail');
-  registerJob('daily-brief-email', '30 10 * * 1-5', sendDailyBriefEmails);
+  registerJob('daily-brief-email', '*/15 * * * *', sendDailyBriefEmails);
 
   // ── One-time backfill: strip [SCREEN CONTEXT] from existing titles ──
   // Older conversations were titled with the raw context wrapper because

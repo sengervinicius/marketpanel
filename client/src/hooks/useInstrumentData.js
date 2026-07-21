@@ -164,7 +164,7 @@ export function useInstrumentData(ticker) {
           const cleanBars = results
             .filter(b => b && Number.isFinite(b.t) && Number.isFinite(b.c))
             .map(b => ({
-              t: b.t, label: fmtLabel(b.t, range.timespan),
+              t: b.t, label: fmtLabel(b.t, range.timespan, range.days),
               open: Number.isFinite(b.o) ? b.o : b.c,
               high: Number.isFinite(b.h) ? b.h : b.c,
               low:  Number.isFinite(b.l) ? b.l : b.c,
