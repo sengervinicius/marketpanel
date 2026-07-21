@@ -70,6 +70,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     macroData,
     news, newsLoading,
     aiFunds, aiFundsLoading, aiFundsError,
+    setChartPollPaused,
     insiderData, insiderLoading,
     dividendData, dividendLoading,
     splitsData, polyFinancials,
@@ -153,6 +154,17 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     setDeltaB(null);
     setDeltaMode(false);
   }, [rangeIdx]);
+
+  // ── fix/bug-wave3 BUG 4: pause the bars poll while measuring ───────────
+  // On intraday ranges the chart re-fetches every 60s; a refresh landing
+  // between the A and B clicks replaced the bars array — the chart re-ran
+  // ("reload/reset") and the stored A index pointed at a shifted bar. While
+  // measure mode is armed the poll is deferred; exiting flushes one
+  // catch-up fetch so the chart never goes stale.
+  useEffect(() => {
+    setChartPollPaused(deltaMode);
+    return () => setChartPollPaused(false);
+  }, [deltaMode, setChartPollPaused]);
 
   // ── Phase 6: Update screen context with selected ticker ──
   useEffect(() => {
@@ -849,9 +861,10 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               {showCandle ? (
                 <>
                   <Area dataKey="close" yAxisId="right" stroke="none" fill="none" dot={false} activeDot={false} />
-                  <Customized component={(props) => (
-                    <CandlestickOverlay {...props} data={chartBars} />
-                  )} />
+                  {/* element form (not inline lambda): keeps the component
+                      type stable across renders so recharts doesn't remount
+                      the overlay layer on every data/state change (BUG 4). */}
+                  <Customized component={<CandlestickOverlay data={chartBars} />} />
                 </>
               ) : isComparisonMode ? (
                 <Line
@@ -897,9 +910,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               ))}
 
               {deltaInfo && (
-                <Customized component={(chartProps) => (
-                  <DeltaLineOverlay {...chartProps} bars={chartBars} deltaA={deltaA} deltaB={deltaB} deltaInfo={deltaInfo} />
-                )} />
+                <Customized component={
+                  <DeltaLineOverlay bars={chartBars} deltaA={deltaA} deltaB={deltaB} deltaInfo={deltaInfo} />
+                } />
               )}
             </ComposedChart>
           </ResponsiveContainer>
