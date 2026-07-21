@@ -1825,7 +1825,9 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       <div className="id-ai-section">
         <div className="id-ai-header">
           <span className="id-ai-label">AI FUNDAMENTALS</span>
-          <span className="id-ai-badge">AI-GENERATED</span>
+          {/* fix/bug-wave3 BUG 3: degraded (LLM down, live data OK) responses
+              are honest about not being AI-written. */}
+          <span className="id-ai-badge">{aiFunds.aiDegraded ? 'LIVE DATA · AI OFFLINE' : 'AI-GENERATED'}</span>
         </div>
 
         {aiFunds.summary && (
