@@ -2574,22 +2574,6 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           className={`id-action-btn${isMobile ? ' id-action-btn--mobile' : ''}`}
         >{isMobile ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> : <><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> SHARE</>}</button>
 
-        {/* Pop-out button — desktop only */}
-        {!isMobile && !asPage && (
-          <button
-            onClick={() => {
-              const sym = encodeURIComponent(norm);
-              window.open(
-                `${window.location.origin}/#/detail/${sym}`,
-                '_blank',
-                'width=1100,height=700,noopener,noreferrer'
-              );
-            }}
-            title="Open in separate window"
-            className="id-action-btn"
-          >⊞ POP OUT</button>
-        )}
-
       </div>
 
       {/* ── KEY METRICS STRIP (stocks only) ── */}
