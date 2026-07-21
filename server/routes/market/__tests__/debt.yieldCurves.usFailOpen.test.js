@@ -17,6 +17,13 @@
  *   3. Ghost resolves → additive ghost/ghostAsOf appear, curve unchanged.
  *   4. Ghost hangs (FRED slow) → response returns within the 5s budget,
  *      US curve present, no ghost.
+ *   5. (fix/us-curve-shape) /api/debt/sovereign/US first, then
+ *      /yield-curves with Treasury XML down and FRED rate-limiting any
+ *      SECOND burst → the US curve is still served, from the ONE shared
+ *      cached helper (providers/usTreasuryCurve); exactly one FRED
+ *      burst total. Pre-consolidation, /yield-curves fired its own
+ *      route-local burst, got 429'd and shipped US: { curve: [] } while
+ *      /sovereign/US stayed healthy.
  *
  * External world fully stubbed via require.cache — offline-safe.
  *
@@ -36,7 +43,12 @@ const events = [];
 const knobs = {
   treasuryUp: true,
   ghost: 'reject', // 'reject' | 'resolve' | 'hang'
+  // fix/us-curve-shape: when true, only the FIRST FRED spot-curve burst
+  // succeeds; every later one is rate-limited (429 → per-series nulls →
+  // empty burst, matching providers/fred's swallow-and-null behavior).
+  fred429AfterFirstBurst: false,
 };
+const fredBurst = { count: 0 };
 
 // ── Stub ../lib/providers (all outbound fetches) ────────────────────
 const providersPath = require.resolve('../lib/providers');
@@ -61,11 +73,13 @@ function stubFetch(url) {
     if (!knobs.treasuryUp) return Promise.resolve({ ok: false, status: 403, text: async () => 'blocked' });
     return Promise.resolve({ ok: true, text: async () => TREASURY_XML });
   }
-  // FRED CSV fallback for the US spot curve (fetchFredRate, per-series)
+  // fix/us-curve-shape: the route-local fredgraph.csv burst was removed
+  // (consolidated into providers/usTreasuryCurve). Any DGS hit through
+  // lib/providers.fetch means someone re-added it — fail loudly.
   const fredMatch = /fredgraph\.csv\?id=(DGS[A-Z0-9]+)/.exec(url);
   if (fredMatch) {
-    events.push(`fred-fallback:${fredMatch[1]}`);
-    return Promise.resolve({ ok: true, text: async () => `DATE,${fredMatch[1]}\n2026-07-16,.\n2026-07-17,4.40\n` });
+    events.push(`route-local-fred-burst:${fredMatch[1]}`);
+    return Promise.resolve({ ok: false, status: 429, text: async () => 'rate limited' });
   }
   // Everything else (Tesouro, BCB, BoE, ECB, SNB) fails → synthetic paths
   return Promise.resolve({ ok: false, status: 404, text: async () => '', json: async () => ({}) });
@@ -81,7 +95,12 @@ require.cache[providersPath] = {
   },
 };
 
-// ── Stub providers/fred (ghost helper) ───────────────────────────────
+const US_DGS_SERIES = {
+  '1M': 'DGS1MO', '3M': 'DGS3MO', '6M': 'DGS6MO', '1Y': 'DGS1', '2Y': 'DGS2',
+  '5Y': 'DGS5', '7Y': 'DGS7', '10Y': 'DGS10', '20Y': 'DGS20', '30Y': 'DGS30',
+};
+
+// ── Stub providers/fred (ghost + spot-curve helpers) ─────────────────
 const fredPath = require.resolve('../../../providers/fred');
 require.cache[fredPath] = {
   id: fredPath, filename: fredPath, loaded: true,
@@ -107,10 +126,22 @@ require.cache[fredPath] = {
     fetchLatestPair: async () => null,
     fetchSeries: async () => null,
     fetchMultiple: async () => ({}),
-    getUSTreasuryCurve: async () => [],
+    // Spot-curve burst (10 DGS series) — one event per series so the
+    // ordering assertions can still see the burst happen.
+    getUSTreasuryCurve: async () => {
+      fredBurst.count += 1;
+      if (knobs.fred429AfterFirstBurst && fredBurst.count > 1) {
+        events.push('fred-burst:429');
+        return []; // real provider swallows the 429s → empty burst
+      }
+      return Object.entries(US_DGS_SERIES).map(([tenor, sid]) => {
+        events.push(`fred-fallback:${sid}`);
+        return { tenor, yield: 4.40, seriesId: sid };
+      });
+    },
     getCreditSpreads: async () => [],
     getValue: async () => null,
-    US_CURVE_SERIES: {},
+    US_CURVE_SERIES: { ...US_DGS_SERIES },
     CREDIT_SERIES: {},
   },
 };
@@ -127,10 +158,17 @@ require.cache[integrityPath] = {
   },
 };
 
-// Bust the route module so the stubs take effect.
+// Bust the route modules AND the shared curve helper so the stubs take
+// effect (usTreasuryCurve must bind to the stubbed providers/fred).
+const usCurvePath = require.resolve('../../../providers/usTreasuryCurve');
+delete require.cache[usCurvePath];
 const routePath = require.resolve('../debt');
 delete require.cache[routePath];
 const debtRouter = require('../debt');
+const sovereignPath = require.resolve('../../debt');
+delete require.cache[sovereignPath];
+const sovereignRouter = require('../../debt'); // /api/debt (sovereign/US)
+const usTreasuryCurve = require(usCurvePath);
 
 // ── Harness ──────────────────────────────────────────────────────────
 let server; let base;
@@ -162,6 +200,7 @@ describe('/yield-curves — US entry is fail-open against FRED ghost outages', (
   before(() => {
     const app = express();
     app.use(debtRouter);
+    app.use('/api/debt', sovereignRouter); // same process = same shared cache
     server = app.listen(0);
     base = `http://127.0.0.1:${server.address().port}`;
   });
@@ -213,6 +252,39 @@ describe('/yield-curves — US entry is fail-open against FRED ghost outages', (
     assert.ok(Array.isArray(json.US.ghost) && json.US.ghost.length === 4, 'ghost points present');
     assert.deepEqual(json.US.ghost[2], { tenor: '10Y', rate: 4.42 });
     assert.equal(json.US.ghostAsOf, '2026-06-19');
+  });
+
+  it('5. sovereign-route-first → /yield-curves US served from the ONE shared FRED cache (second burst would be 429)', async () => {
+    knobs.treasuryUp = false; knobs.ghost = 'reject';
+    knobs.fred429AfterFirstBurst = true;
+    usTreasuryCurve._resetForTests(); // cold shared cache — force a real burst
+    fredBurst.count = 0;
+    events.length = 0;
+
+    // 1) DebtPanel-heal entry point first: /api/debt/sovereign/US.
+    const sov = await getJson('/api/debt/sovereign/US');
+    assert.equal(sov.status, 200);
+    assert.equal(sov.json.source, 'fred');
+    assert.ok(Array.isArray(sov.json.points) && sov.json.points.length >= 3,
+      'sovereign/US serves a full curve');
+    for (const p of sov.json.points) {
+      assert.equal(typeof p.tenor, 'string');
+      assert.equal(typeof p.yield, 'number', 'FRED shape (.yield) preserved for existing consumers');
+    }
+    assert.equal(fredBurst.count, 1, 'exactly one FRED burst fired by sovereign/US');
+
+    // 2) Now /yield-curves with Treasury XML down. A second FRED burst
+    //    would be rate-limited (knob) — consolidation means it never
+    //    fires: the US leg comes from the shared 15-min cache.
+    const { status, json } = await getJson('/yield-curves');
+    assert.equal(status, 200);
+    assertUsCurveIntact(json.US, 'FRED');
+    assert.equal(json.US.curve.find(p => p.tenor === '10Y')?.rate, 4.40);
+    assert.equal(fredBurst.count, 1,
+      'NO second FRED burst — /yield-curves US must come from the shared cache');
+    assert.ok(!events.includes('fred-burst:429'), 'rate-limited path never exercised');
+    assert.ok(!events.some(e => e.startsWith('route-local-fred-burst:')),
+      'route-local fredgraph.csv burst must stay dead (consolidation regression guard)');
   });
 
   it('4. ghost hangs (FRED slow) → 5s budget, US curve present, no ghost', async () => {

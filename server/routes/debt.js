@@ -21,6 +21,9 @@ const { swallow } = require('../utils/swallow');
 const { sendApiError, ProviderError } = require('../utils/apiError');
 const { isCountryCode, isTicker } = require('../utils/validate');
 const debtProvider = require('../providers/debtProvider');
+// fix/us-curve-shape: single shared, cached US Treasury curve (one FRED
+// burst per 15-min window across ALL routes — see providers/usTreasuryCurve).
+const { getUsTreasuryCurve } = require('../providers/usTreasuryCurve');
 
 // ── Simple server-side cache ──────────────────────────────────────────────────
 const _cache = new Map();
@@ -145,7 +148,9 @@ router.get('/sovereign/US', async (req, res) => {
     const c  = cacheGet(ck);
     if (c) return res.json(c);
 
-    let points = await fred.getUSTreasuryCurve();
+    // Shared cached curve — same points /api/yield-curves serves for US,
+    // so the two endpoints can never disagree (fix/us-curve-shape).
+    let points = await getUsTreasuryCurve();
     let source = 'fred';
 
     if (points.length === 0) {
@@ -243,7 +248,7 @@ router.get('/sovereign/region', async (req, res) => {
 
     if (tenor === '10Y' && codes.includes('US') && !snapshot.find(s => s.country === 'US')) {
       try {
-        const usCurve = await fred.getUSTreasuryCurve();
+        const usCurve = await getUsTreasuryCurve();
         const us10y = usCurve.find(p => p.tenor === '10Y');
         if (us10y) {
           snapshot.push({ country: 'US', ...COUNTRY_META.US, tenor, yield: us10y.yield, change: null, changeBps: null });

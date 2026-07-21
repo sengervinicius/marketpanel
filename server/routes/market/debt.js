@@ -1,8 +1,9 @@
 /**
  * routes/market/debt.js — Fixed-income endpoints: bond detail, rates, DI curve, yield curves
  *
- * Includes direct FRED CSV fallback for US yield curve (Task 3 of Phase 2).
- * FRED series: DGS1MO, DGS3MO, DGS6MO, DGS1, DGS2, DGS3, DGS5, DGS7, DGS10, DGS30
+ * US FRED fallback (Task 3 of Phase 2) now goes through the shared
+ * providers/usTreasuryCurve helper — ONE cached FRED burst per 15-min
+ * window shared with /api/debt/sovereign/US (fix/us-curve-shape).
  */
 
 const express = require('express');
@@ -11,6 +12,7 @@ const { cacheGet, cacheSet, TTL } = require('./lib/cache');
 const { yahooQuote, sendError, fetch, YF_UA } = require('./lib/providers');
 const { validateYieldCurves, validateRates, getIntegrityStatus, getAllIntegrityStatus } = require('../../services/dataIntegrityValidator');
 const { swallow } = require('../../utils/swallow');
+const { getUsTreasuryCurve } = require('../../providers/usTreasuryCurve');
 
 // ── Timeout helper for external API calls ────────────────────────────
 function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
@@ -765,60 +767,14 @@ function forwardsFromSpot(spotCurve) {
   return out;
 }
 
-// ── FRED CSV fallback for US yield curve (Task 3) ───────────────────
-// 10 FRED series: DGS1MO, DGS3MO, DGS6MO, DGS1, DGS2, DGS3, DGS5, DGS7, DGS10, DGS30
-// Free endpoint, no API key required — returns CSV directly.
-
-const FRED_SERIES = [
-  { id: 'DGS1MO', tenor: '1M',  months: 1   },
-  { id: 'DGS3MO', tenor: '3M',  months: 3   },
-  { id: 'DGS6MO', tenor: '6M',  months: 6   },
-  { id: 'DGS1',   tenor: '1Y',  months: 12  },
-  { id: 'DGS2',   tenor: '2Y',  months: 24  },
-  { id: 'DGS3',   tenor: '3Y',  months: 36  },
-  { id: 'DGS5',   tenor: '5Y',  months: 60  },
-  { id: 'DGS7',   tenor: '7Y',  months: 84  },
-  { id: 'DGS10',  tenor: '10Y', months: 120 },
-  { id: 'DGS30',  tenor: '30Y', months: 360 },
-];
-
-/**
- * Fetch a single FRED series' latest observation via the free CSV endpoint.
- * URL: https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10&cosd=YYYY-MM-DD
- * Returns the numeric rate or null on failure.
- */
-async function fetchFredRate(seriesId) {
-  // Request last 7 days to account for weekends/holidays
-  const d = new Date();
-  d.setDate(d.getDate() - 7);
-  const cosd = d.toISOString().split('T')[0];
-  const url = `https://fred.stlouisfed.org/graph/fredgraph.csv?id=${seriesId}&cosd=${cosd}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'User-Agent': YF_UA, 'Accept': 'text/csv,*/*' },
-    });
-    if (!res.ok) return null;
-    const csv = await res.text();
-    // CSV format: DATE,VALUE\n2024-01-02,4.20\n...
-    const lines = csv.trim().split('\n');
-    // Walk from the end to find last non-"." value
-    for (let i = lines.length - 1; i >= 1; i--) {
-      const parts = lines[i].split(',');
-      const val = parts[1]?.trim();
-      if (val && val !== '.' && !isNaN(val)) {
-        return parseFloat(val);
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
+// ── FRED fallback for the US yield curve ────────────────────────────
+// fix/us-curve-shape: the route-local 10-series fredgraph.csv burst
+// (FRED_SERIES / fetchFredRate / fetchFredYieldCurve) is GONE. It
+// duplicated the burst /api/debt/sovereign/US fires via providers/fred,
+// and fredgraph.csv rate-limits bursts — whichever route ran second got
+// 429s and shipped US: { curve: [], source: 'unavailable' } while the
+// other stayed healthy. Both routes now consume the single cached
+// helper in providers/usTreasuryCurve (one burst per 15-min window).
 
 /**
  * #242 / P1.4 — FRED monthly long-term (10Y) sovereign rate fallback.
@@ -883,30 +839,6 @@ async function fetchFredSovereign10Y(country) {
   } finally {
     clearTimeout(timeout);
   }
-}
-
-/**
- * Fetch the full US yield curve from FRED CSV endpoints in parallel.
- * Returns array of { tenor, months, rate } sorted by months.
- */
-async function fetchFredYieldCurve() {
-  const cached = cacheGet('fred:us-yield-curve');
-  if (cached) return cached;
-
-  const results = await Promise.allSettled(
-    FRED_SERIES.map(s => fetchFredRate(s.id).then(rate => ({ ...s, rate })))
-  );
-
-  const curve = results
-    .filter(r => r.status === 'fulfilled' && r.value.rate != null)
-    .map(r => ({ tenor: r.value.tenor, months: r.value.months, rate: r.value.rate }))
-    .sort((a, b) => a.months - b.months);
-
-  if (curve.length >= 3) {
-    cacheSet('fred:us-yield-curve', curve, TTL.fred);
-  }
-
-  return curve;
 }
 
 // ── /curve/:issuer — Typed single-issuer curve (W6.2) ──────────────
@@ -1095,15 +1027,18 @@ router.get('/yield-curves', async (req, res) => {
     } else {
       console.warn('[Yield] US Treasury XML fetch failed:', usTreasuryRes.reason?.message);
     }
-    // FRED CSV fallback (Task 3): if Treasury XML failed, returned < 3 points, or sanity check rejected
+    // FRED fallback (Task 3): if Treasury XML failed, returned < 3 points, or
+    // sanity check rejected. Served from the SHARED cached helper — the same
+    // curve /api/debt/sovereign/US returns — so a second FRED burst (which
+    // fredgraph.csv would 429) is never fired within the cache window.
     if (usCurve.length < 3) {
-      console.warn('[Yield] US Treasury parse returned <3 valid points, trying FRED CSV fallback…');
-      const fredCurve = await fetchFredYieldCurve();
+      console.warn('[Yield] US Treasury parse returned <3 valid points, using shared FRED curve…');
+      const fredCurve = await getUsTreasuryCurve();
       if (fredCurve.length >= 3) {
-        usCurve = fredCurve;
+        usCurve = fredCurve.map(p => ({ tenor: p.tenor, months: p.months, rate: p.rate }));
         usSource = 'FRED';
       } else {
-        console.warn('[Yield] FRED fallback also insufficient:', fredCurve.length, 'points');
+        console.warn('[Yield] shared FRED curve also insufficient:', fredCurve.length, 'points');
       }
     }
 
