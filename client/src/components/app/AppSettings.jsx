@@ -355,6 +355,8 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
       {/* ── Inbound Email → Personal Vault (P4) ── */}
       <SettingsSection label="VAULT INBOX" />
       <InboundEmailRow />
+      {/* wave-nov Phase Z — static, copy-ready automation recipes */}
+      <HowToAutomateBlock />
 
       {/* ── Help ── */}
       <SettingsSection label="HELP" />
@@ -441,6 +443,89 @@ export function DiscordLinkRow() {
     >
       <span className="app-text-muted-small">Join our Discord</span>
       <span style={{ fontSize: 9, fontWeight: 700, color: '#5865F2', letterSpacing: '0.3px' }}>CONNECT</span>
+    </div>
+  );
+}
+
+// ── How to automate (wave-nov Phase Z) ──────────────────────────────────────
+//
+// Collapsible static block under VAULT INBOX: exact steps to auto-forward
+// research email into the vault via a Gmail filter, an Outlook rule, or a
+// Zapier zap. Content is static on purpose — no server round-trip.
+const autoStepStyle = {
+  margin: '2px 0 2px 14px',
+  lineHeight: 1.5,
+};
+
+export function HowToAutomateBlock() {
+  const [open, setOpen] = useState(false);
+
+  const h = {
+    fontFamily: 'var(--font-family-mono)',
+    fontSize: 9,
+    fontWeight: 700,
+    letterSpacing: '0.5px',
+    color: 'var(--accent)',
+    margin: '10px 0 4px',
+  };
+
+  return (
+    <div style={{ padding: '0 12px 8px' }}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onClick={() => setOpen(o => !o)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(o => !o); } }}
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '6px 0',
+          cursor: 'pointer',
+          userSelect: 'none',
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      >
+        <span className="app-text-muted-small">How to automate</span>
+        <span className="app-text-faint-small">{open ? '▾ HIDE' : '▸ SHOW'}</span>
+      </div>
+
+      {open && (
+        <div className="app-text-muted-small" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          <div style={{ color: 'var(--text-faint)', margin: '2px 0 6px' }}>
+            Auto-forward research email into your vault — your address is above. Pick one:
+          </div>
+
+          <div style={h}>GMAIL FILTER</div>
+          <ol style={{ margin: 0, paddingLeft: 18 }}>
+            <li style={autoStepStyle}>Gmail → Settings (gear) → <b>See all settings</b> → <b>Forwarding and POP/IMAP</b> → <b>Add a forwarding address</b> → paste your vault address. Confirm via the verification email (it lands in your vault inbox log — or ask support to read the code).</li>
+            <li style={autoStepStyle}>Settings → <b>Filters and Blocked Addresses</b> → <b>Create a new filter</b>.</li>
+            <li style={autoStepStyle}>In <b>From</b>, list your research senders (e.g. <i>research@bank.com OR notes@broker.com</i>) and tick <b>Has attachment</b>.</li>
+            <li style={autoStepStyle}>Click <b>Create filter</b> → tick <b>Forward it to</b> → choose your vault address → <b>Create filter</b>.</li>
+          </ol>
+
+          <div style={h}>OUTLOOK RULE</div>
+          <ol style={{ margin: 0, paddingLeft: 18 }}>
+            <li style={autoStepStyle}>Outlook → Settings → <b>Mail</b> → <b>Rules</b> → <b>Add new rule</b>.</li>
+            <li style={autoStepStyle}>Name it (e.g. <i>Vault research</i>). Condition: <b>From</b> → add your research senders; add a second condition <b>Has attachment</b>.</li>
+            <li style={autoStepStyle}>Action: <b>Forward to</b> → paste your vault address.</li>
+            <li style={autoStepStyle}><b>Save</b>. (Corporate tenants sometimes block external auto-forward — if the forward never arrives, ask IT to allow the vault domain.)</li>
+          </ol>
+
+          <div style={h}>ZAPIER RECIPE</div>
+          <ol style={{ margin: 0, paddingLeft: 18 }}>
+            <li style={autoStepStyle}><b>Trigger</b>: Gmail (or Email by Zapier) → <b>New Attachment</b>, filtered to your chosen senders.</li>
+            <li style={autoStepStyle}><b>Action</b>: Gmail / Email by Zapier → <b>Send Email</b> to your vault address, attaching the trigger's attachment (subject passes through as the doc's subject metadata).</li>
+            <li style={autoStepStyle}>Turn the Zap on. Every matching attachment lands in your vault within minutes.</li>
+          </ol>
+
+          <div style={{ color: 'var(--text-faint)', marginTop: 8 }}>
+            Accepted: PDF, DOCX, XLSX, CSV, TXT and plain email bodies. Rotating the address (above) breaks existing filters — update them after a rotate.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

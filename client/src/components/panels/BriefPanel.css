@@ -118,6 +118,21 @@
 .bp-sym--vault { color: var(--vault-gold); cursor: default; width: 76px; }
 .bp-sym--vault:hover { color: var(--vault-gold); }
 
+/* wave-nov Phase Z — NEW badge for vault docs ingested in the last 48h */
+.bp-new {
+  font-family: var(--font-family-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--bg-base, #0a0a0a);
+  background: var(--vault-gold);
+  border-radius: 2px;
+  padding: 0 3px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
 /* Polish W2 item 6 — live day-% mono chip after the symbol */
 .bp-daypct {
   font-family: var(--font-family-mono);

@@ -99,6 +99,10 @@ function VaultPanelInner({ fullScreen = false }) {
   const [selectedDocType, setSelectedDocType] = useState('auto');
   const [quota, setQuota] = useState(null);
   const [vaultHealth, setVaultHealth] = useState(null); // { ok, database, embeddings }
+  // wave-nov Phase Z — INBOX status line under the stats tape.
+  const [emailIngest, setEmailIngest] = useState(null);   // { count, lastAt }
+  const [inboundAddr, setInboundAddr] = useState(null);   // vault-<token>@… (from settings)
+  const [addrCopied, setAddrCopied] = useState(false);
   const [chatDocId, setChatDocId] = useState(null);
   const [chatDocFilename, setChatDocFilename] = useState(null);
   const fileInputRef = useRef(null);
@@ -124,6 +128,16 @@ function VaultPanelInner({ fullScreen = false }) {
     check();
     return () => clearTimeout(timer);
   }, []);
+
+  // wave-nov Phase Z — the user's vault inbox address, for the INBOX status
+  // line's "forward to …" call to action when no email has arrived yet.
+  useEffect(() => {
+    if (!token) return;
+    apiFetch('/api/settings/vault-inbound')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d && d.enabled && d.address) setInboundAddr(d.address); })
+      .catch(() => {});
+  }, [token]);
 
   // Check admin status via the diagnostic endpoint instead of piggy-backing on
   // /api/vault/admin/documents (which silently 403s without a reason). The
@@ -205,6 +219,7 @@ function VaultPanelInner({ fullScreen = false }) {
       }
       const data = await res.json();
       setDocuments(data.documents || []);
+      if (data.emailIngest) setEmailIngest(data.emailIngest);
     } catch (e) {
       setError(`Vault unreachable: ${e.message || 'network error'}. Check your connection and retry.`);
     } finally {
@@ -496,6 +511,34 @@ function VaultPanelInner({ fullScreen = false }) {
               : []),
           ]}
         />
+
+        {/* wave-nov Phase Z — email→vault visibility: INBOX status line */}
+        <div className="vault-inbox-line">
+          <span className="vault-inbox-label">INBOX</span>
+          {emailIngest && emailIngest.count > 0 ? (
+            <span className="vault-inbox-text">
+              Email ingest: {emailIngest.count} doc{emailIngest.count > 1 ? 's' : ''} via email
+              {emailIngest.lastAt ? ` · last ${new Date(emailIngest.lastAt)
+                .toLocaleString('en-US', { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
+                .toUpperCase().replace(',', '')}` : ''}
+            </span>
+          ) : (
+            <span className="vault-inbox-text">
+              no emails received yet{inboundAddr ? <> — forward to <b>{inboundAddr}</b>{' '}
+                <span
+                  className="vault-inbox-copy"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    try { navigator.clipboard.writeText(inboundAddr); } catch { /* clipboard unavailable */ }
+                    setAddrCopied(true);
+                    setTimeout(() => setAddrCopied(false), 1500);
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.click(); }}
+                >{addrCopied ? 'COPIED' : 'COPY'}</span></> : ''}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Scrollable content */}

@@ -421,8 +421,12 @@ router.post('/ingest-url', rateLimitByUser({ key: 'vault-ingest-url', windowSec:
  */
 router.get('/documents', async (req, res) => {
   try {
-    const documents = await vault.getUserDocuments(req.user.id);
-    res.json({ documents });
+    const [documents, emailIngest] = await Promise.all([
+      vault.getUserDocuments(req.user.id),
+      // wave-nov Phase Z — INBOX status line on the Vault page.
+      vault.getEmailIngestStats(req.user.id),
+    ]);
+    res.json({ documents, emailIngest });
   } catch (err) {
     logger.error('vault-route', 'Error fetching documents', { error: err.message });
     res.status(500).json({ error: 'Failed to fetch documents' });

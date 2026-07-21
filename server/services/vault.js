@@ -1614,10 +1614,17 @@ async function ingestFile(userId, buffer, filename, metadata = {}, isGlobal = fa
       await client.query('BEGIN');
 
       // Create document record
+      // wave-nov Phase Z — persist provenance in the source COLUMN too.
+      // The inbound-email route tags metadata.source = 'inbound_email…';
+      // that previously landed only in the metadata JSONB while the column
+      // was hardcoded 'upload', making "docs via email" unqueryable.
+      const sourceCol = /^inbound_email/.test(String(docMetadata.source || ''))
+        ? 'email'
+        : 'upload';
       const docResult = await client.query(
         `INSERT INTO vault_documents (user_id, filename, source, is_global, metadata, content_hash)
          VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-        [userId, filename, 'upload', isGlobal, JSON.stringify(docMetadata), contentHash]
+        [userId, filename, sourceCol, isGlobal, JSON.stringify(docMetadata), contentHash]
       );
       documentId = docResult.rows[0].id;
 
@@ -2602,6 +2609,30 @@ async function getUserDocuments(userId) {
 }
 
 /**
+ * wave-nov Phase Z — cheap email-ingest stats for the Vault page INBOX
+ * status line. Counts the user's private docs that arrived via the
+ * inbound-email pipeline: new rows carry source='email' (see ingestFile);
+ * pre-wave rows only tagged metadata.source='inbound_email…'.
+ */
+async function getEmailIngestStats(userId) {
+  if (!pg.isConnected()) return { count: 0, lastAt: null };
+  try {
+    const result = await pg.query(
+      `SELECT COUNT(*)::int AS count, MAX(created_at) AS last_at
+         FROM vault_documents
+        WHERE user_id = $1 AND is_global = FALSE
+          AND (source = 'email' OR metadata->>'source' LIKE 'inbound_email%')`,
+      [userId]
+    );
+    const row = (result.rows && result.rows[0]) || {};
+    return { count: row.count || 0, lastAt: row.last_at || null };
+  } catch (err) {
+    logger.error('vault', 'Error fetching email ingest stats', { error: err.message });
+    return { count: 0, lastAt: null };
+  }
+}
+
+/**
  * Get central vault documents (global, available to all users).
  */
 async function getGlobalDocuments() {
@@ -3161,6 +3192,7 @@ module.exports = {
   getDocumentSummary,
   formatForPrompt,
   getUserDocuments,
+  getEmailIngestStats,
   getGlobalDocuments,
   deleteDocument,
   getMixedProviderDocuments,

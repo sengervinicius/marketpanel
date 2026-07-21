@@ -356,8 +356,10 @@ function BriefPanel({ onTickerClick }) {
                     <span className="bp-sym bp-sym--vault" title={v.docName}>
                       ◆ {v.docName.length > 12 ? `${v.docName.slice(0, 10)}…` : v.docName}
                     </span>
+                    {/* wave-nov Phase Z — docs ingested <48h ago carry a NEW badge */}
+                    {v.isNew && <span className="bp-new" title="Ingested in the last 48h">NEW</span>}
                     <span className="bp-why">{v.line}</span>
-                    <ReasonChip reason="VAULT" meta={v.verdict} />
+                    {v.verdict ? <ReasonChip reason="VAULT" meta={v.verdict} /> : null}
                   </div>
                 ))}
               </div>
