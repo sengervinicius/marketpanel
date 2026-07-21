@@ -279,6 +279,6 @@ export default function RatesOverlay({ tab }) {
   }, []);
 
   if (tab === 'SPREADS') return <SpreadsTab curves={curves} />;
-  if (tab === 'CREDIT')  return <CreditTab />;
+  if (tab === 'US CREDIT') return <CreditTab />;
   return <CurvesTab curves={curves} />;
 }

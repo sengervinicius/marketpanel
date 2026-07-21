@@ -54,3 +54,41 @@ export function slopeRegimeWord(slopeBps) {
   if (slopeBps < 0) return 'INVERTED';
   return slopeBps > 50 ? 'STEEP' : 'FLAT';
 }
+
+/**
+ * Client-side <COUNTRY> vs UST 10Y spread in bps, from two curves' points.
+ * spread = (country 10Y − US 10Y) × 100. Returns null ("—") when either
+ * curve lacks a literal 10Y tenor (no nearest-neighbour guessing).
+ */
+export function vsUstSpreadBps(regionPoints, usPoints) {
+  const yR  = yieldAtMonths(regionPoints, 120);
+  const yUS = yieldAtMonths(usPoints, 120);
+  if (yR == null || yUS == null) return null;
+  return Math.round((yR - yUS) * 100);
+}
+
+/**
+ * Country-tape SELECTION logic (fix/rates-earnings-popout item 1).
+ *
+ * The RATES & CREDIT tape has two shapes:
+ *   · US / ALL  → the US FRED tape (US 10Y · 2s10s · 10Y REAL · HY OAS).
+ *   · a country → ALL FOUR cells become that country:
+ *       <CTY> 10Y · <CTY> 2s10s · <CTY> 10Y Δ1M · <CTY> vs UST 10Y bps.
+ *
+ * isCountryTape() decides which shape a region uses; countryTapeCells()
+ * derives the four country values from the already-loaded curves payload
+ * plus the monthly-OECD Δ1M. Every field degrades to null ("—").
+ */
+export function isCountryTape(region) {
+  return region != null && region !== 'US' && region !== 'ALL';
+}
+
+export function countryTapeCells({ code, regionPoints, usPoints, delta1mBps = null } = {}) {
+  return {
+    code: code ?? null,
+    y10:        yieldAtMonths(regionPoints, 120),
+    slopeBps:   slope2s10sBps(regionPoints),
+    delta1mBps: Number.isFinite(delta1mBps) ? delta1mBps : null,
+    vsUstBps:   vsUstSpreadBps(regionPoints, usPoints),
+  };
+}

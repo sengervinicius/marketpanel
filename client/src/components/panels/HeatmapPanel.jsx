@@ -4,7 +4,7 @@
  * Shows a grid of colored tiles representing stocks grouped by sector.
  * Color intensity maps to daily change magnitude.
  */
-import { memo, useState } from 'react';
+import { memo } from 'react';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { tapStart, tapMove, tapEnd } from '../../utils/tapHandlers';
@@ -67,18 +67,16 @@ function SectorGroup({ sector }) {
 }
 
 function HeatmapPanel() {
-  const [tf, setTf] = useState('1D');
-
+  // fix/rates-earnings-popout (inconsistency sweep): the old 1D/1W tf-bar
+  // set state but the tiles always read the daily changePct from
+  // PriceContext (no weekly series exists client-side), so "1W" silently
+  // showed 1D data. Honest fix: a static 1D horizon badge, no dead switch.
   return (
     <div className="hm-panel">
       <div className="hm-head">
         <span className="hm-title">SECTOR HEATMAP</span>
         <div className="hm-tf-bar">
-          {['1D', '1W'].map(v => (
-            <button key={v} className={`hm-tf-btn ${tf === v ? 'hm-tf-btn--active' : ''}`} onClick={() => setTf(v)}>
-              {v}
-            </button>
-          ))}
+          <span className="hm-tf-badge" title="Tiles show today's % change (daily)">1D Δ</span>
         </div>
       </div>
       <div className="hm-body">
