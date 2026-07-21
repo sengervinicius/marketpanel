@@ -51,14 +51,19 @@ export default function InstrumentDetailPage() {
 
   return (
     <div style={{
-      // #288 / FIX-popout-scroll — production audit found that on smaller
-      // popout windows the body content was cut off because the outer
-      // container forced overflow:hidden + height:100vh. Switch to
-      // min-height:100vh so the layout still fills the window when
-      // content fits, but allows the document to scroll vertically when
-      // it doesn't (the chart, AI fundamentals, news, and footer are
-      // tall on small popouts).
-      minHeight: '100vh', background: '#0a0a0a',
+      // #288 / FIX-popout-scroll (CIO repro) — the popout renders inside
+      // #root, which App.css pins to `height:100%; overflow:hidden` for
+      // every viewport wider than 768px (the popout is always >768px, so
+      // it is treated as desktop). A previous attempt switched this
+      // container to `min-height:100vh` hoping the *document* would
+      // scroll, but the document CAN'T scroll — #root clips it. Result:
+      // tall instruments were cut off with no scrollbar on either axis.
+      //
+      // Correct model: this container is a fixed-height (100vh) flex
+      // column and the body BELOW the header is the real scroll
+      // container. That works regardless of #root's overflow:hidden
+      // because the scroll happens inside our own element.
+      height: '100vh', background: '#0a0a0a',
       display: 'flex', flexDirection: 'column',
       fontFamily: 'var(--font-ui)',
     }}>
@@ -96,10 +101,17 @@ export default function InstrumentDetailPage() {
           AlertsProvider. We don't include MarketProvider / PriceProvider
           / FeedStatusProvider — the popout doesn't run the WebSocket;
           it gets data through TanStack Query REST hits, which is fine. */}
-      {/* #288 / FIX-popout-scroll — let content grow naturally on small
-          popout windows; the outer minHeight:100vh on the page allows
-          the browser to scroll the whole document. */}
-      <div style={{ flex: 1 }}>
+      {/* #288 / FIX-popout-scroll — the scroll container for the popout.
+          flex:1 fills the space under the 34px header; minHeight:0 is
+          REQUIRED so this flex child can shrink below its content and
+          therefore scroll instead of overflowing (a flex item defaults
+          to min-height:auto = content height, which would push the
+          overflow back out to #root and get it clipped). overflowY/X:auto
+          gives scrollbars on whichever axis the InstrumentDetail exceeds.
+          See InstrumentDetail.css `.id-page .id-body:not(.id-body--mobile)`
+          which gives the desktop two-pane a workable min-height so it is
+          reachable via this scroll instead of collapsing to nothing. */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}>
         <ScreenProvider>
           <OpenDetailProvider>
             <PortfolioProvider>
