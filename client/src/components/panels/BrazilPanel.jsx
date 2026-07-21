@@ -23,6 +23,7 @@ import { ADR_PAIRS, computeAdrPremium } from '../../utils/adrPremium';
 import { useOverlay } from '../overlay/OverlayContext';
 import Tape from '../common/Tape';
 import { openDetailWindow } from '../../utils/detailWindow';
+import { useTickerClicks } from '../../hooks/useTickerClicks';
 
 // CIO-note (2026-04-20): was '52px 1fr 64px 52px' — CHG% of 52px crushed
 // 2-digit % values into the price column (ONCO3 +15.33% case). The
@@ -180,14 +181,15 @@ const fmt2fii = (n) => (n == null || !Number.isFinite(n))
   : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function FiiRow({ sym, meta, editMode, onRemove, onTickerClick, openDetail }) {
+  // wave-nov item 5 — see hooks/useTickerClicks.js
+  const rowClicks = useTickerClicks(`${sym}.SA`, { onSingle: (t) => onTickerClick?.(t) });
   const quote = useTickerPrice(sym + '.SA');
   const chg = quote?.changePct ?? null;
   return (
     <div
       style={fiiStyles.row}
       title={`${meta?.name || sym} — DY = trailing dividend yield (brapi fundamentals)`}
-      onClick={() => onTickerClick?.(sym + '.SA')}
-      onDoubleClick={() => openDetailWindow(sym + '.SA')}
+      {...rowClicks}
       data-ticker={sym + '.SA'}
       data-ticker-label={meta?.name || sym}
       data-ticker-type="FII"
@@ -378,6 +380,8 @@ const fmt2adr = (n) => (n == null || !Number.isFinite(n))
   : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function AdrRow({ pair, localQuote, onTickerClick, openDetail }) {
+  // wave-nov item 5 — see hooks/useTickerClicks.js
+  const rowClicks = useTickerClicks(pair.adr, { onSingle: (t) => onTickerClick?.(t) });
   // ADR leg via PriceContext (batch-first, extras fallback). Local leg
   // prefers the already-loaded B3 snapshot; falls back to extras too.
   const adrQuote = useTickerPrice(pair.adr);
@@ -399,8 +403,7 @@ function AdrRow({ pair, localQuote, onTickerClick, openDetail }) {
     <div
       style={adrStyles.row}
       title={`${pair.name} — 1 ${pair.adr} = ${pair.ratio} × ${pair.local}. Premium vs B3 line via USD/BRL.`}
-      onClick={() => onTickerClick?.(pair.adr)}
-      onDoubleClick={() => openDetailWindow(pair.adr)}
+      {...rowClicks}
       data-ticker={pair.adr}
       data-ticker-label={pair.name}
       data-ticker-type="ADR"

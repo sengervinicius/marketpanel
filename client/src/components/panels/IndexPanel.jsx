@@ -6,7 +6,7 @@ import SkeletonLoader from '../shared/SkeletonLoader';
 import { WORLD_INDEXES } from '../../utils/constants';
 import { COLS_STANDARD } from '../../utils/panelColumns';
 import './IndexPanel.css';
-import { openDetailWindow } from '../../utils/detailWindow';
+import { useTickerClicksFactory } from '../../hooks/useTickerClicks';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -23,6 +23,7 @@ const showInfo = (e, symbol, label, type) => {
 function IndexPanel({ data = {}, loading, onTickerClick }) {
   const openDetail = useOpenDetail();
   const ptRef = useRef(null);
+  const tickerClicks = useTickerClicksFactory(); // wave-nov item 5
   const [collapsed, setCollapsed] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const { getBadge } = useFeedStatus();
@@ -75,8 +76,9 @@ function IndexPanel({ data = {}, loading, onTickerClick }) {
                 e.dataTransfer.effectAllowed = 'copy';
                 e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: idx.symbol, name: idx.label, type: 'ETF' }));
               }}
-              onClick={() => onTickerClick?.(idx.symbol)}
-              onDoubleClick={() => openDetailWindow(idx.symbol)}
+              /* wave-nov item 5 — shared click contract: delayed single
+                 (overlay) cancelled by dblclick (detail window). */
+              {...tickerClicks(idx.symbol, { onSingle: (sym) => onTickerClick?.(sym) })}
               onTouchStart={e => { e.stopPropagation(); clearTimeout(ptRef.current); ptRef.current = setTimeout(() => openDetail(idx.symbol), 500); }}
               onTouchEnd={() => clearTimeout(ptRef.current)}
               onTouchMove={() => clearTimeout(ptRef.current)}

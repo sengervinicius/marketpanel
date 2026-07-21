@@ -20,6 +20,7 @@ import { apiFetch } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
 import PanelChrome from '../common/PanelChrome';
 import './NewsPanel.css';
+import { useTickerClicksFactory } from '../../hooks/useTickerClicks';
 
 // ── Scope (ALL | WATCHLIST | MACRO) + ✦ AI layer toggle, persisted ──
 const NEWS_SCOPE_KEY = 'newsScope_v1';
@@ -97,6 +98,7 @@ const WireBriefing = memo(function WireBriefing({
   briefing, loading, error, stale, generatedAt, coverage, onRefresh, onTickerClick,
 }) {
   const [openTheme, setOpenTheme] = useState(null);
+  const tickerClicks = useTickerClicksFactory(); // wave-nov item 5
   if (!briefing && !loading && !error) return null;
 
   const themes = (briefing || []).slice(0, 3);
@@ -151,14 +153,20 @@ const WireBriefing = memo(function WireBriefing({
               {open && (
                 <div className="np-brow-why">
                   <span>{item.whyItMatters}</span>
-                  {(item.tickers || []).map(t => (
-                    <span
-                      key={t}
-                      className="np-tkc np-tkc--click"
-                      onClick={(e) => { e.stopPropagation(); onTickerClick?.(t); }}
-                      title={`Chart ${t}`}
-                    >{t}</span>
-                  ))}
+                  {(item.tickers || []).map(t => {
+                    /* wave-nov item 5 — single (delayed) keeps the current
+                       overlay behavior; double-click opens the window. */
+                    const chip = tickerClicks(t, { onSingle: (sym) => onTickerClick?.(sym) });
+                    return (
+                      <span
+                        key={t}
+                        className="np-tkc np-tkc--click"
+                        onClick={(e) => { e.stopPropagation(); chip.onClick(e); }}
+                        onDoubleClick={(e) => { e.stopPropagation(); chip.onDoubleClick(e); }}
+                        title={`Chart ${t} · double-click → window`}
+                      >{t}</span>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -171,6 +179,7 @@ const WireBriefing = memo(function WireBriefing({
 
 // ── Wire row — single line; click expands summary + full chips ──────
 const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTickerSummary }) {
+  const tickerClicks = useTickerClicksFactory(); // wave-nov item 5
   const breaking = isBreakingStory(item);
   const url = item.article_url || item.link || item.url;
   const source = String(item.publisher?.name || item.publisher || item.source || item.author || 'NEWSWIRE');
@@ -228,12 +237,16 @@ const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTick
             <div className="np-wr-detail-row">
               {tickers.slice(0, 8).map(t => {
                 const s = tickerSentiment(item, t);
+                /* wave-nov item 5 — single (delayed) keeps the 7-day AI
+                   summary popover; double-click opens the detail window. */
+                const chip = tickerClicks(t, { onSingle: (sym, e) => handleTickerClick(e, sym) });
                 return (
                   <span
                     key={t}
                     className={`np-tkc np-tkc--click ${s ? `np-tkc--${s}` : ''} ${sumTicker === t ? 'np-tkc--open' : ''}`}
-                    onClick={(e) => handleTickerClick(e, t)}
-                    title={`7-day AI summary for ${t}`}
+                    onClick={(e) => { e.stopPropagation(); chip.onClick(e); }}
+                    onDoubleClick={(e) => { e.stopPropagation(); chip.onDoubleClick(e); }}
+                    title={`7-day AI summary for ${t} · double-click → window`}
                   >{t}</span>
                 );
               })}

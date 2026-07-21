@@ -48,7 +48,7 @@ import { useSparklineData } from '../../hooks/useSparklineData';
 import { ASSET_CLASSES, classifyAssetClass } from '../../utils/assetClass';
 import '../common/Shimmer.css';
 import './WatchlistPanel.css';
-import { openDetailWindow } from '../../utils/detailWindow';
+import { useTickerClicks } from '../../hooks/useTickerClicks';
 import { useSymbolSectors, SECTOR_BUCKET_ORDER, SECTOR_BUCKET_LABELS } from '../../hooks/useSymbolSectors';
 
 // ── Named column VIEWS (Design v1) ──────────────────────────────────
@@ -184,7 +184,11 @@ const WatchlistRow = memo(function WatchlistRow({
 }) {
   const priceCtx = useTickerPrice(position.symbol);
   const ptRef    = useRef(null);
-  const clickRef = useRef(null); // FEAT-1b: single-click delay vs double-click window
+  // wave-nov item 5 — the FEAT-1b delay/cancel logic moved to the shared
+  // useTickerClicks hook (this row was the reference implementation).
+  const rowClicks = useTickerClicks(position.symbol, {
+    onSingle: (sym) => onOpen(sym),
+  });
 
   const price     = priceCtx?.price     ?? null;
   const changePct = priceCtx?.changePct ?? null;
@@ -231,16 +235,11 @@ const WatchlistRow = memo(function WatchlistRow({
       data-ticker-type={assetType}
       onClick={(e) => {
         if (e.ctrlKey || e.altKey || e.metaKey) { onEdit(position); return; }
-        // Design v1: click → full InstrumentDetail (in-app overlay).
-        // FEAT-1b: small delay so a double-click (→ separate window)
-        // doesn't also flash the overlay open underneath.
-        clearTimeout(clickRef.current);
-        clickRef.current = setTimeout(() => onOpen(position.symbol), 250);
+        // Design v1: click → full InstrumentDetail (in-app overlay),
+        // delayed/cancelled by dblclick via the shared useTickerClicks hook.
+        rowClicks.onClick(e);
       }}
-      onDoubleClick={() => {
-        clearTimeout(clickRef.current);
-        openDetailWindow(position.symbol); // FEAT-1b: real separate window
-      }}
+      onDoubleClick={rowClicks.onDoubleClick}
       onMouseEnter={(e) => onHoverStart(position.symbol, e)}
       onMouseLeave={onHoverEnd}
       onContextMenu={e => showInfo(e, position.symbol, position.symbol, assetType)}

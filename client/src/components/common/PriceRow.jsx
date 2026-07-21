@@ -18,6 +18,7 @@ import useMergedTickerQuote from './useMergedTickerQuote';
 // H1.2: row sparklines use the v2 component (own column, damped scaling).
 import Sparkline from './Sparkline';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { useTickerClicks } from '../../hooks/useTickerClicks';
 import { fmtVol } from '../../utils/format';
 import './Shimmer.css';
 
@@ -119,14 +120,27 @@ function PriceRow({
     e.dataTransfer.setData('application/x-ticker', JSON.stringify(dragData));
   };
 
+  // wave-nov item 5 — shared click contract (useTickerClicks): single
+  // click fires the caller's onClick after a 250ms delay; a double-click
+  // cancels it and fires onDoubleClick (or opens the detail window when
+  // the caller gave none). Previously the un-delayed onClick opened the
+  // in-app overlay on the FIRST click of a double-click, flashing it under
+  // (or swallowing) the detail window on every PriceRow panel.
+  const rowClicks = useTickerClicks(ticker || symbol, {
+    onSingle: onClick ? (sym, e) => onClick(e) : undefined,
+    onDouble: onDoubleClick ? (sym, e) => onDoubleClick(e) : undefined,
+  });
+  const handleClick = onClick ? rowClicks.onClick : undefined;
+  const handleDoubleClick = (onClick || onDoubleClick) ? rowClicks.onDoubleClick : undefined;
+
   return (
     <div
       {...(dataAttrs || {})}
       className={flash ? 'price-row-flash' : undefined}
       draggable={dragEnabled || undefined}
       onDragStart={dragEnabled ? handleDragStart : undefined}
-      onClick={onClick}
-      onDoubleClick={onDoubleClick}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchMove}

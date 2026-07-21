@@ -13,6 +13,7 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 import { apiFetch } from '../../utils/api';
 import PanelChrome from '../common/PanelChrome';
+import { useTickerClicksFactory } from '../../hooks/useTickerClicks';
 import './SectorsPanel.css';
 
 const HORIZONS = ['1D', '1W', '1M', 'YTD'];
@@ -39,6 +40,7 @@ function fmtPct(v) {
 }
 
 function SectorsPanel({ onTickerClick }) {
+  const tickerClicks = useTickerClicksFactory(); // wave-nov item 5
   const [rows, setRows]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
@@ -93,8 +95,8 @@ function SectorsPanel({ onTickerClick }) {
             <div
               key={r.symbol}
               className="sp-row"
-              title={`${r.name} (${r.symbol})${r.price != null ? ` · ${r.price}` : ''} — click to chart`}
-              onClick={() => onTickerClick?.(r.symbol)}
+              title={`${r.name} (${r.symbol})${r.price != null ? ` · ${r.price}` : ''} — click to chart, double-click → window`}
+              {...tickerClicks(r.symbol, { onSingle: (sym) => onTickerClick?.(sym) })}
             >
               <span className="sp-col-sector">
                 <span className="sp-etf">{r.symbol}</span>

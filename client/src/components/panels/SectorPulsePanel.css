@@ -97,6 +97,9 @@
   white-space: nowrap;
   overflow: hidden;
 }
+/* wave-nov item 5 — mover line is clickable (detail overlay / window) */
+.mm-mover--click { cursor: pointer; }
+.mm-mover--click:hover b { color: var(--text-primary); text-decoration: underline; }
 .mm-mover b { font-weight: 700; color: var(--text-secondary); }
 .mm-mover i { font-style: normal; }
 

@@ -29,6 +29,7 @@ import { useAuth } from '../../context/AuthContext';
 import PanelChrome from '../common/PanelChrome';
 import useMergedTickerQuote from '../common/useMergedTickerQuote';
 import './BriefPanel.css';
+import { useTickerClicksFactory } from '../../hooks/useTickerClicks';
 
 const REFRESH_MS = 30 * 60_000; // matches the server-side per-user cache
 
@@ -76,6 +77,9 @@ const DayPctChip = memo(function DayPctChip({ symbol }) {
 
 const BucketSection = memo(function BucketSection({ bucket, counts, onTickerClick }) {
   const count = (counts || []).find(c => c.label === bucket.name);
+  // wave-nov item 5 — shared contract: delayed single (overlay via
+  // onTickerClick) cancelled by dblclick (standalone detail window).
+  const tickerClicks = useTickerClicksFactory();
   return (
     <div className="bp-bucket">
       <div className="bp-sechead">
@@ -88,9 +92,9 @@ const BucketSection = memo(function BucketSection({ bucket, counts, onTickerClic
             className="bp-sym"
             role="button"
             tabIndex={0}
-            onClick={() => onTickerClick && onTickerClick(it.symbol)}
+            {...tickerClicks(it.symbol, { onSingle: (sym) => onTickerClick && onTickerClick(sym) })}
             onKeyDown={e => { if (e.key === 'Enter' && onTickerClick) onTickerClick(it.symbol); }}
-            title={`Chart ${it.symbol}`}
+            title={`Chart ${it.symbol} · double-click → window`}
           >
             {it.symbol.replace(/\.SA$/, '')}
           </span>

@@ -24,6 +24,7 @@ import { COLS_STANDARD_SPARK } from '../../utils/panelColumns';
 import '../common/Shimmer.css';
 import './StockPanel.css';
 import { openDetailWindow } from '../../utils/detailWindow';
+import { useTickerClicks } from '../../hooks/useTickerClicks';
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -79,6 +80,8 @@ function heatColor(pct) {
 // Phase 8: Heatmap cell that merges snapshot with PriceContext
 // Fix 4: Shows shimmer when pct is null
 function HeatmapCell({ s, data, onTickerClick }) {
+  // wave-nov item 5 — see hooks/useTickerClicks.js
+  const cellClicks = useTickerClicks(s.symbol, { onSingle: (sym) => onTickerClick?.(sym) });
   const openDetail = useOpenDetail();
   const d = data?.[s.symbol] || {};
   const { changePct: pct } = useMergedTickerQuote(s.symbol, d);
@@ -104,8 +107,8 @@ function HeatmapCell({ s, data, onTickerClick }) {
       data-ticker={s.symbol}
       data-ticker-label={s.label}
       data-ticker-type="EQUITY"
-      onClick={() => onTickerClick?.(s.symbol)}
-      onDoubleClick={() => openDetailWindow(s.symbol)}
+      /* wave-nov item 5 — shared delayed-single / dblclick contract */
+      {...cellClicks}
       onContextMenu={e => showInfo(e, s.symbol, s.label, 'EQUITY')}
       title={`${s.symbol}\n${fmtPct(pct)}`}
       style={{ width: 54, height: 38, background: bg, border: '1px solid var(--border-subtle)' }}

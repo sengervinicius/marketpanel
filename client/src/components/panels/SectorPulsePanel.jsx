@@ -34,6 +34,8 @@ import ViewChips, { loadPersistedChip } from '../common/ViewChips';
 import { SECTOR_ETF_HOLDINGS, getSectorHoldings } from '../../config/sectorConstituents';
 import './SectorPulsePanel.css';
 import { openSectorWindow } from '../../utils/detailWindow';
+import { useOpenDetail } from '../../context/OpenDetailContext';
+import { useTickerClicksFactory } from '../../hooks/useTickerClicks';
 
 const HORIZON_KEY = 'sectorPulseHorizon_v1';
 const HORIZONS = [
@@ -100,6 +102,8 @@ export function topMover(etf, quotes) {
 }
 
 function SectorPulsePanel() {
+  const openDetail = useOpenDetail();               // wave-nov item 5
+  const tickerClicks = useTickerClicksFactory();    // wave-nov item 5
   const [rows, setRows]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
@@ -210,12 +214,26 @@ function SectorPulsePanel() {
               <div className="mm-block-inner">
                 <span className="mm-name">{b.name}</span>
                 <span className={`mm-chg ${valueClass(b.v)}`}>{fmtPct(b.v)}</span>
-                {b.mover && (
-                  <span className="mm-mover">
-                    <b>{b.mover.sym}</b>
-                    <i className={valueClass(b.mover.pct)}>{fmtPct(b.mover.pct)}</i>
-                  </span>
-                )}
+                {b.mover && (() => {
+                  /* wave-nov item 5 — the top-mover line is a ticker row
+                     too: single (delayed) → overlay detail, double →
+                     detail window. stopPropagation keeps the block's own
+                     dblclick (sector drill-down window) from also firing. */
+                  const mv = tickerClicks(b.mover.sym, { onSingle: (sym) => openDetail(sym) });
+                  return (
+                    <span
+                      className="mm-mover mm-mover--click"
+                      role="button"
+                      tabIndex={0}
+                      title={`${b.mover.sym} · click → detail, double-click → window`}
+                      onClick={(e) => { e.stopPropagation(); mv.onClick(e); }}
+                      onDoubleClick={(e) => { e.stopPropagation(); mv.onDoubleClick(e); }}
+                    >
+                      <b>{b.mover.sym}</b>
+                      <i className={valueClass(b.mover.pct)}>{fmtPct(b.mover.pct)}</i>
+                    </span>
+                  );
+                })()}
               </div>
             </div>
           ))}
