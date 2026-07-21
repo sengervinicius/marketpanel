@@ -27,7 +27,14 @@ const moversProviderPath = require.resolve('../../../providers/marketMoversProvi
 const routePath = require.resolve('../movers');
 
 // ── Stubs ────────────────────────────────────────────────────────────
+// wave-nov item 1: the route now ALSO batch-quotes Yahoo for US company
+// names (resolveUsNames), so the stub is symbol-aware — .SA batches count
+// as B3 sweeps and return the fixture; plain-US batches return name rows.
 let yahooQuoteCalls = 0;
+const US_NAME_QUOTES = [
+  { symbol: 'AAA', shortName: 'AAA CORP' },
+  { symbol: 'BBB', longName: 'BBB INDUSTRIES INC' },
+];
 // Session-aware (Polish W2 item 4): every quote reports CLOSED and the
 // session timestamp is Friday 2026-07-17 16:55 BRT (19:55 UTC), so the
 // route must label the payload LAST SESSION · FRI.
@@ -46,8 +53,12 @@ require.cache[providersPath] = {
   id: providersPath, filename: providersPath, loaded: true,
   exports: {
     // The route sweeps the universe in batches; return the fixture on the
-    // first batch only so rows are not duplicated.
-    yahooQuote: async () => {
+    // first B3 batch only so rows are not duplicated. US name-resolution
+    // batches (no .SA suffix) are answered from US_NAME_QUOTES.
+    yahooQuote: async (symbols) => {
+      if (!String(symbols || '').includes('.SA')) {
+        return US_NAME_QUOTES.filter(q => String(symbols).split(',').includes(q.symbol));
+      }
       yahooQuoteCalls += 1;
       return yahooQuoteCalls === 1 ? B3_QUOTES : [];
     },
@@ -126,7 +137,9 @@ describe('GET /market/movers (H2 W1 home panel)', () => {
     assert.equal(r.body.exchange, 'US');
     assert.equal(r.body.source, 'polygon');
     assert.equal(r.body.count, 2);
-    assert.deepEqual(r.body.data[0], { symbol: 'AAA', price: 12.5, change: 2.5, changePct: 25.0, volume: 1000000 });
+    // wave-nov item 1 — the contract now carries the Yahoo-resolved name.
+    assert.deepEqual(r.body.data[0], { symbol: 'AAA', name: 'AAA CORP', price: 12.5, change: 2.5, changePct: 25.0, volume: 1000000 });
+    assert.equal(r.body.data[1].name, 'BBB INDUSTRIES INC');
     assert.equal(moversCalls.at(-1).direction, 'gainers');
     assert.equal(moversCalls.at(-1).market, 'US');
     // Data-quality: strict universe filtering is the default.

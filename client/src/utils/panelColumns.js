@@ -36,6 +36,8 @@ export const COL_REMOVE_BTN   = '24px';
 // H1.2 — row sparklines moved out of the CHG% cell into their own
 // narrow trailing column (Sparkline v2, common/Sparkline.jsx).
 export const COL_SPARK        = '48px';
+// wave-nov item 1 — Movers VOL column (compact 48.2M fits 6 chars @11px).
+export const COL_VOL          = '52px';
 
 // ── Canonical 4-column layouts ───────────────────────────────────────
 // symbol | name | price | chg%
@@ -63,3 +65,7 @@ export const COLS_STANDARD_SPARK = `${COLS_STANDARD} ${COL_SPARK}`;
 export const COLS_FOREX_SPARK    = `${COLS_FOREX} ${COL_SPARK}`;
 export const COLS_TIGHT_SPARK    = `${COLS_TIGHT} ${COL_SPARK}`;
 export const COLS_INDEX_SPARK    = `${COLS_INDEX} ${COL_SPARK}`;
+
+// Movers: symbol | name | price | chg% | vol | spark — the VOL column is
+// rendered by PriceRow's `volume` prop (wave-nov item 1).
+export const COLS_MOVERS_SPARK   = `${COL_SYMBOL} ${COL_NAME_FLEX} ${COL_PRICE} ${COL_CHG_PCT} ${COL_VOL} ${COL_SPARK}`;

@@ -126,6 +126,46 @@ async function fetchBrazilRows() {
 // penny leftovers without needing US-style dollar-volume thresholds.
 const BR_MIN_PRICE = 1;
 
+// ── US company names (wave-nov item 1) ───────────────────────────────────
+// Polygon snapshot rows carry no company name (see provider
+// normalizeRow), so US movers rendered nameless. Resolve names via the
+// same Yahoo batch-quote path the BR board uses, memoized process-wide —
+// listing names are effectively static, so one quote per symbol per
+// process is enough.
+const US_NAME_CACHE_MAX = 4000;
+const usNameCache = new Map(); // SYMBOL -> name | null (null = known miss)
+
+async function resolveUsNames(symbols) {
+  const wanted = Array.from(new Set(
+    symbols.map(s => String(s || '').toUpperCase()).filter(Boolean)
+  ));
+  const missing = wanted.filter(s => !usNameCache.has(s));
+  if (missing.length) {
+    try {
+      const quotes = await yahooQuote(missing.join(','));
+      for (const q of quotes || []) {
+        if (!q || !q.symbol) continue;
+        const name = String(q.shortName || q.longName || '').substring(0, 24).trim() || null;
+        usNameCache.set(String(q.symbol).toUpperCase(), name);
+      }
+      // Cache the misses too (delisted/OTC oddballs) so we don't re-query
+      // Yahoo for them on every 60s refresh — but only on a SUCCESSFUL
+      // batch; a provider outage must stay retryable.
+      for (const s of missing) if (!usNameCache.has(s)) usNameCache.set(s, null);
+      if (usNameCache.size > US_NAME_CACHE_MAX) {
+        // crude eviction: drop the oldest half (insertion order)
+        const keys = Array.from(usNameCache.keys()).slice(0, Math.floor(usNameCache.size / 2));
+        for (const k of keys) usNameCache.delete(k);
+      }
+    } catch (e) {
+      logger.warn('movers', 'US movers name resolve failed: ' + e.message);
+    }
+  }
+  const map = {};
+  for (const s of wanted) map[s] = usNameCache.get(s) ?? null;
+  return map;
+}
+
 function sortBrazil(rows, tab) {
   const arr = [...rows];
   if (tab === 'actives') {
@@ -168,8 +208,12 @@ router.get('/market/movers', async (req, res) => {
 
     // US — provider owns caching + Polygon plumbing (incl. quality gate).
     const result = await getMarketMovers({ direction: tab, limit, market: 'US', quality });
-    const data = (result.movers || []).map(m => ({
+    const movers = result.movers || [];
+    // wave-nov item 1 — merge company names (Polygon snapshots have none).
+    const names = await resolveUsNames(movers.map(m => m.symbol));
+    const data = movers.map(m => ({
       symbol:    m.symbol,
+      name:      m.name ?? names[String(m.symbol || '').toUpperCase()] ?? null,
       price:     m.price ?? null,
       change:    m.change ?? null,
       changePct: m.changePct ?? null,

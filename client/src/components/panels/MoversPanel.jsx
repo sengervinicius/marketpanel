@@ -18,7 +18,7 @@ import PanelChrome from '../common/PanelChrome';
 import { PriceRow } from '../common/PriceRow';
 import { PanelTabRow } from './_shared';
 import { useSparklineData } from '../../hooks/useSparklineData';
-import { COLS_STANDARD_SPARK } from '../../utils/panelColumns';
+import { COLS_MOVERS_SPARK } from '../../utils/panelColumns';
 import { isUsMarketOpen, isB3MarketOpen } from '../../utils/marketHours';
 import './MoversPanel.css';
 import { openDetailWindow } from '../../utils/detailWindow';
@@ -31,14 +31,6 @@ const TABS = [
 const EXCHANGES = ['US', 'BR'];
 const REFRESH_MS = 60_000;
 const LIMIT = 20;
-
-function fmtVolume(v) {
-  if (v == null || !Number.isFinite(v)) return '';
-  if (v >= 1e9) return (v / 1e9).toFixed(1) + 'B';
-  if (v >= 1e6) return (v / 1e6).toFixed(1) + 'M';
-  if (v >= 1e3) return (v / 1e3).toFixed(0) + 'K';
-  return String(v);
-}
 
 function MoversPanel({ onTickerClick }) {
   const openDetail = useOpenDetail();
@@ -142,11 +134,15 @@ function MoversPanel({ onTickerClick }) {
               <PriceRow
                 key={r.symbol}
                 symbol={r.symbol}
-                name={r.name || (tab === 'actives' && r.volume != null ? `VOL ${fmtVolume(r.volume)}` : `#${i + 1}`)}
+                /* wave-nov item 1 — real company name in the subtext (same
+                   pattern as the other panels), rank preserved as a prefix.
+                   Server now merges names for US movers (Polygon lacks them). */
+                name={r.name ? `#${i + 1} · ${r.name}` : `#${i + 1}`}
                 price={r.price}
                 changePct={r.changePct}
                 decimals={2}
-                columns={COLS_STANDARD_SPARK}
+                columns={COLS_MOVERS_SPARK}
+                volume={r.volume ?? null}
                 sparklineData={spark}
                 onClick={() => onTickerClick?.(r.symbol)}
                 onDoubleClick={() => openDetailWindow(exchange === 'BR' ? `${r.symbol}.SA` : r.symbol, 'Movers')}
