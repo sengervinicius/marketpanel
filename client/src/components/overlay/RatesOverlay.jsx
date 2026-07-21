@@ -17,6 +17,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../../utils/api';
 import { swallow } from '../../utils/swallow';
+import { normalizeCurvePayload } from '../../utils/curveShape';
 import CurveChart from './CurveChart';
 
 // Same palette as DICurvePanel so the terminal speaks one color language.
@@ -204,10 +205,39 @@ export default function RatesOverlay({ tab }) {
   const [curves, setCurves] = useState(null);
   useEffect(() => {
     let alive = true;
-    apiFetch('/api/yield-curves')
-      .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (alive && j && !j.error) setCurves(j); })
-      .catch(e => swallow(e, 'overlay.rates.curves'));
+    (async () => {
+      try {
+        const r = await apiFetch('/api/yield-curves');
+        const j = r.ok ? await r.json() : null;
+        if (!j || j.error) return;
+        // fix/us-curve-shape: shape-tolerant ingest — each country entry
+        // (whatever point shape the server ships) is normalized to the
+        // internal { tenor, months?, rate } shape CurveChart/rateAt read.
+        for (const c of COUNTRIES) {
+          const entry = j[c.id];
+          if (!entry) continue;
+          entry.curve = normalizeCurvePayload(entry);
+          if (Array.isArray(entry.ghost)) entry.ghost = normalizeCurvePayload(entry.ghost);
+        }
+        // Same fail-open US heal as DebtPanel: if the aggregate payload
+        // ships an empty US entry, recover it from /api/debt/sovereign/US
+        // ({ points: [{ tenor, yield }] } — the normalizer handles it).
+        if (!j.US?.curve?.length) {
+          try {
+            const r2 = await apiFetch('/api/debt/sovereign/US');
+            const j2 = r2.ok ? await r2.json() : null;
+            const healed = normalizeCurvePayload(j2);
+            if (healed.length > 0) {
+              j.US = {
+                curve: healed,
+                source: j2.source === 'fred' ? 'FRED' : (j2.source || 'fallback'),
+              };
+            }
+          } catch (e) { swallow(e, 'overlay.rates.us_curve_fallback'); }
+        }
+        if (alive) setCurves(j);
+      } catch (e) { swallow(e, 'overlay.rates.curves'); }
+    })();
     return () => { alive = false; };
   }, []);
 

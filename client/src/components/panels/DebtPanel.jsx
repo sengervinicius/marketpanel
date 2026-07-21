@@ -26,6 +26,7 @@ import {
   Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { TOKEN_HEX } from '../../utils/tokenHex';
+import { normalizeCurvePayload } from '../../utils/curveShape';
 import { apiFetch } from '../../utils/api';
 import { fmtCompactPct } from '../../utils/format';
 import { swallow } from '../../utils/swallow';
@@ -219,13 +220,19 @@ function DebtPanel() {
         // both read this same payload via getCurve('US') — stay populated.
         // The old panel had this as its "Step 2" fallback; Design v1
         // dropped it, which made the empty entry user-fatal.
+        // fix/us-curve-shape: the heal is shape-tolerant — sovereign/US
+        // ships { points: [{ tenor, yield }] } while this panel (and the
+        // aggregate payload) speak { curve: [{ tenor, months?, rate }] }.
+        // normalizeCurvePayload accepts BOTH (and bare arrays), so a
+        // healthy fallback response can never again "heal" to 0 points.
         if (!Array.isArray(json?.US?.curve) || json.US.curve.length === 0) {
           try {
             const r2 = await apiFetch('/api/debt/sovereign/US', { signal: controller.signal });
             const j2 = r2.ok ? await r2.json() : null;
-            if (Array.isArray(j2?.points) && j2.points.length > 0) {
+            const healed = normalizeCurvePayload(j2);
+            if (healed.length > 0) {
               json.US = {
-                curve: j2.points.map(pt => ({ tenor: pt.tenor, rate: pt.yield })),
+                curve: healed,
                 source: j2.source === 'fred' ? 'FRED' : (j2.source || 'fallback'),
                 updatedAt: new Date().toISOString(),
                 // no ghost — fallback source has no 1M-ago history
