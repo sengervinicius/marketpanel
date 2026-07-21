@@ -38,6 +38,28 @@
   color: var(--accent);
 }
 
+/* Session-aware label (Polish W2 item 4) — shown when the server serves
+   last-session fallback data instead of a live snapshot. */
+.mv-session-strip {
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--color-surface-2);
+  flex-shrink: 0;
+}
+.mv-session-chip {
+  font-family: var(--font-family-mono);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  padding: 0 5px;
+}
+
 /* Empty / loading state */
 .mv-state {
   flex: 1;

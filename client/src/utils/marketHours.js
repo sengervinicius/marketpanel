@@ -27,3 +27,21 @@ export function isUsMarketOpen(now = new Date()) {
 
   return isWeekday && isMarketHours;
 }
+
+/**
+ * Is the B3 (Sao Paulo) cash market inside regular trading hours?
+ * B3 regular session: 10:00-16:55 BRT, Monday-Friday (auction tails and
+ * holidays intentionally not modeled — same tolerance as isUsMarketOpen).
+ * @param {Date} [now] — injectable for tests; defaults to the current time.
+ * @returns {boolean}
+ */
+export function isB3MarketOpen(now = new Date()) {
+  const spTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  const day = spTime.getDay(); // 0=Sun, 6=Sat
+  const timeInMinutes = spTime.getHours() * 60 + spTime.getMinutes();
+
+  const isWeekday = day >= 1 && day <= 5;
+  const isMarketHours = timeInMinutes >= 600 && timeInMinutes < 1015; // 10:00=600, 16:55=1015
+
+  return isWeekday && isMarketHours;
+}

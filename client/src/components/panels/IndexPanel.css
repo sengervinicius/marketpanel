@@ -98,11 +98,17 @@
 .ip-row-symbol {
   color: var(--color-text-secondary);
   font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 4px;
 }
 
 .ip-row-label {
   color: var(--text-muted);
   font-size: 9px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -114,6 +120,9 @@
   text-align: right;
   padding-right: 4px;
   font-variant-numeric: tabular-nums;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .ip-row-change {

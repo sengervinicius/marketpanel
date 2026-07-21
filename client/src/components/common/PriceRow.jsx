@@ -137,20 +137,31 @@ function PriceRow({
       onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
       onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
     >
+      {/* Polish W2 item 3 — every text cell clips: grid children default to
+          min-width:auto, so long symbols (^STOXX50E) / names (Oncoclinicas do
+          Brasil…) used to paint over the neighbouring cell. min-width:0 +
+          overflow ellipsis on all four cells guarantees truncation instead. */}
       <span style={{
         color: symbolColor,
         fontWeight: 700,
-      }}>
+        minWidth: 0,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        paddingRight: 4,
+      }} title={displaySymbol || symbol}>
         {displaySymbol || symbol}
       </span>
       <span style={{
         color: 'var(--text-muted)',
         fontSize: '9px',
+        minWidth: 0,
+        maxWidth: '100%',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
         paddingRight: 4,
-      }}>
+      }} title={name}>
         {name}
       </span>
       <span style={{
@@ -158,6 +169,9 @@ function PriceRow({
         textAlign: 'right',
         paddingRight: 4,
         fontVariantNumeric: 'tabular-nums',
+        minWidth: 0,
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
       }}>
         {renderPrice(price)}
       </span>
@@ -169,6 +183,8 @@ function PriceRow({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'flex-end',
+        minWidth: 0,
+        whiteSpace: 'nowrap',
       }}>
         {renderChangePct(changePct)}
       </span>

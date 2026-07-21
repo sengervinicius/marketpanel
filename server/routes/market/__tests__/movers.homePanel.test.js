@@ -28,14 +28,18 @@ const routePath = require.resolve('../movers');
 
 // ── Stubs ────────────────────────────────────────────────────────────
 let yahooQuoteCalls = 0;
+// Session-aware (Polish W2 item 4): every quote reports CLOSED and the
+// session timestamp is Friday 2026-07-17 16:55 BRT (19:55 UTC), so the
+// route must label the payload LAST SESSION · FRI.
+const FRI_CLOSE_EPOCH = Date.UTC(2026, 6, 17, 19, 55, 0) / 1000;
 const B3_QUOTES = [
-  { symbol: 'PETR4.SA', shortName: 'PETROBRAS PN',  regularMarketPrice: 38.10, regularMarketChange:  1.10, regularMarketChangePercent:  2.97, regularMarketVolume: 90000000 },
-  { symbol: 'VALE3.SA', shortName: 'VALE ON',       regularMarketPrice: 61.50, regularMarketChange: -2.05, regularMarketChangePercent: -3.22, regularMarketVolume: 45000000 },
-  { symbol: 'ITUB4.SA', shortName: 'ITAU UNIBANCO', regularMarketPrice: 34.02, regularMarketChange:  0.12, regularMarketChangePercent:  0.35, regularMarketVolume: 120000000 },
-  { symbol: 'ZERO3.SA', shortName: 'NO PCT',        regularMarketPrice: 10.00, regularMarketChange: null,  regularMarketChangePercent: null,  regularMarketVolume: null },
+  { symbol: 'PETR4.SA', shortName: 'PETROBRAS PN',  regularMarketPrice: 38.10, regularMarketChange:  1.10, regularMarketChangePercent:  2.97, regularMarketVolume: 90000000, marketState: 'CLOSED', regularMarketTime: FRI_CLOSE_EPOCH },
+  { symbol: 'VALE3.SA', shortName: 'VALE ON',       regularMarketPrice: 61.50, regularMarketChange: -2.05, regularMarketChangePercent: -3.22, regularMarketVolume: 45000000, marketState: 'CLOSED', regularMarketTime: FRI_CLOSE_EPOCH },
+  { symbol: 'ITUB4.SA', shortName: 'ITAU UNIBANCO', regularMarketPrice: 34.02, regularMarketChange:  0.12, regularMarketChangePercent:  0.35, regularMarketVolume: 120000000, marketState: 'CLOSED', regularMarketTime: FRI_CLOSE_EPOCH },
+  { symbol: 'ZERO3.SA', shortName: 'NO PCT',        regularMarketPrice: 10.00, regularMarketChange: null,  regularMarketChangePercent: null,  regularMarketVolume: null, marketState: 'CLOSED', regularMarketTime: FRI_CLOSE_EPOCH },
   // Data-quality: penny leftover — strict mode (default) must drop it
   // (price < 1 BRL), ?quality=all must serve it.
-  { symbol: 'PENN3.SA', shortName: 'PENNY JUNK',     regularMarketPrice: 0.47,  regularMarketChange: 0.16,  regularMarketChangePercent: 50.9,  regularMarketVolume: 5000 },
+  { symbol: 'PENN3.SA', shortName: 'PENNY JUNK',     regularMarketPrice: 0.47,  regularMarketChange: 0.16,  regularMarketChangePercent: 50.9,  regularMarketVolume: 5000, marketState: 'CLOSED', regularMarketTime: FRI_CLOSE_EPOCH },
 ];
 
 require.cache[providersPath] = {
@@ -69,6 +73,11 @@ require.cache[moversProviderPath] = {
           { symbol: 'AAA', price: 12.5,  change: sign * 2.5,  changePct: sign * 25.0, volume: 1000000, prevClose: 10.0 },
           { symbol: 'BBB', price: 100.0, change: sign * 10.0, changePct: sign * 11.1, volume: 500000,  prevClose: 90.0 },
         ],
+        // Polish W2 item 4 — losers simulate the provider's overnight
+        // last-session fallback so passthrough is provable end-to-end.
+        ...(opts.direction === 'losers'
+          ? { session: 'last', sessionLabel: 'LAST SESSION · FRI' }
+          : { session: 'live' }),
         source: 'polygon',
         asOf: '2026-07-16T12:00:00.000Z',
       };
@@ -144,6 +153,15 @@ describe('GET /market/movers (H2 W1 home panel)', () => {
     assert.equal(moversCalls.at(-1).direction, 'losers');
   });
 
+  it('US session tags pass through: live has no label, last carries it', async () => {
+    const live = await getJson(port, '/market/movers?tab=gainers');
+    assert.equal(live.body.session, 'live');
+    assert.equal(live.body.sessionLabel, undefined);
+    const last = await getJson(port, '/market/movers?tab=losers');
+    assert.equal(last.body.session, 'last');
+    assert.equal(last.body.sessionLabel, 'LAST SESSION · FRI');
+  });
+
   it('invalid tab/exchange fall back to gainers / US', async () => {
     const r = await getJson(port, '/market/movers?tab=nonsense&exchange=JP');
     assert.equal(r.body.tab, 'gainers');
@@ -185,6 +203,12 @@ describe('GET /market/movers (H2 W1 home panel)', () => {
   it('BR actives: ranked desc by volume, null-volume rows dropped', async () => {
     const r = await getJson(port, '/market/movers?exchange=BR&tab=actives');
     assert.deepEqual(r.body.data.map(d => d.symbol), ['ITUB4', 'PETR4', 'VALE3']);
+  });
+
+  it('BR closed exchange: payload labeled LAST SESSION · FRI (Polish W2 item 4)', async () => {
+    const r = await getJson(port, '/market/movers?exchange=BR&tab=gainers');
+    assert.equal(r.body.session, 'last');
+    assert.equal(r.body.sessionLabel, 'LAST SESSION · FRI');
   });
 
   it('BR rows are served from the 60s cache — no re-sweep on later calls', async () => {

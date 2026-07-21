@@ -50,6 +50,11 @@ export const COLS_TIGHT    = `${COL_SYMBOL_TIGHT} ${COL_NAME_FLEX} ${COL_PRICE} 
 // Watchlist: symbol | name | price | chg% | remove-btn
 export const COLS_WATCHLIST = `${COL_SYMBOL_FX} ${COL_NAME_FLEX} ${COL_PRICE} ${COL_CHG_PCT} ${COL_REMOVE_BTN}`;
 
+// Global indexes: Yahoo cash-index tickers run long (^STOXX50E is 9
+// chars); the 44px tight column overflowed into the NAME cell. Reuse
+// the FX width so the full ticker fits without ellipsis.
+export const COLS_INDEX = `${COL_SYMBOL_FX} ${COL_NAME_FLEX} ${COL_PRICE} ${COL_CHG_PCT}`;
+
 // ── H1.2 sparkline variants ──────────────────────────────────────────
 // symbol | name | price | chg% | spark — used by the home ticker-list
 // panels that fetch useSparklineData. Keep the non-spark templates
@@ -57,3 +62,4 @@ export const COLS_WATCHLIST = `${COL_SYMBOL_FX} ${COL_NAME_FLEX} ${COL_PRICE} ${
 export const COLS_STANDARD_SPARK = `${COLS_STANDARD} ${COL_SPARK}`;
 export const COLS_FOREX_SPARK    = `${COLS_FOREX} ${COL_SPARK}`;
 export const COLS_TIGHT_SPARK    = `${COLS_TIGHT} ${COL_SPARK}`;
+export const COLS_INDEX_SPARK    = `${COLS_INDEX} ${COL_SPARK}`;

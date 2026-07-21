@@ -52,7 +52,7 @@
   font-family: var(--font-family-mono);
   font-size: 9px;
   letter-spacing: 0.1em;
-  color: #a78bfa;
+  color: var(--color-brief-accent);
 }
 
 .bp-onething-text {
@@ -115,8 +115,21 @@
 .bp-sym:hover { color: var(--accent); }
 .bp-sym--static { cursor: default; width: 76px; }
 .bp-sym--static:hover { color: var(--text-primary); }
-.bp-sym--vault { color: #d4af37; cursor: default; width: 76px; }
-.bp-sym--vault:hover { color: #d4af37; }
+.bp-sym--vault { color: var(--vault-gold); cursor: default; width: 76px; }
+.bp-sym--vault:hover { color: var(--vault-gold); }
+
+/* Polish W2 item 6 — live day-% mono chip after the symbol */
+.bp-daypct {
+  font-family: var(--font-family-mono);
+  font-size: 8.5px;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+  padding: 0 3px;
+  border-radius: 2px;
+  border: 1px solid transparent;
+}
+.bp-daypct--up { color: var(--color-up);   border-color: color-mix(in srgb, var(--color-up) 35%, transparent); }
+.bp-daypct--dn { color: var(--color-down); border-color: color-mix(in srgb, var(--color-down) 35%, transparent); }
 
 .bp-why {
   font-size: 12px;
@@ -137,11 +150,11 @@
   align-self: center;
 }
 
-.bp-rsn--news  { background: rgba(206, 147, 216, 0.15); color: #ce93d8; }
+.bp-rsn--news  { background: rgba(206, 147, 216, 0.15); color: var(--color-ai); }
 .bp-rsn--flow  { background: rgba(34, 197, 94, 0.10);   color: var(--color-up, #22c55e); }
 .bp-rsn--earn  { background: rgba(229, 90, 0, 0.15);    color: var(--accent, #e55a00); }
-.bp-rsn--macro { background: rgba(33, 150, 243, 0.15);  color: #64b5f6; }
-.bp-rsn--vault { background: rgba(212, 175, 55, 0.15);  color: #d4af37; }
+.bp-rsn--macro { background: rgba(33, 150, 243, 0.15);  color: var(--sent-info); }
+.bp-rsn--vault { background: rgba(212, 175, 55, 0.15);  color: var(--vault-gold); }
 
 /* ── Odds chip (prediction-market implied) ─────────────────────────── */
 .bp-odds {

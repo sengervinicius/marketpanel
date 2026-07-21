@@ -149,13 +149,17 @@
   background: var(--color-accent-dim);
 }
 
-/* Phase S §4 — overlay entry-point titles: subtle hover \2197 affordance. */
+/* Phase S §4 — overlay entry-point titles: subtle hover \2197 affordance.
+ * NOTE: no `font: inherit` here — this rule sits after .panel-chrome-title
+ * and the shorthand used to wipe the mono/11px/700 title spec, making
+ * overlay-entry titles (RATES & CREDIT, BRAZIL) render in the panel's
+ * body font. The typography class supplies every font property already. */
 .panel-chrome-title--overlay {
   background: none;
   border: none;
   padding: 0;
   cursor: pointer;
-  font: inherit;
+  text-align: left;
 }
 .panel-chrome-title--overlay::after {
   content: '\2197';

@@ -64,36 +64,59 @@ function surpriseTone(actual, consensus) {
   return a > c ? 'beat' : 'miss';
 }
 
-function importanceBadge(imp) {
-  if (imp === 'high') return { label: 'HIGH', cls: 'cp-imp--high' };
-  if (imp === 'medium') return { label: 'MED', cls: 'cp-imp--medium' };
-  return { label: 'LOW', cls: 'cp-imp--low' };
+// Polish W2 item 5 — wire-pattern rows. Day helpers for the date chips
+// and thin day dividers (both tabs group rows by day like the news wire).
+const DOW3 = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const MON3 = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+function parseDay(dateStr) {
+  if (!dateStr) return null;
+  const str = String(dateStr);
+  const iso = str.match(/^\d{4}-\d{2}-\d{2}/);
+  const d = iso ? new Date(`${iso[0]}T12:00:00`) : new Date(str);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+// "MON 27" — per-row date chip
+function dayChip(dateStr) {
+  const d = parseDay(dateStr);
+  return d ? `${DOW3[d.getDay()]} ${d.getDate()}` : 'TBD';
+}
+// "MON · JUL 27" — day divider label
+function dayLabel(dateStr) {
+  const d = parseDay(dateStr);
+  return d ? `${DOW3[d.getDay()]} · ${MON3[d.getMonth()]} ${d.getDate()}` : String(dateStr || 'DATE TBD');
+}
+// Stable grouping by calendar day, ordered chronologically (TBD last).
+function groupByDay(items, getDate) {
+  const map = new Map();
+  for (const item of items) {
+    const d = parseDay(getDate(item));
+    const key = d ? d.toISOString().slice(0, 10) : 'zzz-tbd';
+    if (!map.has(key)) map.set(key, { key, label: dayLabel(getDate(item)), items: [] });
+    map.get(key).items.push(item);
+  }
+  return Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
 }
 
 function EventRow({ event, expanded, onToggle, preview, previewLoading, previewError, onRequestPreview }) {
-  const imp = importanceBadge(event.importance);
+  // Polish W2 item 5 — wire-pattern macro row:
+  // [TIME chip | importance dot | EVENT | consensus/prior | actual (beat/miss)]
+  const tone = event.actual != null ? surpriseTone(event.actual, event.forecast) : null;
   return (
     <div className={`cp-event ${expanded ? 'cp-event--expanded' : ''}`}>
-      <div className="cp-event-row" onClick={onToggle}>
-        <span className={`cp-imp ${imp.cls}`}>{imp.label}</span>
-        <div className="cp-event-info">
-          <span className="cp-event-name">{event.name}</span>
-          <span className="cp-event-date">{event.date}{event.time ? ` · ${event.time}` : ''}{USER_TZ_SHORT ? ` (${USER_TZ_SHORT})` : ''}</span>
-        </div>
-        <div className="cp-event-data">
-          {event.previous && <span className="cp-event-prev">Prev: {event.previous}</span>}
-          {event.forecast && <span className="cp-event-fcst">Exp: {event.forecast}</span>}
-          {event.actual != null && (() => {
-            // H2 W1.2 — surprise coloring: actual vs consensus where both
-            // exist, tinted with the shared up/down tokens.
-            const tone = surpriseTone(event.actual, event.forecast);
-            return (
-              <span className={`cp-event-actual${tone ? ` cp-event-actual--${tone}` : ''}`}>
-                Act: {event.actual}
-              </span>
-            );
-          })()}
-        </div>
+      <div className="cp-event-row cp-mac-row" onClick={onToggle} title={`${event.name} · ${event.date}${USER_TZ_SHORT ? ` (${USER_TZ_SHORT})` : ''}`}>
+        <span className="cp-chip-date">{event.time || dayChip(event.date)}</span>
+        <span className={`cp-imp-dot cp-imp-dot--${event.importance || 'medium'}`} />
+        <span className="cp-mac-name">{event.name}</span>
+        <span className="cp-mac-nums">
+          {event.forecast != null && <span className="cp-mac-cons">CONS {event.forecast}</span>}
+          {event.previous != null && <span className="cp-mac-prev">PREV {event.previous}</span>}
+          {event.actual != null && (
+            <span className={`cp-event-actual${tone ? ` cp-event-actual--${tone}` : ''}`}>
+              ACT {event.actual}
+            </span>
+          )}
+        </span>
         <span className="cp-event-chevron">{expanded ? '\u25BE' : '\u25B8'}</span>
       </div>
       {expanded && (
@@ -144,39 +167,27 @@ function EventRow({ event, expanded, onToggle, preview, previewLoading, previewE
   );
 }
 
-/* ── Earnings Row ─────────────────────────────────────────────────── */
-function EarningsRow({ item }) {
+/* ── Earnings Row — Polish W2 item 5, news-wire pattern ───────────────
+ * [DATE chip mono (MON 27) | BMO/AMC badge | TICKER bold | company muted
+ *  ellipsized | est EPS right-aligned mono]. `mine` rows (watchlist names
+ * in the pinned MY NAMES group) carry the accent left edge. */
+function EarningsRow({ item, mine = false }) {
   const dateStr = item.date || item.reportDate || '';
-  const timing = item.timing || item.when || '';
+  const timingRaw = String(item.timing || item.when || '').toUpperCase();
+  const timing = timingRaw === 'BMO' ? 'BMO' : timingRaw === 'AMC' ? 'AMC' : 'TBD';
+  const ticker = item.ticker || item.symbol || '—';
+  const name = item.name || item.companyName || '';
   const epsEst = item.epsEstimate ?? item.consensusEps ?? null;
-  const epsPrev = item.epsPrevious ?? item.lastEps ?? null;
-  const revEst = item.revenueEstimate ?? item.consensusRevenue ?? null;
-
-  const fmtNum = (n) => n == null ? '—' : typeof n === 'number' ? n.toFixed(2) : String(n);
-  const fmtRev = (n) => {
-    if (n == null) return '—';
-    if (typeof n !== 'number') return String(n);
-    if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
-    if (n >= 1e6) return `$${(n / 1e6).toFixed(0)}M`;
-    return `$${n.toFixed(0)}`;
-  };
+  const eps = epsEst == null ? '—'
+    : `EST ${typeof epsEst === 'number' ? epsEst.toFixed(2) : String(epsEst)}`;
 
   return (
-    <div className="cp-event">
-      <div className="cp-event-row" style={{ cursor: 'default' }}>
-        <span className="cp-imp cp-imp--medium" style={{ width: 36 }}>
-          {timing === 'BMO' || timing === 'bmo' ? 'BMO' : timing === 'AMC' || timing === 'amc' ? 'AMC' : 'TBD'}
-        </span>
-        <div className="cp-event-info">
-          <span className="cp-event-name">{item.ticker || item.symbol || '—'}</span>
-          <span className="cp-event-date">{item.name || item.companyName || ''} · {dateStr}</span>
-        </div>
-        <div className="cp-event-data">
-          <span className="cp-event-prev">EPS Est: {fmtNum(epsEst)}</span>
-          <span className="cp-event-fcst">Rev Est: {fmtRev(revEst)}</span>
-          {epsPrev != null && <span className="cp-event-prev" style={{ fontSize: 8.5 }}>Prev EPS: {fmtNum(epsPrev)}</span>}
-        </div>
-      </div>
+    <div className={`cp-ern-row${mine ? ' cp-ern-row--mine' : ''}`} title={`${ticker} · ${name} · ${dateStr}`}>
+      <span className="cp-chip-date">{dayChip(dateStr)}</span>
+      <span className={`cp-ern-tim cp-ern-tim--${timing.toLowerCase()}`}>{timing}</span>
+      <span className="cp-ern-tkr">{ticker}</span>
+      <span className="cp-ern-co">{name}</span>
+      <span className="cp-ern-eps">{eps}</span>
     </div>
   );
 }
@@ -284,13 +295,31 @@ function CalendarPanel() {
   // Use dynamic or fall back to static
   const displayEvents = macroEvents || STATIC_EVENTS;
   const earningsAll = earnings || [];
+  const isMine = useCallback((item) => {
+    const t = String(item.ticker || item.symbol || '').toUpperCase();
+    return !!t && (watchSet.has(t) || watchSet.has(t.replace(/\.SA$/, '')));
+  }, [watchSet]);
+
   const earningsList = useMemo(() => {
     if (!watchOnly) return earningsAll;
-    return earningsAll.filter(item => {
-      const t = String(item.ticker || item.symbol || '').toUpperCase();
-      return t && (watchSet.has(t) || watchSet.has(t.replace(/\.SA$/, '')));
-    });
-  }, [earningsAll, watchOnly, watchSet]);
+    return earningsAll.filter(isMine);
+  }, [earningsAll, watchOnly, isMine]);
+
+  // Polish W2 item 5 — watchlist names pin to a MY NAMES group on top
+  // (chronological), the market-wide list renders below, day-grouped.
+  const byDate = useCallback((a, b) => {
+    const da = parseDay(a.date || a.reportDate)?.getTime() ?? Infinity;
+    const db = parseDay(b.date || b.reportDate)?.getTime() ?? Infinity;
+    return da - db;
+  }, []);
+  const mineEarnings = useMemo(
+    () => earningsList.filter(isMine).sort(byDate),
+    [earningsList, isMine, byDate],
+  );
+  const marketEarnings = useMemo(
+    () => (watchOnly ? [] : earningsList.filter(i => !isMine(i)).sort(byDate)),
+    [earningsList, watchOnly, isMine, byDate],
+  );
 
   return (
     <div className="cp-panel">
@@ -332,17 +361,22 @@ function CalendarPanel() {
                 {macroResp?.message || `Live macro feed offline — set ${macroResp?.missingEnv || 'FINNHUB_API_KEY'}.`} Showing curated schedule.
               </div>
             )}
-            {displayEvents.map(evt => (
-              <EventRow
-                key={evt.id}
-                event={evt}
-                expanded={expandedId === evt.id}
-                onToggle={() => handleToggle(evt.id)}
-                preview={previews[evt.id]}
-                previewLoading={loadingId === evt.id}
-                previewError={errors[evt.id]}
-                onRequestPreview={() => handleRequestPreview(evt)}
-              />
+            {groupByDay(displayEvents, e => e.date).map(group => (
+              <div key={group.key}>
+                <div className="cp-day-div">{group.label}</div>
+                {group.items.map(evt => (
+                  <EventRow
+                    key={evt.id}
+                    event={evt}
+                    expanded={expandedId === evt.id}
+                    onToggle={() => handleToggle(evt.id)}
+                    preview={previews[evt.id]}
+                    previewLoading={loadingId === evt.id}
+                    previewError={errors[evt.id]}
+                    onRequestPreview={() => handleRequestPreview(evt)}
+                  />
+                ))}
+              </div>
             ))}
           </>
         )}
@@ -371,8 +405,23 @@ function CalendarPanel() {
             {!earningsLoading && earningsList.length > 0 && earningsResp?.note && (
               <div className="cp-provider-note">{earningsResp.note}</div>
             )}
-            {earningsList.map((item, i) => (
-              <EarningsRow key={item.ticker || item.symbol || i} item={item} />
+            {/* MY NAMES — watchlist tickers pinned on top, accent edge. */}
+            {mineEarnings.length > 0 && (
+              <div>
+                <div className="cp-day-div cp-day-div--mine">MY NAMES · {mineEarnings.length}</div>
+                {mineEarnings.map((item, i) => (
+                  <EarningsRow key={`mine-${item.ticker || item.symbol || i}`} item={item} mine />
+                ))}
+              </div>
+            )}
+            {/* Market-wide list, grouped by day with thin dividers. */}
+            {groupByDay(marketEarnings, it => it.date || it.reportDate).map(group => (
+              <div key={group.key}>
+                <div className="cp-day-div">{group.label}</div>
+                {group.items.map((item, i) => (
+                  <EarningsRow key={item.ticker || item.symbol || i} item={item} />
+                ))}
+              </div>
             ))}
           </>
         )}

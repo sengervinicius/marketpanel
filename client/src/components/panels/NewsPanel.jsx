@@ -63,6 +63,25 @@ function tickerSentiment(item, ticker) {
   return null;
 }
 
+// Polish W2 item 6 — story-level sentiment for the row's left edge.
+// Only when the story CARRIES sentiment (explicit field or unanimous
+// Polygon insights); mixed/absent → no edge. Subtle by design (60%).
+function storySentiment(item) {
+  const s = String(item?.sentiment || '').toLowerCase();
+  if (s === 'positive' || s === 'bullish') return 'up';
+  if (s === 'negative' || s === 'bearish') return 'down';
+  const ins = Array.isArray(item?.insights) ? item.insights : [];
+  let up = 0, down = 0;
+  for (const x of ins) {
+    const v = String(x?.sentiment || '').toLowerCase();
+    if (v === 'positive' || v === 'bullish') up++;
+    else if (v === 'negative' || v === 'bearish') down++;
+  }
+  if (up > 0 && down === 0) return 'up';
+  if (down > 0 && up === 0) return 'down';
+  return null;
+}
+
 function isBreakingStory(item) {
   const t = (item?.title || '').toUpperCase();
   return item?.importance === 'high' ||
@@ -185,9 +204,10 @@ const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTick
     }
   };
 
+  const storySent = storySentiment(item);
   return (
     <div className={isNew ? 'np-wr-wrap np-wr-wrap--new' : 'np-wr-wrap'}>
-      <div className="np-wr" onClick={onToggle} title={item.title}>
+      <div className={`np-wr${storySent ? ` np-wr--${storySent}` : ''}`} onClick={onToggle} title={item.title}>
         <span className="np-wr-tm">{fmtClock(item.published_utc)}</span>
         <span className="np-wr-src">{source.toUpperCase()}</span>
         <span className={`np-wr-hl ${breaking ? 'np-wr-hl--brk' : ''}`}>{item.title}</span>

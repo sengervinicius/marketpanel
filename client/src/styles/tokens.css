@@ -91,6 +91,8 @@
   --color-info:              #2196f3;           /* Information */
   --color-ai:                #ce93d8;           /* AI / briefing identity (shipped hue) */
   --color-ai-bg:             rgba(206, 147, 216, 0.12);  /* AI badge / briefing tint */
+  --color-brief-accent:      #a78bfa;           /* Morning-brief / AI-digest violet */
+  --color-gold:              #f0c040;           /* Prediction / options gold highlights */
 
 
   /* ================================================================
