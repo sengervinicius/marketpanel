@@ -25,9 +25,11 @@ const showInfo = (e, symbol, label, type) => {
 // (Yahoo ^ tickers). The legacy ETF tickers stay in each region's list so
 // saved user lists keep rendering under the right section header.
 const REGIONS = {
-  AMERICAS: { label: 'AMERICAS',  tickers: ['^GSPC','^IXIC','^DJI','^RUT','^BVSP','SPY','QQQ','DIA','EWZ','EWW','EWC'] },
-  EMEA:     { label: 'EMEA',      tickers: ['^STOXX50E','^FTSE','VGK','EWU','EZU','EWG','EWQ','EWP','EWI','EWL','EWD'] },
-  ASIA:     { label: 'ASIA-PAC',  tickers: ['^N225','^HSI','EWJ','EWH','EWY','EWA','FXI','MCHI','EWT','EWS','INDA'] },
+  // wave-nov item 2 — TSX/MEXBOL, DAX/CAC, Shanghai/KOSPI/ASX/SENSEX join
+  // the canonical buckets (real ^ indices first, ETF proxies after).
+  AMERICAS: { label: 'AMERICAS',  tickers: ['^GSPC','^IXIC','^DJI','^RUT','^GSPTSE','^MXX','^BVSP','SPY','QQQ','DIA','EWZ','EWW','EWC'] },
+  EMEA:     { label: 'EMEA',      tickers: ['^STOXX50E','^FTSE','^GDAXI','^FCHI','VGK','EWU','EZU','EWG','EWQ','EWP','EWI','EWL','EWD'] },
+  ASIA:     { label: 'ASIA-PAC',  tickers: ['^N225','^HSI','000001.SS','^KS11','^AXJO','^BSESN','EWJ','EWH','EWY','EWA','FXI','MCHI','EWT','EWS','INDA'] },
   BROAD:    { label: 'BROAD',     tickers: ['EEM','EFA','IWM'] },
   // #230 P1.6b: CUSTOM bucket for user-dropped tickers that don't belong to a
   // hardcoded region. Without this, the REGIONS_filtered logic below silently
@@ -49,6 +51,8 @@ const NAMES = {
   '^GSPC':'S&P 500', '^IXIC':'NASDAQ', '^DJI':'DOW JONES', '^RUT':'RUSSELL 2000',
   '^BVSP':'IBOVESPA', '^STOXX50E':'EURO STOXX 50', '^FTSE':'FTSE 100',
   '^N225':'NIKKEI 225', '^HSI':'HANG SENG',
+  '^GDAXI':'DAX', '^FCHI':'CAC 40', '^GSPTSE':'TSX COMP', '^MXX':'MEXBOL',
+  '000001.SS':'SHANGHAI', '^KS11':'KOSPI', '^AXJO':'ASX 200', '^BSESN':'SENSEX',
   SPY:'S&P 500 ETF', QQQ:'NASDAQ 100 ETF', DIA:'DOW JONES ETF', IWM:'RUSSELL 2000 ETF',
   EWZ:'BRAZIL', EWW:'MEXICO', EWC:'CANADA',
   VGK:'EUROPE', EZU:'EURO STOXX', EWU:'UK FTSE', EWG:'GERMANY DAX', EWQ:'FRANCE CAC', EWP:'SPAIN IBEX',
@@ -71,6 +75,9 @@ const ETF_PROXY = {
   '^GSPC': 'SPY', '^IXIC': 'QQQ', '^DJI': 'DIA', '^RUT': 'IWM',
   '^BVSP': 'EWZ', '^STOXX50E': 'FEZ', '^FTSE': 'EWU',
   '^N225': 'EWJ', '^HSI': 'EWH',
+  // wave-nov item 2 — proxies for the new default indices.
+  '^GDAXI': 'EWG', '^FCHI': 'EWQ', '^GSPTSE': 'EWC', '^MXX': 'EWW',
+  '000001.SS': 'MCHI', '^KS11': 'EWY', '^AXJO': 'EWA', '^BSESN': 'INDA',
 };
 const hasQuote = (d) => d != null && typeof d.price === 'number' && !Number.isNaN(d.price);
 
@@ -149,7 +156,11 @@ function GlobalIndicesPanel({ data = {}, loading, onTickerClick }) {
 
   const panelCfg = settings?.panels?.globalIndices || {
     title: 'Global Indexes',
-    symbols: ['^GSPC','^IXIC','^DJI','^BVSP','^STOXX50E','^FTSE','^N225','^HSI','^RUT'],
+    symbols: [
+      '^GSPC','^IXIC','^DJI','^RUT','^GSPTSE','^MXX','^BVSP',
+      '^STOXX50E','^FTSE','^GDAXI','^FCHI',
+      '^N225','^HSI','000001.SS','^KS11','^AXJO','^BSESN',
+    ],
     hiddenSubsections: [],
     subsectionLabels: {},
   };

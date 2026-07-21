@@ -33,6 +33,7 @@ import { useInstrumentSearch } from '../../hooks/useInstrumentSearch';
 import { useAlerts } from '../../context/AlertsContext';
 import { useToast } from '../../context/ToastContext';
 import { apiFetch } from '../../utils/api';
+import { fmtVol } from '../../utils/format';
 import {
   ORANGE, GREEN, RED, RANGES,
   fmt, fmtLabel, xAxisTickFormatter, timeAgo, pct, exportToCSV, getFromDate, displayTicker,
@@ -44,6 +45,35 @@ import { getExchangeName } from '../../config/exchangeNames';
 import {
   detectExchangeGroup, getProviderRouting, getDataTypeCoverage, getCoverageDisplay, COVERAGE,
 } from '../../config/providerMatrix';
+
+// wave-nov item 3 — legible volume hover. Mirrors the ChartPanel
+// MiniChartTooltip fix (commit 8bf4169): Recharts' default contentStyle
+// rendered the hovered volume nearly invisible, so we swap in a custom
+// content component — solid dark bg, 13px bold mono compact value.
+function VolumeHoverTip({ active, payload, label }) {
+  if (!active || !payload || !payload.length) return null;
+  const v = payload[0]?.value;
+  return (
+    <div style={{
+      background: 'rgba(10,10,15,0.95)',
+      border: '1px solid var(--border-strong)',
+      borderRadius: 'var(--radius-sm)',
+      padding: '6px 8px',
+      pointerEvents: 'none',
+      fontFamily: 'var(--font-family-mono)',
+    }}>
+      <div style={{ color: 'var(--text-muted)', fontSize: 9 }}>{label}</div>
+      <div style={{
+        color: 'var(--text-primary)',
+        fontSize: 13,
+        fontWeight: 700,
+        fontVariantNumeric: 'tabular-nums',
+      }}>
+        VOL {v != null ? fmtVol(v) : '—'}
+      </div>
+    </div>
+  );
+}
 
 // ── Main Component ──────────────────────────────────────────────────────────
 // asPage=true: renders as a scrollable page (DETAIL tab on mobile), no fixed overlay
@@ -993,7 +1023,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
         {/* Volume chart */}
         <div className={`id-chart-flex-volume${(hasRSI || hasMACD) ? ' id-chart-flex-volume--compressed' : ''}`}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartBars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
+            <BarChart
+              data={chartBars}
+              margin={{ top: 2, right: 6, bottom: 0, left: 6 }}
+              /* wave-nov item 3 — hovering the volume bars echoes into the
+                 same header chip the price chart feeds (id-hover-price). */
+              onMouseMove={e => e?.activePayload?.[0] && setHovered(e.activePayload[0].payload)}
+              onMouseLeave={() => setHovered(null)}
+            >
               <XAxis dataKey="label" hide axisLine={false} />
               <YAxis
                 /* Mirror the price axis onto the right so both axes
@@ -1003,7 +1040,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                    was on the left by default, producing two phantom
                    gutters on mobile and compressing the bars. */
                 orientation="right"
-                tick={{ fill: 'var(--text-faint)', fontSize: 8.5 }} width={isMobile ? 44 : 64}
+                tick={{ fill: 'var(--text-faint)', fontSize: 8.5, fontFamily: 'var(--font-family-mono)' }} width={isMobile ? 44 : 64}
                 tickFormatter={v =>
                   v >= 1e9 ? (v/1e9).toFixed(1)+'B' :
                   v >= 1e6 ? (v/1e6).toFixed(0)+'M' :
@@ -1011,11 +1048,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 }
                 axisLine={false}
               />
-              <Tooltip
-                contentStyle={commonTooltipStyle}
-                formatter={v => [fmt(v, 0), 'Volume']}
-                labelStyle={{ color: 'var(--text-muted)' }}
-              />
+              <Tooltip content={<VolumeHoverTip />} cursor={{ fill: 'var(--bg-hover)' }} />
               <Bar dataKey="volume" fill="var(--bg-active)" opacity={0.85} radius={[1, 1, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -2491,7 +2524,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
             {hovered && (
               <span className="id-hover-price">
-                <span style={{display:'inline-block',width:6,height:6,borderRadius:'50%',background:'currentColor',marginRight:'4px',verticalAlign:'middle'}}/> {hovered.label}: {fmt(hovered.close)}
+                <span style={{display:'inline-block',width:6,height:6,borderRadius:'50%',background:'currentColor',marginRight:'4px',verticalAlign:'middle'}}/> {hovered.label}: {fmt(hovered.close)}{hovered.volume != null ? ` · VOL ${fmtVol(hovered.volume)}` : ''}
               </span>
             )}
           </>

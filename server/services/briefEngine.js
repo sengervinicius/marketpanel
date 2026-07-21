@@ -53,6 +53,7 @@ const NEWS_PER_SYMBOL     = 3;
 const EARNINGS_SYMBOL_CAP = 15;
 const VAULT_SYMBOLS       = 3;              // most-active names checked vs vault
 const VAULT_AGING_DAYS    = 90;             // fallback "AGING" threshold
+const VAULT_NEW_MS        = 48 * 3600e3;    // wave-nov Phase Z: docs ingested <48h ago are NEW
 const HAIKU_MAX_TOKENS    = 1400;
 
 const REASONS  = ['NEWS', 'FLOW', 'EARN', 'MACRO', 'VAULT'];
@@ -446,15 +447,24 @@ async function buildBriefData(userId) {
   for (const row of vaultTargets) {
     try {
       const passages = await deps.vaultRetrieve(userId, `${row.symbol.replace(/\.SA$/i, '')} outlook`, 3);
-      const top = (passages || [])[0];
+      // wave-nov Phase Z — docs ingested in the last 48h (any source:
+      // upload, email, URL) outrank older material for the same name.
+      const list = passages || [];
+      const createdMs = (p) => (p && p.doc_created_at ? new Date(p.doc_created_at).getTime() : null);
+      const isRecent = (p) => {
+        const t = createdMs(p);
+        return t != null && deps.now() - t <= VAULT_NEW_MS;
+      };
+      const top = list.find(isRecent) || list[0];
       if (!top) continue; // empty-over-noise: no doc, no row
-      const created = top.doc_created_at ? new Date(top.doc_created_at).getTime() : null;
+      const created = createdMs(top);
       vaultHits.push({
         symbol: row.symbol,
         docName: top.filename || 'Research note',
         excerpt: String(top.content || '').slice(0, 300),
         similarity: top.similarity != null ? +parseFloat(top.similarity).toFixed(3) : null,
         ageDays: created ? Math.round((deps.now() - created) / 86400000) : null,
+        isNew: isRecent(top),
       });
     } catch (e) {
       swallow(e, 'briefEngine.vault');
@@ -518,6 +528,7 @@ function buildComposePrompt(data) {
     '- One item per symbol, max. Skip a symbol rather than pad a weak line.',
     '- macro: max 4 rows, from DATA.macro only. Attach odds only when DATA provides them (format "SRC NN%").',
     '- vaultCheck: one row per DATA.vault entry; use its ageDays for AGING judgments. Empty array if DATA.vault is empty.',
+    '- DATA.vault entries with isNew=true were ingested in the last 48 hours — weigh them first; they are the freshest read on the name.',
     '- If nothing is active, buckets is an empty array and oneThing says the book is quiet — honestly.',
   ].join('\n');
 }
@@ -571,6 +582,9 @@ function sanitizeComposed(parsed, data) {
     .filter(m => m.label && m.line);
 
   const knownDocs = new Set(data.vault.map(v => v.docName));
+  // wave-nov Phase Z — docs ingested <48h ago carry a NEW tag through to
+  // the client (BriefPanel badge) and the email render.
+  const newDocs = new Set(data.vault.filter(v => v.isNew).map(v => String(v.docName).slice(0, 80)));
   const vaultCheck = (Array.isArray(parsed.vaultCheck) ? parsed.vaultCheck : [])
     .filter(v => knownDocs.has(v?.docName))
     .slice(0, VAULT_SYMBOLS)
@@ -578,6 +592,7 @@ function sanitizeComposed(parsed, data) {
       docName: String(v.docName).slice(0, 80),
       line: String(v?.line || '').trim().slice(0, 160),
       verdict: VERDICTS.includes(v?.verdict) ? v.verdict : 'AGING',
+      isNew: newDocs.has(String(v.docName).slice(0, 80)),
     }))
     .filter(v => v.line);
 
@@ -636,12 +651,22 @@ function fallbackCompose(data) {
   // Empty-over-noise: without a model judgment we only surface docs that
   // are demonstrably aging; we don't fake CONFIRMS/CONTRADICTS verdicts.
   const vaultCheck = data.vault
-    .filter(v => v.ageDays != null && v.ageDays >= VAULT_AGING_DAYS)
-    .map(v => ({
-      docName: v.docName,
-      line: `Touches ${v.symbol} — note is ${Math.round(v.ageDays / 30)}mo old and the name is in play today. Refresh?`,
-      verdict: 'AGING',
-    }));
+    .filter(v => v.isNew || (v.ageDays != null && v.ageDays >= VAULT_AGING_DAYS))
+    .map(v => (v.isNew
+      // wave-nov Phase Z — freshly ingested (<48h) research is surfaced
+      // even without a model judgment; we state the fact, not a verdict.
+      ? {
+          docName: v.docName,
+          line: `Fresh in the vault (<48h) and ${v.symbol} is in play today — worth a read before the open.`,
+          verdict: null,
+          isNew: true,
+        }
+      : {
+          docName: v.docName,
+          line: `Touches ${v.symbol} — note is ${Math.round(v.ageDays / 30)}mo old and the name is in play today. Refresh?`,
+          verdict: 'AGING',
+          isNew: false,
+        }));
 
   return { oneThing, buckets, macro, vaultCheck, degraded: true };
 }
@@ -744,9 +769,9 @@ function renderEmailHtml(brief, { dateLabel = '' } = {}) {
     body += section(`VAULT CHECK · ${brief.vaultCheck.length} doc${brief.vaultCheck.length > 1 ? 's' : ''} touched by the tape`);
     for (const v of brief.vaultCheck) {
       body += `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>`
-        + `<td style="font-family:${mono};font-size:11px;font-weight:700;color:#d4af37;vertical-align:top;padding:5px 8px 5px 0;white-space:nowrap">&#9670; ${esc(v.docName.length > 18 ? v.docName.slice(0, 16) + '…' : v.docName)}</td>`
+        + `<td style="font-family:${mono};font-size:11px;font-weight:700;color:#d4af37;vertical-align:top;padding:5px 8px 5px 0;white-space:nowrap">&#9670; ${esc(v.docName.length > 18 ? v.docName.slice(0, 16) + '…' : v.docName)}${v.isNew ? ` <span style="font-family:${mono};font-size:8px;font-weight:700;color:#0a0a0a;background:#d4af37;border-radius:2px;padding:0 3px;vertical-align:middle">NEW</span>` : ''}</td>`
         + `<td style="font-size:12px;color:#a0a0a0;line-height:1.4;padding:5px 8px 5px 0">${esc(v.line)}</td>`
-        + `<td style="text-align:right;vertical-align:top;padding:5px 0">${chip('VAULT', v.verdict)}</td></tr></table>`;
+        + `<td style="text-align:right;vertical-align:top;padding:5px 0">${v.verdict ? chip('VAULT', v.verdict) : ''}</td></tr></table>`;
     }
   }
 

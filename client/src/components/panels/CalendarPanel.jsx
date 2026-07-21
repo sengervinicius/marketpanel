@@ -16,6 +16,8 @@ import PanelChrome from '../common/PanelChrome';
 import { PanelTabRow } from './_shared';
 import { useWatchlist } from '../../context/WatchlistContext';
 import './CalendarPanel.css';
+import { useOpenDetail } from '../../context/OpenDetailContext';
+import { useTickerClicks } from '../../hooks/useTickerClicks';
 
 // Timezone detection
 const USER_TZ_SHORT = (() => {
@@ -172,6 +174,10 @@ function EventRow({ event, expanded, onToggle, preview, previewLoading, previewE
  *  ellipsized | est EPS right-aligned mono]. `mine` rows (watchlist names
  * in the pinned MY NAMES group) carry the accent left edge. */
 function EarningsRow({ item, mine = false }) {
+  // wave-nov item 5 — earnings rows were completely inert (no click
+  // handlers at all). Adopt the shared contract: single click → in-app
+  // overlay detail (delayed), double click → standalone detail window.
+  const openDetail = useOpenDetail();
   const dateStr = item.date || item.reportDate || '';
   const timingRaw = String(item.timing || item.when || '').toUpperCase();
   const timing = timingRaw === 'BMO' ? 'BMO' : timingRaw === 'AMC' ? 'AMC' : 'TBD';
@@ -181,8 +187,18 @@ function EarningsRow({ item, mine = false }) {
   const eps = epsEst == null ? '—'
     : `EST ${typeof epsEst === 'number' ? epsEst.toFixed(2) : String(epsEst)}`;
 
+  const hasTicker = ticker && ticker !== '—';
+  const rowClicks = useTickerClicks(ticker, { onSingle: (sym) => openDetail(sym) });
+
   return (
-    <div className={`cp-ern-row${mine ? ' cp-ern-row--mine' : ''}`} title={`${ticker} · ${name} · ${dateStr}`}>
+    <div
+      className={`cp-ern-row${mine ? ' cp-ern-row--mine' : ''}`}
+      title={hasTicker ? `${ticker} · ${name} · ${dateStr} · click → detail, double-click → window` : `${ticker} · ${name} · ${dateStr}`}
+      role={hasTicker ? 'button' : undefined}
+      style={hasTicker ? { cursor: 'pointer' } : undefined}
+      onClick={hasTicker ? rowClicks.onClick : undefined}
+      onDoubleClick={hasTicker ? rowClicks.onDoubleClick : undefined}
+    >
       <span className="cp-chip-date">{dayChip(dateStr)}</span>
       <span className={`cp-ern-tim cp-ern-tim--${timing.toLowerCase()}`}>{timing}</span>
       <span className="cp-ern-tkr">{ticker}</span>

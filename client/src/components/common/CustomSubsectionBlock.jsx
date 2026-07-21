@@ -8,7 +8,7 @@ import { useState, useRef, useEffect, memo } from 'react';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import useMergedTickerQuote from './useMergedTickerQuote';
 import './CustomSubsectionBlock.css';
-import { openDetailWindow } from '../../utils/detailWindow';
+import { useTickerClicks } from '../../hooks/useTickerClicks';
 
 const fmt = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -30,6 +30,7 @@ function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onRe
 
   const name = d.name || sym;
   const pos = (changePct ?? 0) >= 0;
+  const rowClicks = useTickerClicks(sym, { onSingle: (s) => onTickerClick?.(s) });
 
   return (
     <div
@@ -42,8 +43,8 @@ function TickerRow({ sym, data, color, gridCols, subsection, onTickerClick, onRe
         e.dataTransfer.setData('application/x-ticker', JSON.stringify({ symbol: sym, name: sym, type: 'CUSTOM' }));
         onDragStart?.(e, sym);
       }}
-      onClick={() => onTickerClick?.(sym)}
-      onDoubleClick={() => openDetailWindow(sym)}
+      /* wave-nov item 5 — delayed single (overlay) vs dblclick (window) */
+      {...rowClicks}
       className={`csb-row${flash ? ' price-row-flash' : ''}`}
       style={{ gridTemplateColumns: gridCols }}
       role="button"

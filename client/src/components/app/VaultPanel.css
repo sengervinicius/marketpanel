@@ -73,6 +73,33 @@
 }
 
 /* Design v1 — hero stats rendered as a gold Tape (common/Tape.css) */
+/* wave-nov Phase Z — INBOX status line under the stats tape */
+.vault-inbox-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 6px;
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+}
+.vault-inbox-label {
+  color: var(--vault-gold, #d4af37);
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-size: 9px;
+}
+.vault-inbox-text { color: var(--text-muted); }
+.vault-inbox-text b { color: var(--text-secondary); font-weight: 600; user-select: all; }
+.vault-inbox-copy {
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  margin-left: 2px;
+}
+.vault-inbox-copy:hover { text-decoration: underline; }
+
 .vault-hero-tape {
   margin-top: 24px;
   min-width: 320px;

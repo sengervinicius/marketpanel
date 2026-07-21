@@ -18,6 +18,8 @@ import useMergedTickerQuote from './useMergedTickerQuote';
 // H1.2: row sparklines use the v2 component (own column, damped scaling).
 import Sparkline from './Sparkline';
 import { useIsMobile } from '../../hooks/useIsMobile';
+import { useTickerClicks } from '../../hooks/useTickerClicks';
+import { fmtVol } from '../../utils/format';
 import './Shimmer.css';
 
 const fmt2 = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -34,6 +36,10 @@ function PriceRow({
   ticker,
   // Phase 2: optional sparkline data (array of numbers)
   sparklineData = null,
+  // wave-nov item 1 — optional VOL cell (compact 48.2M). Callers that pass
+  // `volume` must also pass a grid template with a COL_VOL column (see
+  // panelColumns.js COLS_MOVERS_SPARK); undefined keeps the legacy layout.
+  volume,
   symbolColor = 'var(--text-primary)',
   // CIO-note (2026-04-20): default grid matches utils/panelColumns.js
   // COLS_STANDARD. A 2-digit CHG% (e.g. +15.33%) no longer collides
@@ -114,14 +120,27 @@ function PriceRow({
     e.dataTransfer.setData('application/x-ticker', JSON.stringify(dragData));
   };
 
+  // wave-nov item 5 — shared click contract (useTickerClicks): single
+  // click fires the caller's onClick after a 250ms delay; a double-click
+  // cancels it and fires onDoubleClick (or opens the detail window when
+  // the caller gave none). Previously the un-delayed onClick opened the
+  // in-app overlay on the FIRST click of a double-click, flashing it under
+  // (or swallowing) the detail window on every PriceRow panel.
+  const rowClicks = useTickerClicks(ticker || symbol, {
+    onSingle: onClick ? (sym, e) => onClick(e) : undefined,
+    onDouble: onDoubleClick ? (sym, e) => onDoubleClick(e) : undefined,
+  });
+  const handleClick = onClick ? rowClicks.onClick : undefined;
+  const handleDoubleClick = (onClick || onDoubleClick) ? rowClicks.onDoubleClick : undefined;
+
   return (
     <div
       {...(dataAttrs || {})}
       className={flash ? 'price-row-flash' : undefined}
       draggable={dragEnabled || undefined}
       onDragStart={dragEnabled ? handleDragStart : undefined}
-      onClick={onClick}
-      onDoubleClick={onDoubleClick}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchMove}
@@ -188,6 +207,20 @@ function PriceRow({
       }}>
         {renderChangePct(changePct)}
       </span>
+      {volume !== undefined && (
+        <span style={{
+          color: 'var(--text-muted)',
+          textAlign: 'right',
+          fontSize: '10px',
+          fontVariantNumeric: 'tabular-nums',
+          minWidth: 0,
+          overflow: 'hidden',
+          whiteSpace: 'nowrap',
+          paddingRight: 4,
+        }} title={volume != null ? `Volume ${Number(volume).toLocaleString('en-US')}` : undefined}>
+          {volume != null ? fmtVol(volume) : '—'}
+        </span>
+      )}
       {/* H1.2: sparkline lives in its own narrow column (COL_SPARK),
           not inside the CHG% cell. Panels opt in via *_SPARK templates. */}
       {sparklineData && sparklineData.length >= 2 && (

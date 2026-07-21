@@ -19,6 +19,7 @@ import {
   getSectorConstituents, SECTOR_NAMES,
 } from '../config/sectorConstituents';
 import { openDetailWindow } from '../utils/detailWindow';
+import { useTickerClicksFactory } from '../hooks/useTickerClicks';
 import './SectorDetailPage.css';
 
 const REFRESH_MS = 60_000;
@@ -36,6 +37,7 @@ const fmtContrib = (n) => (n == null || !Number.isFinite(n))
 
 export default function SectorDetailPage() {
   const { etf } = useParams();
+  const tickerClicks = useTickerClicksFactory(); // wave-nov item 5
   const { user } = useAuth();
   const sym = String(etf || '').toUpperCase();
   const constituents = useMemo(() => getSectorConstituents(sym), [sym]);
@@ -140,8 +142,16 @@ export default function SectorDetailPage() {
               key={r.symbol}
               className="secp-row"
               role="row"
-              title={`${r.symbol} · double-click for instrument window${r.weight != null ? ` · ~${r.weight.toFixed(1)}% of ${sym}` : ''}`}
-              onDoubleClick={() => openDetailWindow(r.symbol)}
+              title={`${r.symbol} · click → detail here, double-click → new window${r.weight != null ? ` · ~${r.weight.toFixed(1)}% of ${sym}` : ''}`}
+              /* wave-nov item 5 — this page IS a pop-out window (no in-app
+                 overlay available), so "single click → detail" navigates
+                 THIS window to #/detail/:sym (browser Back returns to the
+                 sector list); double-click still spawns a fresh window. */
+              style={{ cursor: 'pointer' }}
+              {...tickerClicks(r.symbol, {
+                onSingle: (t) => { window.location.hash = `#/detail/${encodeURIComponent(t)}`; },
+                onDouble: (t) => openDetailWindow(t),
+              })}
             >
               <span className="secp-sym">{r.symbol}</span>
               <span className="secp-name">{loading && !r.name ? '…' : (r.name || '—')}</span>
