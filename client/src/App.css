@@ -1002,8 +1002,12 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 }
 
 .chat-header-label {
-  color: var(--accent); font-size: var(--font-base);
-  font-weight: bold; letter-spacing: 0.2em;
+  /* Pinned to the PanelChrome title spec (11px mono 700 .08em uppercase). */
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -1510,7 +1514,7 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 }
 .mis-streak-hero-num {
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--accent);
   line-height: 1;
 }
@@ -2070,4 +2074,18 @@ textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; bo
 .desktop-mode-btn[data-active="false"]:hover,
 .hdr-nav-btn[data-active="false"]:hover {
   color: var(--text-secondary) !important;
+}
+
+/* ── .ds-sec — shared panel section-label spec (Polish W2 item 2) ─────
+   The single class for intra-panel section labels (FX PAIRS, METALS,
+   ETF categories, …). Panel titles use .panel-chrome-title (11px);
+   section labels sit one notch below: 9px mono 700, wide tracking.
+   Color stays overridable per section via inline `color`/token. */
+.ds-sec {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-section-header);
 }

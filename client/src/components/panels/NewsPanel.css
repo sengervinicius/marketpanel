@@ -61,11 +61,11 @@
   font-family: var(--font-family-mono);
   font-size: 9px;
   letter-spacing: 0.1em;
-  color: #a78bfa;
+  color: var(--color-brief-accent);
   margin-bottom: 5px;
 }
 
-.np-brief-glyph { color: #a78bfa; }
+.np-brief-glyph { color: var(--color-brief-accent); }
 .np-brief-sep   { color: var(--text-muted); }
 .np-brief-meta  { color: var(--text-muted); }
 .np-brief-spacer { flex: 1; }
@@ -89,7 +89,7 @@
   padding: 0 2px;
 }
 
-.np-brief-refresh:hover:not(:disabled) { color: #a78bfa; }
+.np-brief-refresh:hover:not(:disabled) { color: var(--color-brief-accent); }
 .np-brief-refresh:disabled { opacity: 0.5; cursor: default; }
 
 .np-brief-error {
@@ -112,7 +112,7 @@
 }
 
 .np-brow-n {
-  color: #a78bfa;
+  color: var(--color-brief-accent);
   font-family: var(--font-family-mono);
   font-size: 10px;
   flex: none;
@@ -326,7 +326,7 @@
 .np-tksum-sent--bullish { background: rgba(70, 180, 100, 0.18);  color: var(--price-up); }
 .np-tksum-sent--bearish { background: rgba(220, 80, 80, 0.18);   color: var(--price-down); }
 .np-tksum-sent--neutral { background: rgba(140, 140, 140, 0.18); color: var(--text-muted); }
-.np-tksum-sent--mixed   { background: rgba(255, 165, 0, 0.18);   color: #ffb85f; }
+.np-tksum-sent--mixed   { background: rgba(255, 165, 0, 0.18);   color: var(--sent-warn); }
 
 .np-tksum-close {
   background: transparent;
@@ -354,7 +354,7 @@
 }
 
 .np-tksum-bullet {
-  font-size: 10.5px;
+  font-size: 10px;
   line-height: 1.4;
   color: var(--text-secondary);
 }

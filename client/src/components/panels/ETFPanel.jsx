@@ -59,7 +59,7 @@ function ETFPanel() {
               className="ep-category-header"
               onClick={() => toggleCategory(category)}
             >
-              <span className="ep-category-title">{category.toUpperCase()}</span>
+              <span className="ds-sec ep-category-title">{category.toUpperCase()}</span>
               <span className={`ep-expand-icon ${expanded[category] ? 'ep-expand-icon-rotated' : ''}`}>
                 ▼
               </span>

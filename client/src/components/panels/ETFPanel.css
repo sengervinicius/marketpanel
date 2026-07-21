@@ -47,9 +47,8 @@
   cursor: pointer;
 }
 
+/* Typography via shared .ds-sec (App.css); only the color override stays. */
 .ep-category-title {
-  font-weight: bold;
-  letter-spacing: 0.1em;
   color: var(--text-secondary);
 }
 

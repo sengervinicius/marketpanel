@@ -71,14 +71,11 @@ function SectionHeader({
             if (e.key === 'Escape') setEditing(false);
           }}
           maxLength={30}
+          className="ds-sec"
           style={{
             background: 'var(--bg-primary)',
             border: '1px solid var(--border-strong)',
             color,
-            fontSize: 'var(--font-xs)',
-            fontWeight: 700,
-            fontFamily: 'var(--font-mono)',
-            letterSpacing: '0.12em',
             padding: '0 4px',
             outline: 'none',
             width: '100%',
@@ -87,11 +84,9 @@ function SectionHeader({
         />
       ) : (
         <span
+          className="ds-sec"
           style={{
             color,
-            fontSize: 'var(--font-xs)',
-            fontWeight: 700,
-            letterSpacing: '0.12em',
             cursor: onRename ? 'text' : 'default',
             flex: 1,
             userSelect: 'none',
