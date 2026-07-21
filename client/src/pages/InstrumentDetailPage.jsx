@@ -65,6 +65,7 @@ export default function InstrumentDetailPage() {
       // because the scroll happens inside our own element.
       height: '100vh', background: '#0a0a0a',
       display: 'flex', flexDirection: 'column',
+      overflow: 'hidden',
       fontFamily: 'var(--font-ui)',
     }}>
       {/* Minimal header for the pop-out window */}
@@ -101,17 +102,19 @@ export default function InstrumentDetailPage() {
           AlertsProvider. We don't include MarketProvider / PriceProvider
           / FeedStatusProvider — the popout doesn't run the WebSocket;
           it gets data through TanStack Query REST hits, which is fine. */}
-      {/* #288 / FIX-popout-scroll — the scroll container for the popout.
-          flex:1 fills the space under the 34px header; minHeight:0 is
-          REQUIRED so this flex child can shrink below its content and
-          therefore scroll instead of overflowing (a flex item defaults
-          to min-height:auto = content height, which would push the
-          overflow back out to #root and get it clipped). overflowY/X:auto
-          gives scrollbars on whichever axis the InstrumentDetail exceeds.
-          See InstrumentDetail.css `.id-page .id-body:not(.id-body--mobile)`
-          which gives the desktop two-pane a workable min-height so it is
-          reachable via this scroll instead of collapsing to nothing. */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto' }}>
+      {/* FIX-popup-fill-window — the popout now FILLS its window like the
+          in-app `.id-overlay` instead of scrolling the document. This
+          wrapper is a flex-column that takes all the space under the 34px
+          header (flex:1 + minHeight:0) and clips its own overflow so the
+          child `.id-page` fills it exactly; the chart flex-fills and the
+          right rail (`.id-sidebar-content`) scrolls INTERNALLY. No
+          document scroll in the wide two-pane mode. Below 900px the
+          `@media (max-width:900px)` block in InstrumentDetail.css flips
+          `.id-page-body-wrap` to an internal scroll container and lets the
+          stacked `.id-page` grow, so narrow windows still stack + scroll.
+          The layout (overflow/scroll) lives in CSS — not inline — so the
+          media query can override it. */}
+      <div className="id-page-body-wrap">
         <ScreenProvider>
           <OpenDetailProvider>
             <PortfolioProvider>
