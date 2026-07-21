@@ -133,7 +133,7 @@
    [DATE chip | BMO/AMC | TICKER | company (ellipsized) | est EPS] */
 .cp-ern-row {
   display: grid;
-  grid-template-columns: 52px 34px 56px 1fr auto;
+  grid-template-columns: 52px 34px 56px minmax(0, 1fr) auto auto 12px;
   gap: 0 8px;
   align-items: center;
   padding: 4px 10px;
@@ -141,6 +141,8 @@
   transition: background 120ms;
   min-width: 0;
 }
+.cp-ern-row--open { background: var(--bg-hover); }
+.cp-ern-item--open { border-bottom: 1px solid var(--border-subtle, var(--bg-elevated)); }
 .cp-ern-row:hover { background: var(--bg-hover); }
 .cp-ern-row--mine {
   border-left: 2px solid var(--accent);
@@ -380,4 +382,48 @@
   color: var(--text-muted);
   border-bottom: 1px solid var(--border-subtle);
   line-height: 1.4;
+}
+
+
+/* ── Earnings: market-cap column, expand caret, AI preview (item 2) ── */
+.cp-ern-cap {
+  font-family: var(--font-family-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.cp-ern-caret {
+  color: var(--text-faint);
+  font-size: 9px;
+  transition: transform 120ms;
+  text-align: center;
+}
+.cp-ern-caret--open { transform: rotate(90deg); color: var(--accent); }
+
+.cp-ern-detail {
+  padding: 6px 12px 10px 12px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-subtle, var(--bg-elevated));
+}
+.cp-ern-cons {
+  display: flex;
+  gap: 16px;
+  margin: 4px 0;
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+.cp-ern-cons b {
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-right: 4px;
+}
+.cp-ai-src-note {
+  margin-top: 6px;
+  font-size: 8.5px;
+  color: var(--text-faint);
+  font-style: italic;
 }
