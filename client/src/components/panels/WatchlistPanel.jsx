@@ -49,6 +49,7 @@ import { ASSET_CLASSES, classifyAssetClass } from '../../utils/assetClass';
 import '../common/Shimmer.css';
 import './WatchlistPanel.css';
 import { openDetailWindow } from '../../utils/detailWindow';
+import { useSymbolSectors, SECTOR_BUCKET_ORDER, SECTOR_BUCKET_LABELS } from '../../hooks/useSymbolSectors';
 
 // ── Named column VIEWS (Design v1) ──────────────────────────────────
 const WL_VIEW_KEY = 'wlView_v1';
@@ -718,6 +719,33 @@ function WatchlistPanel() {
       .map(c => ({ ...c, positions: byId.get(c.id) }));
   }, [sortedPositions, watchlistMeta]);
 
+  // ── FEAT-3: EQUITIES sector sub-classes ─────────────────────────
+  // Lazy per-session lookup (server: yahoo → finnhub/brapi, 7d cache).
+  // Manual override via watchlistMeta[sym].sector (PositionEditor).
+  const eqPositions = useMemo(
+    () => buckets.find(b => b.id === 'EQ')?.positions || [],
+    [buckets],
+  );
+  const eqSymbols = useMemo(() => eqPositions.map(p => p.symbol), [eqPositions]);
+  const autoSectors = useSymbolSectors(eqSymbols);
+  const eqSectorGroups = useMemo(() => {
+    if (eqPositions.length === 0) return null;
+    const byBucket = new Map(SECTOR_BUCKET_ORDER.map(b => [b, []]));
+    let resolved = 0;
+    for (const pos of eqPositions) {
+      const override = watchlistMeta?.[pos.symbol]?.sector;
+      const bucket = (override && byBucket.has(override)) ? override : (autoSectors[pos.symbol] || 'Other');
+      if (bucket !== 'Other') resolved += 1;
+      (byBucket.get(bucket) || byBucket.get('Other')).push(pos);
+    }
+    // Sector data not loaded yet (or nothing resolvable): render flat —
+    // a lone "OTHER" header is noise, not information.
+    if (resolved === 0) return null;
+    return SECTOR_BUCKET_ORDER
+      .filter(b => byBucket.get(b).length > 0)
+      .map(b => ({ key: b, label: SECTOR_BUCKET_LABELS[b] || b.toUpperCase(), positions: byBucket.get(b) }));
+  }, [eqPositions, autoSectors, watchlistMeta]);
+
   // Equal-weight day-% aggregate per bucket (the header chip).
   const bucketDayPct = useCallback((bucketPositions) => {
     let sum = 0, n = 0;
@@ -727,6 +755,27 @@ function WatchlistPanel() {
     }
     return n > 0 ? sum / n : null;
   }, [getPriceData]);
+
+  // Shared row renderer — used by both flat buckets and FEAT-3 sector groups.
+  const renderRow = (pos) => (
+    <WatchlistRow
+      key={pos.id}
+      position={pos}
+      view={view}
+      sparkData={rowSparklines[pos.symbol]}
+      snap={snapData[pos.symbol] || null}
+      earn={earnData[pos.symbol] || null}
+      rec={recData[pos.symbol] || null}
+      fund={fundData[pos.symbol] || null}
+      onOpen={handleOpen}
+      onEdit={handleEdit}
+      onRemove={handleRemove}
+      onWhy={handleWhy}
+      onReportPrice={reportPrice}
+      onHoverStart={handleHoverStart}
+      onHoverEnd={handleHoverEnd}
+    />
+  );
 
   // ── Render ──────────────────────────────────────────────────────
   const sortBtn = (key, label) => (
@@ -859,25 +908,19 @@ function WatchlistPanel() {
                     agg == null ? '' : agg >= 0 ? 'wp-bucket-chip--up' : 'wp-bucket-chip--dn'
                   }`}>{agg == null ? '—' : fmtPct(agg)}</span>
                 </div>
-                {!isCollapsed && bucket.positions.map(pos => (
-                  <WatchlistRow
-                    key={pos.id}
-                    position={pos}
-                    view={view}
-                    sparkData={rowSparklines[pos.symbol]}
-                    snap={snapData[pos.symbol] || null}
-                    earn={earnData[pos.symbol] || null}
-                    rec={recData[pos.symbol] || null}
-                    fund={fundData[pos.symbol] || null}
-                    onOpen={handleOpen}
-                    onEdit={handleEdit}
-                    onRemove={handleRemove}
-                    onWhy={handleWhy}
-                    onReportPrice={reportPrice}
-                    onHoverStart={handleHoverStart}
-                    onHoverEnd={handleHoverEnd}
-                  />
-                ))}
+                {!isCollapsed && (bucket.id === 'EQ' && eqSectorGroups
+                  ? eqSectorGroups.map(group => (
+                      <div key={group.key}>
+                        {/* FEAT-3: sector sub-header — smaller than bucket
+                            headers, indented, no background band. */}
+                        <div
+                          className="wp-sector-head"
+                          title={`${group.label} — ${group.positions.length} symbol${group.positions.length === 1 ? '' : 's'} · auto sector (Alt+click a row to override)`}
+                        >{group.label}</div>
+                        {group.positions.map(pos => renderRow(pos))}
+                      </div>
+                    ))
+                  : bucket.positions.map(pos => renderRow(pos)))}
               </div>
             );
           })

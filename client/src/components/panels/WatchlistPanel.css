@@ -616,3 +616,17 @@
 }
 .wp-bucket-chip--up { color: var(--price-up); border-color: color-mix(in srgb, var(--price-up) 45%, transparent); }
 .wp-bucket-chip--dn { color: var(--price-down); border-color: color-mix(in srgb, var(--price-down) 45%, transparent); }
+
+/* ── FEAT-3: EQUITIES sector sub-headers ──────────────────────────────
+   Deliberately quieter than .wp-bucket-head: smaller (8.5px), indented,
+   NO background band, no border. */
+.wp-sector-head {
+  font-family: var(--font-family-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 4px 8px 1px 18px;
+  user-select: none;
+  cursor: default;
+}
