@@ -188,11 +188,11 @@
 
 .np-wr {
   display: grid;
-  grid-template-columns: 44px 66px 1fr auto;
+  grid-template-columns: 44px 66px 1fr auto 16px;
   gap: 0 10px;
   align-items: baseline;
   padding: 4px 8px;
-  cursor: pointer;
+  cursor: default;
   transition: background 0.12s;
   min-width: 0;
   /* Polish W2 item 6 — reserved edge: colored only when the story
@@ -236,6 +236,36 @@
 }
 
 .np-wr-hl--brk { color: var(--color-down); }
+
+/* Headline is a link to the source article — inherits the headline look,
+   never the raw blue-underline; underline appears on hover as the affordance. */
+.np-wr-hl--link {
+  text-decoration: none;
+  cursor: pointer;
+  color: inherit;
+}
+.np-wr-hl--link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  color: var(--accent);
+}
+.np-wr-hl--link.np-wr-hl--brk:hover { color: var(--color-down); }
+
+/* Expand chevron — reveals summary + full ticker chips; the row no longer
+   toggles on click so the headline link is unambiguous. */
+.np-wr-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-faint);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.12s, color 0.12s;
+  align-self: center;
+}
+.np-wr-toggle:hover { color: var(--text-secondary); }
+.np-wr-toggle--open { transform: rotate(90deg); color: var(--accent); }
 
 .np-wr-tk {
   display: flex;

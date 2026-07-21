@@ -216,16 +216,33 @@ const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTick
   const storySent = storySentiment(item);
   return (
     <div className={isNew ? 'np-wr-wrap np-wr-wrap--new' : 'np-wr-wrap'}>
-      <div className={`np-wr${storySent ? ` np-wr--${storySent}` : ''}`} onClick={onToggle} title={item.title}>
+      <div className={`np-wr${storySent ? ` np-wr--${storySent}` : ''}`} title={item.title}>
         <span className="np-wr-tm">{fmtClock(item.published_utc)}</span>
         <span className="np-wr-src">{source.toUpperCase()}</span>
-        <span className={`np-wr-hl ${breaking ? 'np-wr-hl--brk' : ''}`}>{item.title}</span>
+        {url ? (
+          <a
+            className={`np-wr-hl np-wr-hl--link ${breaking ? 'np-wr-hl--brk' : ''}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            title={`Open on ${source} \u2197`}
+          >{item.title}</a>
+        ) : (
+          <span className={`np-wr-hl ${breaking ? 'np-wr-hl--brk' : ''}`}>{item.title}</span>
+        )}
         <span className="np-wr-tk">
           {tickers.slice(0, 3).map(t => {
             const s = tickerSentiment(item, t);
             return <span key={t} className={`np-tkc ${s ? `np-tkc--${s}` : ''}`}>{t}</span>;
           })}
         </span>
+        <button
+          className={`np-wr-toggle${expanded ? ' np-wr-toggle--open' : ''}`}
+          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+          title={expanded ? 'Collapse' : 'Show summary & tickers'}
+          aria-label={expanded ? 'Collapse' : 'Expand'}
+        >{'\u203a'}</button>
       </div>
 
       {expanded && (
