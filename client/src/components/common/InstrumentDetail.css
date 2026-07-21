@@ -14,10 +14,34 @@
 .id-page {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  /* FIX-popup-fill-window — the popout page now FILLS its window (like the
+     `.id-overlay`) instead of growing past it. `height:100%` makes it match
+     its `.id-page-body-wrap` parent exactly; `min-height:0` lets its flex
+     children shrink; `overflow:hidden` means NO document scroll in the wide
+     two-pane mode — the chart flex-fills and only `.id-sidebar-content`
+     scrolls internally. (The <=900px stacked block below re-enables
+     growth + scroll for narrow windows.) Replaces the old `min-height:100%`
+     that forced the page to grow taller than the window. */
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
   background: var(--bg-panel);
   font-family: var(--font-ui);
   color: var(--text-primary);
+}
+
+/* FIX-popup-fill-window — popout body wrapper (InstrumentDetailPage.jsx).
+   Fills the space under the 34px popout header and clips its own overflow
+   so the child `.id-page` fills it exactly (mirrors how `.id-overlay` is
+   `position:fixed; inset:0`). No document scroll in wide mode. The <=900px
+   block flips this to an internal scroll container. Scoped to the popout
+   wrapper class only; the in-app overlay never renders this element. */
+.id-page-body-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── Header ─────────────────────────────────────── */
@@ -235,14 +259,17 @@
    in-app overlay and the mobile DETAIL tab (`.id-body--mobile`, natural
    column flow) are both untouched. */
 .id-page .id-body:not(.id-body--mobile) {
-  /* FIX-popup-adaptive — was a flat 520px. Let the two-pane body (and thus
-     the chart-area, which is flex:1 inside it) grow generously tall on a
-     big popout window while staying usable on small ones. `100vh - 96px`
-     accounts for the page header/chrome above; capped at 760px so an
-     enormous monitor doesn't make a single instrument absurdly tall. The
-     page scroll container (#288 fix) still reaches the sidebar/financials
-     below when the stacked content exceeds the window. */
-  min-height: min(760px, calc(100vh - 96px));
+  /* FIX-popup-fill-window — mirror the `.id-overlay` model EXACTLY: the
+     two-pane body flex-fills whatever height the `.id-page` gives it and
+     clips its own overflow. The chart-area (flex:1 inside) grows to fill
+     the body height, and the right rail scrolls internally via
+     `.id-sidebar-content`. Removed the old `min-height:min(760px,
+     calc(100vh - 96px))` growth hack that pushed the page taller than the
+     window (which is exactly what the CIO saw as "out of format in
+     height"). */
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* #288 / FIX-popout-scroll — peer-comparison table can be wider than a
@@ -254,34 +281,53 @@
   -webkit-overflow-scrolling: touch;
 }
 
-/* FIX-popup-fit — popout (asPage / `.id-page`) responsive stack.
-   In a narrow or manually-resized popout window the fixed two-pane
-   (chart left + 320px sidebar right) feels cramped and "too zoomed".
-   Below 1100px of popup viewport width, drop the two-pane to a SINGLE
-   COLUMN: chart on top at a comfortable height (full width so Recharts'
-   ResponsiveContainer fills it), sidebar (price / valuation / AI /
-   financials) stacked full-width below, everything reachable through the
-   page scroll container added in the #288 popout-scroll fix. Scoped to
+/* FIX-popup-fill-window — popout (asPage / `.id-page`) small-window stack.
+   The WIDE popout fills the window with a two-pane that never scrolls the
+   document (see `.id-page` / `.id-page-body-wrap` above). Only genuinely
+   narrow windows (<=900px, lowered from 1100px) drop to a SINGLE COLUMN:
+   chart on top at a modest height (full width so Recharts' ResponsiveContainer
+   fills it), sidebar (price / valuation / AI / financials) stacked full-width
+   below, everything reachable via the wrapper's internal scroll. Scoped to
    `.id-page` and the NON-mobile body so the in-app `.id-overlay` desktop
    two-pane and the mobile DETAIL tab (`.id-body--mobile`) are untouched.
-   At >=1100px (e.g. the default 1280-wide popout) the two-pane is kept. */
-@media (max-width: 1100px) {
+   At >900px (e.g. the default 1280-wide popout) the filling two-pane is kept. */
+@media (max-width: 900px) {
+  /* FIX-popup-fill-window — small/narrow-window FALLBACK only (breakpoint
+     lowered from 1100px to 900px so only genuinely narrow popouts stack;
+     the wide two-pane fills the window and never scrolls the document).
+     Here the side-by-side is dropped to a single column, so we deliberately
+     RE-ENABLE scrolling: `.id-page-body-wrap` becomes the internal scroll
+     container and `.id-page` is allowed to grow past the wrapper. The outer
+     popout window stays `height:100vh; overflow:hidden`, so the scroll is
+     internal to the wrapper — still no document scroll. */
+  .id-page-body-wrap {
+    overflow-y: auto;
+    overflow-x: auto;
+    display: block;
+  }
+  .id-page {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
   .id-page .id-body:not(.id-body--mobile) {
     flex-direction: column;
     overflow: visible;
-    /* let the column grow with its stacked content; the page scrolls */
+    /* let the column grow with its stacked content; the wrapper scrolls */
+    flex: none;
     min-height: 0;
   }
   .id-page .id-body:not(.id-body--mobile) .id-chart-area {
     flex: none;
     width: 100%;
     min-width: 0;
-    /* FIX-popup-adaptive — window-relative height so the chart grows and
-       shrinks with the popup instead of a fixed 420px. flex:7 / flex:2
-       chart rows (and Recharts' ResponsiveContainer) fill it. */
-    height: 60vh;
+    /* Modest window-relative height in stacked mode so the chart is
+       comfortable but the sidebar below stays reachable via scroll.
+       flex:7 / flex:2 chart rows (and Recharts' ResponsiveContainer)
+       fill it. */
+    height: 50vh;
     min-height: 340px;
-    max-height: 720px;
+    max-height: 640px;
   }
   .id-page .id-body:not(.id-body--mobile) .id-sidebar {
     width: 100%;
@@ -289,7 +335,7 @@
     border-left: none;
     border-top: 1px solid var(--border-subtle);
     /* release the internal-scroll clip so the sidebar flows into the
-       page scroll container instead of scrolling within itself */
+       wrapper scroll container instead of scrolling within itself */
     overflow-y: visible;
     height: auto;
   }
