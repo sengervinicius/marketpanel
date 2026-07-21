@@ -109,11 +109,11 @@ const SCENES = [
     caption: 'Every panel is yours. Drag tickers between panels, reshape the grid, click any name for a full instrument view.',
   },
   {
-    id: 'sectors',
+    id: 'overlays',
     duration: 8500,
-    eyebrow: 'SECTOR SCREENS',
-    title: 'Ten sector terminals, one click away',
-    caption: 'Tech. Defence. Crypto. Brazil. EU rates. Asia. Each is a curated research desk, not a generic page.',
+    eyebrow: 'DEEP VIEWS',
+    title: 'Click a panel title, get the whole room',
+    caption: 'Brazil and Rates open as full-screen deep views — movers, curves, spreads, filings — one click on the panel title or Cmd+K. ESC brings the terminal back.',
   },
   {
     id: 'vault',
@@ -342,7 +342,7 @@ function PanelsDemo() {
   );
 }
 
-/** SCENE: Sectors — cycle through sector terminal tiles */
+/** SCENE: Deep views — cycle through market-room tiles (Phase S overlays) */
 function SectorsDemo() {
   const [idx, setIdx] = useState(0);
   const sectors = [
@@ -364,7 +364,7 @@ function SectorsDemo() {
     <div className="wt-demo wt-demo-sectors">
       <div className="wt-chrome">
         <div className="wt-chrome-dots"><span /><span /><span /></div>
-        <div className="wt-chrome-title">Sector screens</div>
+        <div className="wt-chrome-title">Deep views</div>
       </div>
 
       <div className="wt-sector-tabs">
@@ -514,7 +514,7 @@ function SceneVisual({ scene, firstName }) {
     case 'modes':   return <ModesDemo />;
     case 'search':  return <SearchDemo />;
     case 'panels':  return <PanelsDemo />;
-    case 'sectors': return <SectorsDemo />;
+    case 'overlays': return <SectorsDemo />;
     case 'vault':   return <VaultDemo />;
     case 'brief':   return <BriefDemo firstName={firstName} />;
     default: return null;

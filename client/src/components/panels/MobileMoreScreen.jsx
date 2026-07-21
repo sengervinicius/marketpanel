@@ -111,11 +111,6 @@ const MobileMoreScreen = memo(({
           onClick={() => onNavigate('etf')}
         />
         <MenuItem
-          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 2 13 9 20 9" /></svg>}
-          label="Sector Screens"
-          onClick={() => onNavigate('sectors')}
-        />
-        <MenuItem
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /><line x1="12" y1="6" x2="12" y2="14" /><polyline points="9 11 12 14 15 11" /></svg>}
           label="Vault — Research Docs"
           onClick={() => onNavigate('vault')}
