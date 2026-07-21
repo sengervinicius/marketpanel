@@ -235,7 +235,14 @@
    in-app overlay and the mobile DETAIL tab (`.id-body--mobile`, natural
    column flow) are both untouched. */
 .id-page .id-body:not(.id-body--mobile) {
-  min-height: 520px;
+  /* FIX-popup-adaptive — was a flat 520px. Let the two-pane body (and thus
+     the chart-area, which is flex:1 inside it) grow generously tall on a
+     big popout window while staying usable on small ones. `100vh - 96px`
+     accounts for the page header/chrome above; capped at 760px so an
+     enormous monitor doesn't make a single instrument absurdly tall. The
+     page scroll container (#288 fix) still reaches the sidebar/financials
+     below when the stacked content exceeds the window. */
+  min-height: min(760px, calc(100vh - 96px));
 }
 
 /* #288 / FIX-popout-scroll — peer-comparison table can be wider than a
@@ -269,10 +276,12 @@
     flex: none;
     width: 100%;
     min-width: 0;
-    /* definite height so the flex:7 / flex:2 chart rows (and Recharts'
-       ResponsiveContainer inside them) get real space to fill */
-    height: 420px;
+    /* FIX-popup-adaptive — window-relative height so the chart grows and
+       shrinks with the popup instead of a fixed 420px. flex:7 / flex:2
+       chart rows (and Recharts' ResponsiveContainer) fill it. */
+    height: 60vh;
     min-height: 340px;
+    max-height: 720px;
   }
   .id-page .id-body:not(.id-body--mobile) .id-sidebar {
     width: 100%;
