@@ -9,7 +9,7 @@ import { SectionHeader } from '../common/SectionHeader';
 import ColumnHeaders from '../common/ColumnHeaders';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
-import { COLS_TIGHT_SPARK } from '../../utils/panelColumns';
+import { COLS_INDEX_SPARK } from '../../utils/panelColumns';
 import { apiFetch } from '../../utils/api';
 import { isUsMarketOpen } from '../../utils/marketHours';
 
@@ -59,7 +59,7 @@ const NAMES = {
 
 // Was '44px 1fr 56px 52px' — both price and chg% too narrow.
 // Shared template: 44px symbol | 1fr name | 80px price | 76px chg%.
-const COLS = COLS_TIGHT_SPARK;
+const COLS = COLS_INDEX_SPARK;
 
 // P2 item 2 — per-row ETF proxy fallback. When a real-index (^) quote is
 // missing from the snapshot (Yahoo hiccup, older server build), the row
