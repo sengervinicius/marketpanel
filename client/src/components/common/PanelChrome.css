@@ -148,3 +148,23 @@
 .pp-header-btn--accent:hover:not(:disabled) {
   background: var(--color-accent-dim);
 }
+
+/* Phase S §4 — overlay entry-point titles: subtle hover \2197 affordance. */
+.panel-chrome-title--overlay {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.panel-chrome-title--overlay::after {
+  content: '\2197';
+  display: inline-block;
+  width: 10px;
+  margin-left: 3px;
+  font-size: 9px;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.panel-chrome-title--overlay:hover::after { opacity: 1; }
