@@ -1073,7 +1073,7 @@ export default function App() {
           <HeaderSearchBar />
         </div>
 
-        {/* (MarketScreenGallery removed — Wave 2: use Sector Screens button instead) */}
+        {/* (MarketScreenGallery removed — Wave 2; sector screens retired for overlays in Phase S) */}
 
         {/* Trial banner */}
         <TrialBanner
