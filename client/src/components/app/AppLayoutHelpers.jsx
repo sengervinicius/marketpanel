@@ -204,7 +204,7 @@ const PANEL_REGISTRY = {
   optionsFlow:    { component: OptionsFlowPanel },
   movers:         { component: MoversPanel,        getProps: (c) => ({ onTickerClick: c.setChartTicker }) }, // H2 W1
   sectors:        { component: SectorsPanel,       getProps: (c) => ({ onTickerClick: c.setChartTicker }) }, // H2 W1 (registry-only, not in default layout)
-  sectorPulse:    { component: SectorPulsePanel,   getProps: (c) => ({ onTickerClick: c.setChartTicker }) }, // Phase S W1 item 2 — default row 3
+  sectorPulse:    { component: SectorPulsePanel }, // FIX 3: MARKET MAP — blocks not clickable (overlay hook next phase)
   brief:          { component: BriefPanel,         getProps: (c) => ({ onTickerClick: c.setChartTicker }) }, // Phase S W2 — Daily Brief, default row 3 lead
 
 

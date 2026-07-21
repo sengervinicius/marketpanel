@@ -322,12 +322,12 @@ export const PANEL_DEFINITIONS = {
   },
   sectorPulse: {
     id:             'sectorPulse',
-    label:          'Sector Pulse',
-    defaultTitle:   'Sector Pulse',
+    label:          'Market Map',   // fix/ux-round4 FIX 3 — id stays sectorPulse so saved layouts keep working
+    defaultTitle:   'Market Map',
     defaultSymbols: [],
     allowedGroups:  null,
     editable:       false,
-    icon:           'SP',
+    icon:           'MM',
     minSymbols:     0,
     maxSymbols:     0,
   },

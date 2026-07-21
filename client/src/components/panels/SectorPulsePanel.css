@@ -1,6 +1,10 @@
-/* SectorPulsePanel.css — Phase S W1 item 2 (mockup section 2, right). */
+/* SectorPulsePanel.css — fix/ux-round4 FIX 3: MARKET MAP.
+ * Treemap-style CSS grid: 10×10 cells, hand-tiled rectangles whose areas
+ * approximate S&P 500 sector weights (Tech 31 … Materials 2).
+ * Legibility rules: no font below 8.5px; the mover line only shows when
+ * the block is big enough (size container query). */
 
-.spp-panel {
+.mm-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -9,98 +13,104 @@
   overflow: hidden;
 }
 
-.spp-grid {
+/* ── The map ─────────────────────────────────────────────────────── */
+.mm-map {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
-  overflow-y: auto;
-}
-
-/* ── Left: sector bars ─────────────────────────────────────────── */
-.spp-bars {
-  border-right: 1px solid var(--border-subtle);
-  padding: 6px 8px;
-}
-
-.spp-bar-row {
-  display: grid;
-  grid-template-columns: 38px 1fr 48px;
-  gap: 8px;
-  align-items: center;
-  padding: 2px 0;
-  font-size: 10px;
-  cursor: pointer;
-}
-.spp-bar-row:hover { background: var(--bg-elevated); }
-
-.spp-k {
-  font-family: var(--font-family-mono);
-  color: var(--text-secondary);
-}
-
-.spp-track {
-  height: 7px;
-  display: flex;
-  align-items: center;
-}
-.spp-fill {
-  height: 7px;
-  border-radius: 1px;
-  transition: width 300ms ease;
-}
-
-.spp-v {
-  font-family: var(--font-family-mono);
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-  color: var(--text-secondary);
-}
-.spp-v--up   { color: var(--price-up); }
-.spp-v--dn   { color: var(--price-down); }
-.spp-v--flat { color: var(--text-muted); }
-
-/* ── Right: leading / lagging names ────────────────────────────── */
-.spp-leaders { padding: 2px 0; }
-
-.spp-sechead {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px 2px;
-  font-family: var(--font-family-mono);
-  font-size: 8.5px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-}
-.spp-sechead::after {
-  content: '';
-  flex: 1;
-  min-width: 8px;
-  height: 1px;
+  grid-template-columns: repeat(10, 1fr);
+  grid-template-rows: repeat(10, 1fr);
+  /* ~cells: tech 30 · fin 12 · indu 8 · hlth 12 · disc 9 · comm 9 ·
+     stpl 6 · engy 4 · util 4 · re 2 · matl 4 */
+  grid-template-areas:
+    "tech tech tech tech tech tech fin  fin  fin  fin"
+    "tech tech tech tech tech tech fin  fin  fin  fin"
+    "tech tech tech tech tech tech fin  fin  fin  fin"
+    "tech tech tech tech tech tech indu indu indu indu"
+    "tech tech tech tech tech tech indu indu indu indu"
+    "hlth hlth hlth hlth disc disc disc comm comm comm"
+    "hlth hlth hlth hlth disc disc disc comm comm comm"
+    "hlth hlth hlth hlth disc disc disc comm comm comm"
+    "stpl stpl stpl engy engy util util re   matl matl"
+    "stpl stpl stpl engy engy util util re   matl matl";
+  gap: 1px;
+  padding: 1px;
   background: var(--border-subtle);
 }
 
-.spp-llrow {
+.mm-block {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-elevated);
+  container-type: size;
+}
+
+.mm-block-inner {
+  position: absolute;
+  inset: 0;
   display: flex;
-  justify-content: space-between;
-  padding: 3px 10px;
-  font-size: 11.5px;
-  cursor: pointer;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 3px 5px;
+  min-width: 0;
 }
-.spp-llrow:hover { background: var(--bg-elevated); }
-.spp-llrow--empty { color: var(--text-faint); cursor: default; }
 
-.spp-llsym {
+/* Full sector name — 9px mono uppercase (never the XL* code). */
+.mm-name {
   font-family: var(--font-family-mono);
-  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* ── States / footer ───────────────────────────────────────────── */
-.spp-state {
+/* %chg — 12px bold mono. */
+.mm-chg {
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.mm-up   { color: var(--price-up); }
+.mm-dn   { color: var(--price-down); }
+.mm-flat { color: var(--text-muted); }
+
+/* Top mover — hidden unless the block can actually fit it (8.5px floor,
+ * never shrink fonts to force it in). */
+.mm-mover {
+  display: none;
+  gap: 5px;
+  align-items: baseline;
+  font-family: var(--font-family-mono);
+  font-size: 8.5px;
+  color: var(--text-muted);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.mm-mover b { font-weight: 700; color: var(--text-secondary); }
+.mm-mover i { font-style: normal; }
+
+@container (min-width: 96px) and (min-height: 58px) {
+  .mm-mover { display: inline-flex; }
+}
+
+/* If a sliver of a block can't even fit name + %chg, keep the %chg. */
+@container (max-height: 30px) {
+  .mm-name { display: none; }
+}
+
+/* ── States / footer ─────────────────────────────────────────────── */
+.mm-state {
   flex: 1;
   display: flex;
   align-items: center;
@@ -110,7 +120,7 @@
   font-family: var(--font-family-mono);
   font-size: 11px;
 }
-.spp-retry-btn {
+.mm-retry-btn {
   background: none;
   border: 1px solid var(--border-strong);
   color: var(--text-muted);
@@ -120,9 +130,9 @@
   cursor: pointer;
   border-radius: 2px;
 }
-.spp-retry-btn:hover { color: var(--accent); border-color: var(--accent); }
+.mm-retry-btn:hover { color: var(--accent); border-color: var(--accent); }
 
-.spp-source {
+.mm-source {
   flex-shrink: 0;
   padding: 3px 8px;
   border-top: 1px solid var(--border-subtle);
