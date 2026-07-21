@@ -68,7 +68,7 @@ const aiToolbox = require('../aiToolbox');
   const provider = {
     url: 'https://api.anthropic.com/v1/messages',
     keyEnv: 'ANTHROPIC_API_KEY',
-    model: 'claude-sonnet-4-6',
+    model: 'claude-sonnet-5',
   };
 
   // ── 1. One round, two parallel tools (ok + err) ─────────────────────

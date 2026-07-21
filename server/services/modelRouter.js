@@ -15,6 +15,24 @@
 
 'use strict';
 
+// ─────────────────────────────────────────────────────────────────────────
+// CANONICAL CLAUDE MODEL STRINGS — single source of truth for the whole
+// server. Anthropic periodically retires model IDs; a retired ID yields ZERO
+// tokens (or HTTP 404) and silently blanks the Particle chat. When Anthropic
+// rotates models, UPDATE THESE CONSTANTS HERE and everything downstream
+// (PROVIDERS below, aiCostLedger pricing, aiToolbox fallback) follows.
+//   Sonnet : claude-sonnet-5
+//   Haiku  : claude-haiku-4-5-20251001
+//   Opus   : claude-opus-4-8   (premium tier, if referenced)
+// The model-sanity test (services/__tests__/modelSanity.test.js) fails CI if
+// any exported model string drifts outside this allowlist.
+// ─────────────────────────────────────────────────────────────────────────
+const MODELS = Object.freeze({
+  sonnet: 'claude-sonnet-5',
+  haiku:  'claude-haiku-4-5-20251001',
+  opus:   'claude-opus-4-8',
+});
+
 const fetch = require('node-fetch');
 const logger = require('../utils/logger');
 const aiCostLedger = require('./aiCostLedger');
@@ -60,12 +78,12 @@ const PROVIDERS = {
   },
   claude_sonnet: {
     url: 'https://api.anthropic.com/v1/messages',
-    model: 'claude-sonnet-4-20250514',
+    model: MODELS.sonnet,
     keyEnv: 'ANTHROPIC_API_KEY',
   },
   claude_haiku: {
     url: 'https://api.anthropic.com/v1/messages',
-    model: 'claude-haiku-4-5-20251001',
+    model: MODELS.haiku,
     keyEnv: 'ANTHROPIC_API_KEY',
   },
 };
@@ -270,7 +288,7 @@ Respond: {"intent":"<intent>","contextRequired":<bool>}`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
+        model: MODELS.haiku,
         max_tokens: 60,
         messages: [{ role: 'user', content: classifierPrompt }],
       }),
@@ -647,6 +665,61 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort, 
   } catch (err) {
     logger.error('[ModelRouter] streamResponse error:', err.message);
     recordOnce(); // bill what we streamed before the failure
+
+    // ── RESILIENCE: one-shot Haiku fallback ────────────────────────────
+    // The primary provider blew up before producing any content (e.g. a
+    // retired model ID → HTTP 404). Rather than blanking the chat with a
+    // bare "Response interrupted", retry ONCE with the canonical Haiku
+    // model as a NON-streaming completion and emit its text as content
+    // chunks. Mirrors news-briefing/news-summary's tolerant fallback.
+    // Only attempted when we haven't streamed any content yet and a
+    // distinct Haiku provider with a key is available.
+    if (streamedChars === 0) {
+      const haiku = PROVIDERS.claude_haiku;
+      const canFallback = haiku && haiku.model !== (provider && provider.model) && process.env[haiku.keyEnv];
+      if (canFallback) {
+        try {
+          logger.warn(`[ModelRouter] primary (${provider && provider.model}) failed — falling back to Haiku (non-stream)`);
+          const fbResp = await callProviderImpl(haiku, messages, systemPrompt, { stream: false, maxTokens });
+          const fbData = await fbResp.json();
+          const fbText = (fbData?.content || []).filter(b => b.type === 'text').map(b => b.text || '').join('') || '';
+          if (fbText.trim()) {
+            if (!res.headersSent) {
+              res.writeHead(200, {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                Connection: 'keep-alive',
+                'X-Accel-Buffering': 'no',
+              });
+            }
+            if (!res.writableEnded) {
+              res.write(`data: ${JSON.stringify({ degraded: true, model: 'haiku' })}\n\n`);
+              const CHUNK = 120;
+              for (let i = 0; i < fbText.length; i += CHUNK) {
+                if (res.writableEnded) break;
+                res.write(`data: ${JSON.stringify({ chunk: fbText.slice(i, i + CHUNK) })}\n\n`);
+              }
+              // Bill the fallback usage against Haiku.
+              if (userId) {
+                try {
+                  const u = fbData.usage || {};
+                  aiCostLedger.recordUsage(userId, haiku.model, u.input_tokens || tokensIn, u.output_tokens || estimateTokens(fbText));
+                } catch (_) { /* fire-and-forget */ }
+              }
+              res.write('data: [DONE]\n\n');
+              res.end();
+            }
+            if (typeof onComplete === 'function') {
+              try { Promise.resolve(onComplete(fbText)).catch(() => {}); } catch (_) { /* never throw */ }
+            }
+            return;
+          }
+        } catch (fbErr) {
+          logger.error('[ModelRouter] Haiku fallback also failed:', fbErr.message);
+        }
+      }
+    }
+
     if (!res.headersSent) {
       res.status(500).json({ error: 'Stream error', details: err.message });
     } else if (!res.writableEnded) {
@@ -659,6 +732,7 @@ async function streamResponse(provider, messages, systemPrompt, res, { onAbort, 
 }
 
 module.exports = {
+  MODELS,
   classifyIntent,
   classifyIntentWithHaiku,
   route,

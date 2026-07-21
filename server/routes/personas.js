@@ -32,7 +32,7 @@ const llm = require('../llm/adapter');
 const flags = require('../services/featureFlags');
 const logger = require('../utils/logger');
 
-const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+const DEFAULT_MODEL = 'claude-sonnet-5';
 const DEFAULT_PROVIDER = 'anthropic';
 
 function userIdFromReq(req) {

@@ -10,7 +10,7 @@
  *     ctx:       { userId: 123 },
  *     llm:       require('server/llm').getAdapter('anthropic'),
  *     registry:  require('server/mcp').registry,
- *     model:     'claude-sonnet-4-20250514',
+ *     model:     'claude-sonnet-5',
  *   });
  *
  * The llm + registry are passed in (dependency injection) so tests can

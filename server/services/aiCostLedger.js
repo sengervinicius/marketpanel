@@ -37,11 +37,12 @@ function _modelTier(model) {
 // USD per 1,000,000 tokens. Source: anthropic.com/pricing, perplexity.ai/pricing
 // (2026-04-17). Keep synced with modelRouter.PROVIDERS.
 const MODEL_PRICING = {
-  // Anthropic
-  'claude-sonnet-4-20250514':   { in: 3.00,   out: 15.00 },
+  // Anthropic — canonical model IDs only. Update in lockstep with
+  // modelRouter.MODELS when Anthropic rotates models (retired IDs return
+  // zero tokens / HTTP 404 and silently blank the chat).
+  'claude-sonnet-5':            { in: 3.00,   out: 15.00 },
   'claude-haiku-4-5-20251001':  { in: 1.00,   out:  5.00 },
-  'claude-3-5-sonnet':          { in: 3.00,   out: 15.00 }, // legacy alias
-  'claude-3-5-haiku':           { in: 0.80,   out:  4.00 }, // legacy alias
+  'claude-opus-4-8':            { in: 15.00,  out: 75.00 },
   // Perplexity (approximate; sonar is bundled so we estimate from published tiers)
   'sonar':                      { in: 1.00,   out:  1.00 },
   'sonar-pro':                  { in: 3.00,   out: 15.00 },
