@@ -55,6 +55,7 @@ try {
 
 // LandingPage removed — LoginScreen IS the landing page
 import InstrumentDetailPage from './pages/InstrumentDetailPage.jsx'
+import SectorDetailPage from './pages/SectorDetailPage.jsx'
 import { lazyWithRetry } from './utils/lazyWithRetry.js'
 // Perf (#bundle): ChatPage statically imports ChatPanel — keeping it static
 // here would pull the whole chat stack into the eager index chunk.
@@ -174,6 +175,7 @@ function AppShell() {
             <Routes>
               <Route path="/" element={<App />} />
               <Route path="/detail/:symbolKey" element={<InstrumentDetailPage />} />
+              <Route path="/sector/:etf" element={<SectorDetailPage />} />
               <Route path="/chat" element={<Suspense fallback={null}><ChatPage /></Suspense>} />
               <Route path="/chat/:userId" element={<Suspense fallback={null}><ChatPage /></Suspense>} />
               {/* Catch-all → 404 page */}
