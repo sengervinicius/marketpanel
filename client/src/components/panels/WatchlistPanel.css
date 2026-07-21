@@ -562,38 +562,48 @@
 /* Hover mini-profile card → shared common/HoverProfileCard.css (ds-hcard) */
 
 /* ── Auto-sectorized buckets (Phase S W1 item 4) ─────────────────── */
+/* Polish W2 item 1 — unmistakable section dividers: elevated surface,
+   top+bottom hairlines, brighter mono label, right-aligned day-% chip.
+   Reads like other panels' section heads, one notch stronger. */
 .wp-bucket-head {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px 2px;
+  padding: 3px 8px;
+  min-height: 18px;
+  background: var(--color-surface-2);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: 9px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--color-text-secondary);
   cursor: pointer;
   user-select: none;
 }
-.wp-bucket-head:hover { color: var(--text-secondary); }
+.wp-bucket-head:hover { color: var(--color-text-primary); }
 
 .wp-bucket-caret {
   width: 10px;
   color: var(--text-faint);
-  font-size: 8px;
+  font-size: 8.5px;
+  flex-shrink: 0;
 }
 
 .wp-bucket-label { font-weight: 700; }
 
 .wp-bucket-count {
   color: var(--text-faint);
-  font-size: 8px;
+  font-size: 8.5px;
 }
 
+/* Flex spacer — pushes the day-% chip to the right edge; the filled
+   header no longer needs the dotted rule. */
 .wp-bucket-line {
   flex: 1;
   height: 1px;
-  background: var(--border-subtle);
+  background: transparent;
 }
 
 .wp-bucket-chip {
