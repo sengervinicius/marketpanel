@@ -221,6 +221,32 @@
   overflow: visible;
 }
 
+/* #288 / FIX-popout-scroll — page (popout) mode only.
+   The desktop two-pane `.id-body` is `flex:1; min-height:0; overflow:hidden`,
+   which is correct for the fixed-viewport OVERLAY: it fills the fixed
+   overlay and its `.id-sidebar-content` scrolls internally. But in page
+   (asPage) mode the root is `.id-page` inside a scrolling body wrapper, so
+   `flex:1 + min-height:0` lets `.id-body` collapse toward zero whenever the
+   hero/coverage/header stack is tall (small windows), making the whole
+   chart + sidebar unreachable. Giving it a definite minimum height keeps the
+   two-pane usable AND forces the page to exceed the window so the popout's
+   scroll container actually scrolls to it. `flex:1` still lets it grow to
+   fill tall windows. Scoped to `.id-page` and to the NON-mobile body so the
+   in-app overlay and the mobile DETAIL tab (`.id-body--mobile`, natural
+   column flow) are both untouched. */
+.id-page .id-body:not(.id-body--mobile) {
+  min-height: 520px;
+}
+
+/* #288 / FIX-popout-scroll — peer-comparison table can be wider than a
+   narrow popout. Let it scroll within its own block rather than forcing
+   horizontal overflow onto the page. Scoped to `.id-page` so the overlay
+   is unchanged. */
+.id-page .id-comp-stats {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Chart area */
 .id-chart-area {
   flex: 1;
