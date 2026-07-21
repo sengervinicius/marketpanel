@@ -70,7 +70,7 @@ function buildBrazilUniverse() {
 // Fetch + normalize the whole B3 board once, cache 60s; sorting per tab
 // happens on the cached rows so switching tabs is free.
 async function fetchBrazilRows() {
-  const ck = 'home-movers:br:rows';
+  const ck = 'home-movers:br:payload';
   const cached = cacheGet(ck);
   if (cached) return cached;
 
@@ -82,8 +82,8 @@ async function fetchBrazilRows() {
     batches.push(tickers.slice(i, i + BATCH));
   }
   const out = await Promise.all(batches.map(b => yahooQuote(b.join(','))));
-  const rows = out.flat()
-    .filter(q => q && q.regularMarketPrice != null)
+  const quotes = out.flat().filter(q => q && q.regularMarketPrice != null);
+  const rows = quotes
     .map(q => {
       const symbol = String(q.symbol || '').replace(/\.SA$/i, '').trim();
       if (!symbol) return null;
@@ -98,8 +98,27 @@ async function fetchBrazilRows() {
     })
     .filter(Boolean);
 
-  if (rows.length) cacheSet(ck, rows, 60_000);
-  return rows;
+  // Polish W2 item 4 — session awareness. Yahoo keeps serving the last
+  // session's change%/volume after the B3 close, so the DATA is already
+  // "last session" — label it. marketState !== REGULAR on every quote
+  // means the exchange is closed; regularMarketTime stamps the session.
+  let session = 'live';
+  let sessionLabel = null;
+  const anyLive = quotes.some(q => String(q.marketState || '').toUpperCase() === 'REGULAR');
+  if (!anyLive && rows.length) {
+    const t = quotes.map(q => q.regularMarketTime).find(v => Number.isFinite(v) && v > 0);
+    if (t) {
+      const dow = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Sao_Paulo', weekday: 'short',
+      }).format(new Date(t * 1000)).toUpperCase();
+      session = 'last';
+      sessionLabel = `LAST SESSION · ${dow}`;
+    }
+  }
+
+  const payload = { rows, session, sessionLabel };
+  if (rows.length) cacheSet(ck, payload, 60_000);
+  return payload;
 }
 
 // Data-quality: the B3 universe is already curated (blue-chips +
@@ -134,13 +153,15 @@ router.get('/market/movers', async (req, res) => {
     const quality = String(req.query.quality || 'strict').toLowerCase() === 'all' ? 'all' : 'strict';
 
     if (exchange === 'BR') {
-      const rows = await fetchBrazilRows();
+      const { rows, session, sessionLabel } = await fetchBrazilRows();
       const eligible = quality === 'strict'
         ? rows.filter(r => r.price != null && Number.isFinite(r.price) && r.price >= BR_MIN_PRICE)
         : rows;
       const data = sortBrazil(eligible, tab).slice(0, limit);
       return res.json({
         ok: true, tab, exchange, count: data.length, data, quality,
+        session: session || 'live',
+        ...(sessionLabel ? { sessionLabel } : {}),
         source: 'yahoo', asOf: new Date().toISOString(),
       });
     }
@@ -157,6 +178,8 @@ router.get('/market/movers', async (req, res) => {
     return res.json({
       ok: true, tab, exchange, count: data.length, data, quality,
       ...(result.filters ? { filters: result.filters } : {}),
+      session: result.session || 'live',
+      ...(result.sessionLabel ? { sessionLabel: result.sessionLabel } : {}),
       source: result.source || 'polygon',
       asOf: result.asOf || new Date().toISOString(),
       ...(result.error ? { error: result.error } : {}),

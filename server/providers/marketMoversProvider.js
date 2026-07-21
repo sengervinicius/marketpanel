@@ -53,6 +53,7 @@ const TTL_MS = {
   losers:  60 * 1000,
   actives: 2 * 60 * 1000,
   breadth: 2 * 60 * 1000, // H2b — aligned with actives (same snapshot pull)
+  lastSession: 30 * 60 * 1000, // Polish W2 — grouped-aggs fallback, session is over
 };
 function cget(k) {
   const e = _cache.get(k);
@@ -225,6 +226,90 @@ async function getMarketBreadth() {
   }
 }
 
+// ── Last-session fallback (Polish W2 item 4) ─────────────────────────
+// Outside US RTH Polygon zeroes the live snapshot's day.* fields, the
+// quality gate then drops every row and the home panel sat on NO DATA
+// all evening / weekend. When the live pull yields zero eligible rows,
+// serve the last COMPLETED session instead: grouped daily aggs for the
+// two most recent trading days give close-over-close change + session
+// volume for the whole tape. Tagged { session:'last', sessionLabel }.
+
+const DOW = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+function isoDateInET(now = new Date()) {
+  // en-CA gives YYYY-MM-DD directly.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(now);
+}
+function shiftIsoDate(iso, days) {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+function isoWeekday(iso) { return new Date(`${iso}T12:00:00Z`).getUTCDay(); }
+
+async function fetchGroupedDay(date) {
+  const raw = await polyFetch(`/v2/aggs/grouped/locale/us/market/stocks/${date}?adjusted=true`);
+  return Array.isArray(raw?.results) ? raw.results : [];
+}
+
+// Resolve the two most recent completed trading days (skips weekends and
+// empty holiday tapes) and build canonical rows with close-over-close
+// change. Cached 30 min — the session it describes is immutable.
+async function fetchLastSessionRows() {
+  const cached = cget('movers:lastSession');
+  if (cached) return cached;
+
+  let date = isoDateInET();
+  const days = [];
+  for (let i = 0; i < 10 && days.length < 2; i++) {
+    date = shiftIsoDate(date, -1);
+    const dow = isoWeekday(date);
+    if (dow === 0 || dow === 6) continue;
+    const results = await fetchGroupedDay(date);
+    if (results.length) days.push({ date, results });
+  }
+  if (days.length < 2) throw new Error('grouped daily aggs unavailable for last session');
+
+  const [last, prior] = days;
+  const prevClose = new Map();
+  for (const r of prior.results) {
+    if (r.T && Number.isFinite(r.c) && r.c > 0) prevClose.set(r.T, r.c);
+  }
+
+  const rows = [];
+  for (const r of last.results) {
+    const pc = prevClose.get(r.T);
+    if (!r.T || !Number.isFinite(r.c) || r.c <= 0 || !pc) continue;
+    rows.push({
+      symbol:    r.T,
+      price:     r.c,
+      change:    parseFloat((r.c - pc).toFixed(4)),
+      changePct: parseFloat((((r.c - pc) / pc) * 100).toFixed(2)),
+      volume:    Number.isFinite(r.v) ? r.v : null,
+      prevClose: pc,
+    });
+  }
+
+  const payload = {
+    date: last.date,
+    label: `LAST SESSION · ${DOW[isoWeekday(last.date)]}`,
+    rows,
+  };
+  cset('movers:lastSession', payload, TTL_MS.lastSession);
+  return payload;
+}
+
+function rankByDirection(rows, dir) {
+  if (dir === 'actives') {
+    return rows.filter(r => r.volume != null).sort((a, b) => (b.volume || 0) - (a.volume || 0));
+  }
+  return rows
+    .filter(r => r.changePct != null)
+    .sort((a, b) => (dir === 'losers' ? a.changePct - b.changePct : b.changePct - a.changePct));
+}
+
 // ── Public API ───────────────────────────────────────────────────────
 /**
  * Get the top N movers in a given direction for US equities.
@@ -293,9 +378,33 @@ async function getMarketMovers({ direction = 'gainers', limit = 10, market = 'US
   // Quality gate — raw rows are cached unfiltered so ?quality=all shares
   // the same snapshot pull; filtering is applied per request.
   const strict = String(quality).toLowerCase() !== 'all';
-  const eligible = strict
+  let eligible = strict
     ? (rows || []).filter(r => passesQuality(r, dir))
     : (rows || []);
+
+  // Session-aware fallback (Polish W2 item 4): a healthy live pull that
+  // yields ZERO eligible rows means the session snapshot is reset/zeroed
+  // (overnight, weekend, holiday) — serve last completed session instead.
+  let session = 'live';
+  let sessionLabel = null;
+  let asOf = new Date().toISOString();
+  if (eligible.length === 0) {
+    try {
+      const lastSess = await fetchLastSessionRows();
+      const ranked = rankByDirection(lastSess.rows, dir);
+      const gated = strict ? ranked.filter(r => passesQuality(r, dir)) : ranked;
+      if (gated.length) {
+        eligible = gated;
+        session = 'last';
+        sessionLabel = lastSess.label;
+        asOf = `${lastSess.date}T21:00:00.000Z`; // US close of that session
+      }
+    } catch (e) {
+      logger.warn('marketMoversProvider', 'last-session fallback failed', {
+        direction: dir, error: e.message,
+      });
+    }
+  }
 
   const sliced = eligible.slice(0, cap);
   return {
@@ -310,8 +419,10 @@ async function getMarketMovers({ direction = 'gainers', limit = 10, market = 'US
         minDollarVolume: QUALITY.minDollarVolume[dir] ?? QUALITY.minDollarVolume.gainers,
       },
     } : {}),
+    session,
+    ...(sessionLabel ? { sessionLabel } : {}),
     source: 'polygon',
-    asOf: new Date().toISOString(),
+    asOf,
   };
 }
 
@@ -323,4 +434,6 @@ module.exports = {
   _normalizeRow: normalizeRow,
   _passesQuality: passesQuality,
   _QUALITY: QUALITY,
+  _fetchLastSessionRows: fetchLastSessionRows,
+  _rankByDirection: rankByDirection,
 };

@@ -19,6 +19,7 @@ import { PriceRow } from '../common/PriceRow';
 import { PanelTabRow } from './_shared';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import { COLS_STANDARD_SPARK } from '../../utils/panelColumns';
+import { isUsMarketOpen, isB3MarketOpen } from '../../utils/marketHours';
 import './MoversPanel.css';
 
 const TABS = [
@@ -42,11 +43,16 @@ function MoversPanel({ onTickerClick }) {
   const openDetail = useOpenDetail();
   const { getBadge } = useFeedStatus();
   const [tab, setTab]           = useState('gainers');
-  const [exchange, setExchange] = useState('US');
+  // Polish W2 item 4a — the default exchange follows the OPEN market:
+  // B3 trading while the US is closed → start on BR. Evaluated once on
+  // mount; every later change is a manual override the panel respects.
+  const [exchange, setExchange] = useState(() =>
+    (isB3MarketOpen() && !isUsMarketOpen()) ? 'BR' : 'US');
   const [rows, setRows]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
   const [note, setNote]         = useState(null);
+  const [sessionLabel, setSessionLabel] = useState(null);
   const [updatedAt, setUpdated] = useState('');
 
   const load = useCallback(async () => {
@@ -58,6 +64,8 @@ function MoversPanel({ onTickerClick }) {
       if (json.error && !(json.data || []).length) throw new Error(json.error);
       setRows(Array.isArray(json.data) ? json.data : []);
       setNote(json.note || null);
+      // 4b — server tags stale-session data (evening/weekend fallback).
+      setSessionLabel(json.session === 'last' ? (json.sessionLabel || 'LAST SESSION') : null);
       setUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     } catch (e) {
       console.warn('[Movers] load error:', e.message);
@@ -111,6 +119,12 @@ function MoversPanel({ onTickerClick }) {
       />
 
       <PanelTabRow value={tab} onChange={setTab} items={TABS} equal />
+
+      {sessionLabel && rows.length > 0 && (
+        <div className="mv-session-strip">
+          <span className="mv-session-chip">{sessionLabel}</span>
+        </div>
+      )}
 
       <div className="mv-body">
         {loading && rows.length === 0 ? (
