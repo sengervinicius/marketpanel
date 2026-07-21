@@ -174,17 +174,17 @@ export function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, 
 //   alerts   → AlertsMobile          (compact alert list)
 const PANEL_REGISTRY = {
   // ── Core panels ──────────────────────────────────────────────────────────
-  charts:         { component: ChartPanel,         getProps: (c) => ({ ticker: c.chartTicker, onTickerChange: c.setChartTicker, onGridChange: c.setChartGridCount }), hasMobileVariant: true },
-  usEquities:     { component: StockPanel,         getProps: (c) => ({ data: c.mergedData?.stocks, loading: c.loading, onTickerClick: c.setChartTicker }) },
-  forex:          { component: ForexPanel,         getProps: (c) => ({ data: c.mergedData?.forex, cryptoData: c.mergedData?.crypto, loading: c.loading, onTickerClick: c.setChartTicker }) },
-  globalIndices:  { component: GlobalIndicesPanel,  getProps: (c) => ({ data: c.mergedData?.stocks, loading: c.loading, onTickerClick: c.setChartTicker }) },
-  brazilB3:       { component: BrazilPanel,         getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
-  commodities:    { component: CommoditiesPanel,    getProps: (c) => ({ data: c.mergedData?.stocks, loading: c.loading, onTickerClick: c.setChartTicker }) },
-  crypto:         { component: CryptoPanel,         getProps: (c) => ({ data: c.mergedData?.crypto, loading: c.loading, onTickerClick: c.setChartTicker }) },
-  indices:        { component: IndexPanel,          getProps: (c) => ({ data: c.mergedData?.indices, loading: c.loading, onTickerClick: c.setChartTicker }) },
+  charts:         { component: ChartPanel,         getProps: (c) => ({ onGridChange: c.setChartGridCount }), hasMobileVariant: true }, // FIX 4: no ticker prop — clicks never reach the grid
+  usEquities:     { component: StockPanel,         getProps: (c) => ({ data: c.mergedData?.stocks, loading: c.loading, onTickerClick: c.openDetail }) },
+  forex:          { component: ForexPanel,         getProps: (c) => ({ data: c.mergedData?.forex, cryptoData: c.mergedData?.crypto, loading: c.loading, onTickerClick: c.openDetail }) },
+  globalIndices:  { component: GlobalIndicesPanel,  getProps: (c) => ({ data: c.mergedData?.stocks, loading: c.loading, onTickerClick: c.openDetail }) },
+  brazilB3:       { component: BrazilPanel,         getProps: (c) => ({ onTickerClick: c.openDetail }) },
+  commodities:    { component: CommoditiesPanel,    getProps: (c) => ({ data: c.mergedData?.stocks, loading: c.loading, onTickerClick: c.openDetail }) },
+  crypto:         { component: CryptoPanel,         getProps: (c) => ({ data: c.mergedData?.crypto, loading: c.loading, onTickerClick: c.openDetail }) },
+  indices:        { component: IndexPanel,          getProps: (c) => ({ data: c.mergedData?.indices, loading: c.loading, onTickerClick: c.openDetail }) },
   // search panel removed from desktop — header searchbar is the single search entry-point
-  watchlist:      { component: WatchlistPanel,       getProps: (c) => ({ onTickerClick: c.setChartTicker }), hasMobileVariant: true },
-  portfolio:      { component: PortfolioPanel,      getProps: (c) => ({ onTickerClick: c.setChartTicker }), hasMobileVariant: true },
+  watchlist:      { component: WatchlistPanel,       getProps: (c) => ({ onTickerClick: c.openDetail }), hasMobileVariant: true },
+  portfolio:      { component: PortfolioPanel,      getProps: (c) => ({ onTickerClick: c.openDetail }), hasMobileVariant: true },
   curves:         { component: DICurvePanel,        getProps: () => ({ compact: true }) },
   futures:        { component: FuturesPanel },       // #226 — regional futures/index box
 
@@ -202,21 +202,21 @@ const PANEL_REGISTRY = {
   heatmap:        { component: HeatmapPanel },
   predictions:    { component: PredictionPanel },
   optionsFlow:    { component: OptionsFlowPanel },
-  movers:         { component: MoversPanel,        getProps: (c) => ({ onTickerClick: c.setChartTicker }) }, // H2 W1
-  sectors:        { component: SectorsPanel,       getProps: (c) => ({ onTickerClick: c.setChartTicker }) }, // H2 W1 (registry-only, not in default layout)
-  sectorPulse:    { component: SectorPulsePanel,   getProps: (c) => ({ onTickerClick: c.setChartTicker }) }, // Phase S W1 item 2 — default row 3
-  brief:          { component: BriefPanel,         getProps: (c) => ({ onTickerClick: c.setChartTicker }) }, // Phase S W2 — Daily Brief, default row 3 lead
+  movers:         { component: MoversPanel,        getProps: (c) => ({ onTickerClick: c.openDetail }) }, // H2 W1
+  sectors:        { component: SectorsPanel,       getProps: (c) => ({ onTickerClick: c.openDetail }) }, // H2 W1 (registry-only, not in default layout)
+  sectorPulse:    { component: SectorPulsePanel }, // FIX 3: MARKET MAP — blocks not clickable (overlay hook next phase)
+  brief:          { component: BriefPanel,         getProps: (c) => ({ onTickerClick: c.openDetail }) }, // Phase S W2 — Daily Brief, default row 3 lead
 
 
   // ── Phase D1 sector screens ──────────────────────────────────────────────
-  defenceScreen:      { component: DefenceScreen,      getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
-  commoditiesScreen:  { component: CommoditiesScreen,  getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
-  globalMacroScreen:  { component: GlobalMacroScreen,  getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
-  fixedIncomeScreen:  { component: FixedIncomeScreen,  getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
-  brazilScreen:       { component: BrazilScreen,       getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
-  fxCryptoScreen:     { component: FxCryptoScreen,     getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
-  energyScreen:       { component: EnergyScreen,       getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
-  techAIScreen:       { component: TechAIScreen,       getProps: (c) => ({ onTickerClick: c.setChartTicker }) },
+  defenceScreen:      { component: DefenceScreen,      getProps: (c) => ({ onTickerClick: c.openDetail }) },
+  commoditiesScreen:  { component: CommoditiesScreen,  getProps: (c) => ({ onTickerClick: c.openDetail }) },
+  globalMacroScreen:  { component: GlobalMacroScreen,  getProps: (c) => ({ onTickerClick: c.openDetail }) },
+  fixedIncomeScreen:  { component: FixedIncomeScreen,  getProps: (c) => ({ onTickerClick: c.openDetail }) },
+  brazilScreen:       { component: BrazilScreen,       getProps: (c) => ({ onTickerClick: c.openDetail }) },
+  fxCryptoScreen:     { component: FxCryptoScreen,     getProps: (c) => ({ onTickerClick: c.openDetail }) },
+  energyScreen:       { component: EnergyScreen,       getProps: (c) => ({ onTickerClick: c.openDetail }) },
+  techAIScreen:       { component: TechAIScreen,       getProps: (c) => ({ onTickerClick: c.openDetail }) },
 };
 
 export { PANEL_REGISTRY };
