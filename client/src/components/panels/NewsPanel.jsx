@@ -15,6 +15,7 @@ import { useState, useEffect, useRef, memo, useCallback, useMemo } from 'react';
 import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useWatchlist } from '../../context/WatchlistContext';
 import { useSettings } from '../../context/SettingsContext';
+import { useOpenDetail } from '../../context/OpenDetailContext';
 import { apiFetch } from '../../utils/api';
 import EmptyState from '../common/EmptyState';
 import PanelChrome from '../common/PanelChrome';
@@ -270,6 +271,7 @@ const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTick
 });
 
 function NewsPanel() {
+  const openDetail = useOpenDetail(); // FIX 4: briefing chips open detail, never the chart grid
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -395,10 +397,10 @@ function NewsPanel() {
 
   const handleBriefingTickerClick = useCallback((ticker) => {
     if (!ticker) return;
-    // Soft-navigate: dispatch the app's chart-change event so the main
-    // chart picks it up, without making NewsPanel own a ticker prop.
-    window.dispatchEvent(new CustomEvent('chart:set-ticker', { detail: { ticker } }));
-  }, []);
+    // FIX 4 (ux-round4): ticker clicks open the instrument DETAIL view —
+    // never the chart grid (the old 'chart:set-ticker' event is gone).
+    openDetail(ticker);
+  }, [openDetail]);
 
   const load = useCallback(async () => {
     try {

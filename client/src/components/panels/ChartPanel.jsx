@@ -18,7 +18,6 @@ import { computeIndicators, buildChartInsightPayload, getLatestIndicatorSnapshot
 import { TOKEN_HEX } from '../../utils/tokenHex';
 import { fmtCompactAxis } from '../../utils/format';
 import { toPolygonWithDefault, toDisplay } from '../../utils/tickerNormalize';
-import { selectTickerInGrid } from '../../utils/chartGridSelect';
 import { swallow } from '../../utils/swallow';
 // #289 part 2 — per-tile freshness dot. Tiny coloured indicator that
 // reads from /api/data-freshness/:symbol so a CIO can tell at a glance
@@ -155,7 +154,7 @@ function AiInsightPopover({ insight, loading, error, onClose }) {
   );
 }
 
-const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, onSwap, pulseId = 0 }) {
+const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
   const openDetail = useOpenDetail();
   const shared = useTickerPrice(ticker);
   // #247 P2.5 — HTML5 drag-and-drop is a no-op on touch devices and
@@ -405,9 +404,6 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  // Brief highlight when this tile is the target of a ticker click elsewhere
-  // in the terminal (highlight-existing or replace-primary). pulseId bumps on
-  // every selection so repeated selections restart the animation.
   // #UX-2: hovered bar price mirrored into the header slot (a much
   // bigger read target than the tooltip). Cleared on mouse leave.
   const [hoverPrice, setHoverPrice] = useState(null);
@@ -417,15 +413,7 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
   }, []);
   const handleChartLeave = useCallback(() => setHoverPrice(null), []);
 
-  const [pulsing, setPulsing] = useState(false);
-  useEffect(() => {
-    if (!pulseId) return;
-    setPulsing(true);
-    const t = setTimeout(() => setPulsing(false), 900);
-    return () => clearTimeout(t);
-  }, [pulseId]);
-
-  const cellClass = `mc-cell${isDragging ? ' mc-cell--dragging' : ''}${isDragOver ? ' mc-cell--dragover' : ''}${pulsing ? ' mc-cell--pulse' : ''}`;
+  const cellClass = `mc-cell${isDragging ? ' mc-cell--dragging' : ''}${isDragOver ? ' mc-cell--dragover' : ''}`;
 
   // RSI color logic
   const rsiColor = indSnapshot.rsi14 != null
@@ -618,7 +606,7 @@ function EmptySlot({ index, span = 1, onAdd, onSwap }) {
 // auto-POSTed it back as if it were the user's choice.
 const HARDCODED_FALLBACK_GRID = ['SPY', 'QQQ', 'C:EURUSD', 'C:USDJPY', 'GLD', 'USO', 'EEM', 'EWZ', 'X:BTCUSD', 'VGK', 'MSFT', 'BZ=F'];
 
-function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
+function ChartPanel({ onGridChange, mobile = false }) {
   // Track where the initial tickers came from so we can decide whether to
   // persist them back to the server. 'url' / 'localStorage' / 'fallback'.
   const initialSourceRef = useRef('fallback');
@@ -687,37 +675,12 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
       });
   }, [mobile]);
 
-  // Ticker clicks elsewhere in the terminal (watchlist, panels, movers, news
-  // chips, 'chart:set-ticker', …) land here via the `ticker` prop. This used
-  // to APPEND a new mini-chart on every click, so the grid grew without
-  // bound. A ticker click must NEVER grow the grid: if the symbol is already
-  // charted we flash that tile and promote it to primary; otherwise it
-  // replaces the current primary tile in place (same slot, same size).
-  // Primary = first tile until the user's clicks promote another one.
-  // Explicit adds remain only + ADD, the empty slot and drag-drop (addTicker).
-  const tickersRef = useRef(tickers);
-  useEffect(() => { tickersRef.current = tickers; }, [tickers]);
-  const primaryIdxRef = useRef(0);
-  const externalMountRef = useRef(true);
-  const [pulse, setPulse] = useState(null); // { sym, id }
-
-  useEffect(() => {
-    if (!externalTicker) return;
-    if (externalMountRef.current) {
-      // Initial value (persisted chartTicker restored on boot), not a user
-      // click — leave the saved grid alone.
-      externalMountRef.current = false;
-      return;
-    }
-    const norm = normalizeTicker(externalTicker);
-    const res = selectTickerInGrid(tickersRef.current, primaryIdxRef.current, norm);
-    primaryIdxRef.current = res.primaryIdx;
-    if (res.changed) {
-      serverHadGridRef.current = true; // real user edit — worth persisting
-      setTickers(res.tickers);
-    }
-    setPulse(p => ({ sym: norm, id: (p ? p.id : 0) + 1 }));
-  }, [externalTicker]);
+  // FIX 4 (ux-round4) INVARIANT: ticker clicks elsewhere in the terminal
+  // NEVER touch this grid. The old external `ticker` prop effect
+  // (replace-primary / promote-on-click) is gone; clicks open the instrument
+  // DETAIL view instead (openDetail). The grid changes ONLY through explicit
+  // user edits inside this panel: + ADD, the empty slot, drag-and-drop
+  // (addTicker / replaceTicker / swapTickers) and × remove.
 
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify(tickers));
@@ -878,7 +841,7 @@ function ChartPanel({ ticker: externalTicker, onGridChange, mobile = false }) {
             style={{ gridTemplateColumns: `repeat(${cols}, 1fr)`, gridTemplateRows: `repeat(${rows}, 1fr)` }}
           >
             {tickers.map((t, i) => (
-              <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} pulseId={pulse && pulse.sym === t ? pulse.id : 0} />
+              <MiniChart key={t} ticker={t} index={i} onRemove={removeTicker} onReplace={replaceTicker} onSwap={swapTickers} />
             ))}
             {showAddTile && <EmptySlot index={tickers.length} span={leftover} onAdd={addTicker} onSwap={swapTickers} />}
           </div>

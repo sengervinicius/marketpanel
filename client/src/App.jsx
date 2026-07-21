@@ -269,18 +269,6 @@ export default function App() {
     }, 800);
   }, []);
 
-  // Audit C6: NewsPanel's briefing ticker chips dispatch 'chart:set-ticker';
-  // nothing listened, so the click was a silent no-op. Wire it to the same
-  // setter the panels use.
-  useEffect(() => {
-    const onSetTicker = (e) => {
-      const sym = e?.detail?.ticker;
-      if (sym) setChartTicker(sym);
-    };
-    window.addEventListener('chart:set-ticker', onSetTicker);
-    return () => window.removeEventListener('chart:set-ticker', onSetTicker);
-  }, [setChartTicker]);
-
 
   // ── Mobile detection ─────────────────────────────────────────────────────
   const isMobile = useIsMobile();
@@ -353,13 +341,24 @@ export default function App() {
   const [draggedPanelId, setDraggedPanelId] = useState(null);
   const [dropTargetPanelId, setDropTargetPanelId] = useState(null);
 
-  // ── Shared panel context value ──────────────────────────────────────────
-  const panelCtx = useMemo(() => ({
-    mergedData, loading, setChartTicker, chartTicker, setChartGridCount,
-  }), [mergedData, loading, setChartTicker, chartTicker, setChartGridCount]);
-
   // ── Detail ticker state ──────────────────────────────────────────────────
   const [detailTicker, setDetailTicker] = useState(null);
+
+  // FIX 4 (ux-round4): ticker clicks open the instrument DETAIL view and
+  // NEVER touch the chart grid (grid changes only via drag-and-drop or
+  // explicit + ADD inside ChartPanel). openDetail is the shared click
+  // handler panels get via getProps / PanelContext; setChartTicker survives
+  // purely as persisted "last focused ticker" state.
+  const openDetail = useCallback((t) => {
+    const sym = typeof t === 'object' ? (t?.symbol || t?.ticker || null) : t;
+    if (!sym) return;
+    setDetailTicker(sym);
+  }, []);
+
+  // ── Shared panel context value ──────────────────────────────────────────
+  const panelCtx = useMemo(() => ({
+    mergedData, loading, setChartTicker, chartTicker, setChartGridCount, openDetail,
+  }), [mergedData, loading, setChartTicker, chartTicker, setChartGridCount, openDetail]);
   const [settingsOpen, setSettingsOpen]  = useState(false);
   // ── Global alert composer (opened from Particle AI action button) ────────
   const [alertComposerTicker, setAlertComposerTicker] = useState(null);
@@ -1269,11 +1268,11 @@ export default function App() {
                   <HomeGrid
                     grid={gridLayouts.activeGrid}
                     onGridChange={gridLayouts.setActiveGrid}
-                    panelCtx={{ mergedData, loading, setChartTicker, chartTicker, setChartGridCount }}
+                    panelCtx={{ mergedData, loading, setChartTicker, chartTicker, setChartGridCount, openDetail }}
                   />
                 </Suspense>
               ) : (() => {
-                const panelProps = { mergedData, loading, setChartTicker, chartTicker, setChartGridCount };
+                const panelProps = { mergedData, loading, setChartTicker, chartTicker, setChartGridCount, openDetail };
                 const minHeights = [260, 220, 200];
                 return [row0, row1, row2].map((row, rowIdx) => {
                   if (!row || row.length === 0) return null;

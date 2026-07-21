@@ -15,7 +15,10 @@ import { createContext, useContext, useMemo } from 'react';
  * Provided values:
  *   mergedData      – REST snapshot merged with live WS overlay
  *   loading         – whether the initial REST fetch is still in progress
- *   setChartTicker  – callback to change the primary chart ticker
+ *   setChartTicker  – persisted "last focused ticker" setter (FIX 4: never
+ *                     mutates the chart grid)
+ *   openDetail      – open the instrument DETAIL view for a symbol; THE
+ *                     handler for ticker clicks anywhere in the terminal
  *   chartTicker     – currently focused chart ticker
  *   setChartGridCount – callback to change the chart grid size
  */
@@ -31,6 +34,7 @@ export function PanelProvider({ children, value }) {
     value.setChartTicker,
     value.chartTicker,
     value.setChartGridCount,
+    value.openDetail,
   ]);
 
   return (
