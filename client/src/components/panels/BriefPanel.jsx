@@ -25,6 +25,7 @@
 import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import { apiFetch } from '../../utils/api';
 import PanelChrome from '../common/PanelChrome';
+import useMergedTickerQuote from '../common/useMergedTickerQuote';
 import './BriefPanel.css';
 
 const REFRESH_MS = 30 * 60_000; // matches the server-side per-user cache
@@ -58,6 +59,19 @@ const ReasonChip = memo(function ReasonChip({ reason, meta }) {
   );
 });
 
+// Polish W2 item 6 — the name's live day-% as a small mono chip after the
+// symbol (PriceContext-backed; renders nothing until a quote exists).
+const DayPctChip = memo(function DayPctChip({ symbol }) {
+  const { changePct } = useMergedTickerQuote(symbol, null);
+  if (changePct == null || !Number.isFinite(changePct)) return null;
+  const cls = changePct >= 0 ? 'bp-daypct--up' : 'bp-daypct--dn';
+  return (
+    <span className={`bp-daypct ${cls}`}>
+      {(changePct >= 0 ? '+' : '') + changePct.toFixed(2)}%
+    </span>
+  );
+});
+
 const BucketSection = memo(function BucketSection({ bucket, counts, onTickerClick }) {
   const count = (counts || []).find(c => c.label === bucket.name);
   return (
@@ -78,6 +92,7 @@ const BucketSection = memo(function BucketSection({ bucket, counts, onTickerClic
           >
             {it.symbol.replace(/\.SA$/, '')}
           </span>
+          <DayPctChip symbol={it.symbol} />
           <span className="bp-why">{it.line}</span>
           <ReasonChip reason={it.reason} meta={it.meta} />
         </div>

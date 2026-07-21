@@ -118,6 +118,19 @@
 .bp-sym--vault { color: var(--vault-gold); cursor: default; width: 76px; }
 .bp-sym--vault:hover { color: var(--vault-gold); }
 
+/* Polish W2 item 6 — live day-% mono chip after the symbol */
+.bp-daypct {
+  font-family: var(--font-family-mono);
+  font-size: 8.5px;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+  padding: 0 3px;
+  border-radius: 2px;
+  border: 1px solid transparent;
+}
+.bp-daypct--up { color: var(--color-up);   border-color: color-mix(in srgb, var(--color-up) 35%, transparent); }
+.bp-daypct--dn { color: var(--color-down); border-color: color-mix(in srgb, var(--color-down) 35%, transparent); }
+
 .bp-why {
   font-size: 12px;
   color: var(--text-secondary);

@@ -195,7 +195,12 @@
   cursor: pointer;
   transition: background 0.12s;
   min-width: 0;
+  /* Polish W2 item 6 — reserved edge: colored only when the story
+     carries sentiment, so rows never shift. */
+  border-left: 2px solid transparent;
 }
+.np-wr--up   { border-left-color: color-mix(in srgb, var(--color-up) 60%, transparent); }
+.np-wr--down { border-left-color: color-mix(in srgb, var(--color-down) 60%, transparent); }
 
 .np-wr:hover {
   background: var(--color-surface-2);
