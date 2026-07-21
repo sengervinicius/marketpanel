@@ -98,6 +98,66 @@ function fmtBig(n) {
   return '$' + n.toLocaleString();
 }
 
+/**
+ * buildFundamentalsFallback — fix/bug-wave3 BUG 3.
+ *
+ * When the LLM leg of POST /search/fundamentals fails but the data-gathering
+ * leg produced real fundamentals/quote data, the card should show that data
+ * (clearly marked non-AI) instead of "AI insight unavailable". Pure function
+ * so it's unit-testable with mocked provider payloads.
+ *
+ * Returns null when there is nothing worth showing (caller then falls back
+ * to the error status — the only case where "unavailable" is honest).
+ */
+function buildFundamentalsFallback(sym, fundamentals, quote, newsItems = []) {
+  const f = fundamentals || {};
+  const hasFunds = [f.marketCap, f.peRatio, f.eps, f.totalRevenue, f.sector]
+    .some(v => v != null);
+  const hasQuote = quote && quote.price != null;
+  if (!hasFunds && !hasQuote) return null;
+
+  const summaryParts = [];
+  if (f.sector || f.industry) {
+    summaryParts.push(`${sym} operates in ${[f.sector, f.industry].filter(Boolean).join(' / ')}.`);
+  }
+  if (f.marketCap != null) summaryParts.push(`Market cap ${fmtBig(f.marketCap)}.`);
+  if (hasQuote) {
+    const chg = quote.changePct != null
+      ? ` (${quote.changePct >= 0 ? '+' : ''}${quote.changePct.toFixed(2)}% today)` : '';
+    summaryParts.push(`Last price $${quote.price}${chg}.`);
+  }
+
+  const highlights = [];
+  if (f.totalRevenue != null)   highlights.push(`Revenue (TTM): ${fmtBig(f.totalRevenue)}`);
+  if (f.ebitda != null)         highlights.push(`EBITDA: ${fmtBig(f.ebitda)}`);
+  if (f.profitMargins != null)  highlights.push(`Net margin: ${(f.profitMargins * 100).toFixed(1)}%`);
+  if (f.returnOnEquity != null) highlights.push(`ROE: ${(f.returnOnEquity * 100).toFixed(1)}%`);
+  if (f.revenueGrowth != null)  highlights.push(`Revenue growth: ${(f.revenueGrowth * 100).toFixed(1)}%`);
+
+  const valuation = [];
+  if (f.peRatio != null)       valuation.push(`P/E (TTM): ${f.peRatio.toFixed(1)}x`);
+  if (f.forwardPE != null)     valuation.push(`P/E (FWD): ${f.forwardPE.toFixed(1)}x`);
+  if (f.priceToBook != null)   valuation.push(`P/B: ${f.priceToBook.toFixed(2)}x`);
+  if (f.eps != null)           valuation.push(`EPS (TTM): $${f.eps.toFixed(2)}`);
+  if (f.dividendYield != null) valuation.push(`Dividend yield: ${(f.dividendYield * 100).toFixed(2)}%`);
+
+  return {
+    symbol: sym,
+    generatedAt: new Date().toISOString(),
+    livePrice: hasQuote ? quote.price : null,
+    summary: summaryParts.join(' ')
+      || `Live metrics for ${sym} (AI narrative temporarily unavailable).`,
+    businessModel: '',
+    segments: [],
+    financialHighlights: highlights,
+    valuationSnapshot: valuation,
+    riskFactors: [],
+    aiDegraded: true, // client may badge this "DATA ONLY"
+    dataSource: f.source || (hasFunds ? 'unknown' : 'quote'),
+    headlines: (newsItems || []).slice(0, 3),
+  };
+}
+
 module.exports = {
   PERPLEXITY_URL,
   MODEL,
@@ -107,4 +167,5 @@ module.exports = {
   estimateTokens,
   applyTokenBudget,
   fmtBig,
+  buildFundamentalsFallback,
 };

@@ -41,6 +41,7 @@ const {
   estimateTokens,
   applyTokenBudget,
   fmtBig,
+  buildFundamentalsFallback,
 } = require('./search.helpers');
 
 // Simple in-memory cache: query → { result, exp }
@@ -489,12 +490,18 @@ Rules:
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
       console.error(`[Search/AI Fundamentals] Perplexity error ${response.status}:`, errText.substring(0, 200));
+      // BUG 3: the LLM failing must not read as "unavailable" when the data
+      // legs succeeded — serve the gathered fundamentals, clearly degraded.
+      const fb = buildFundamentalsFallback(sym, fundamentals, quote, newsItems);
+      if (fb) return res.json(fb);
       return res.status(502).json({ error: `AI provider error (${response.status})` });
     }
 
     const data = await response.json();
     const raw = data.choices?.[0]?.message?.content;
     if (!raw) {
+      const fb = buildFundamentalsFallback(sym, fundamentals, quote, newsItems);
+      if (fb) return res.json(fb);
       return res.status(502).json({ error: 'Empty response from AI provider' });
     }
 
@@ -520,6 +527,9 @@ Rules:
       symbol: sym,
       generatedAt: new Date().toISOString(),
       livePrice: quote?.price ?? null,
+      // BUG 3: surface which provider served the fundamentals context
+      // (/api/fundamentals now cascades yahoo → twelvedata → fmp).
+      dataSource: fundamentals?.source ?? null,
       summary: parsed.summary || '',
       businessModel: parsed.businessModel || '',
       segments: Array.isArray(parsed.segments) ? parsed.segments : [],
@@ -539,6 +549,9 @@ Rules:
   } catch (err) {
     // #220 — guard against late-abort write-after-send crashes.
     if (res.headersSent) return;
+    // BUG 3: LLM timeout/crash with good data → degraded data-only card.
+    const fb = buildFundamentalsFallback(sym, fundamentals, quote, newsItems);
+    if (fb) return res.json(fb);
     if (err.name === 'AbortError') {
       return res.status(504).json({ error: 'AI fundamentals timed out (10s)' });
     }

@@ -96,7 +96,21 @@ function CurvesTab({ curves }) {
 
 /* ── SPREADS ────────────────────────────────────────────────────────── */
 
+const MONTHLY_FLAG = { JP: '🇯🇵', MX: '🇲🇽', AU: '🇦🇺', NO: '🇳🇴', SE: '🇸🇪' };
+
 function SpreadsTab({ curves }) {
+  // Monthly FRED OECD 10Y sovereigns (additive `global10y` block on
+  // /api/debt/rates-tape, 12h server cache) — fix/bug-wave3 BUG 1b.
+  const [global10y, setGlobal10y] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    apiFetch('/api/debt/rates-tape')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (alive && Array.isArray(j?.global10y)) setGlobal10y(j.global10y); })
+      .catch(e => swallow(e, 'overlay.rates.global10y'));
+    return () => { alive = false; };
+  }, []);
+
   if (!curves) return <div className="ol-placeholder">LOADING CURVES…</div>;
   const us10 = rateAt(curves.US?.curve, '10Y');
 
@@ -148,6 +162,29 @@ function SpreadsTab({ curves }) {
         </tbody>
       </table>
       <div className="ol-placeholder">Missing tenors render "—" — spreads are only shown when both legs are live.</div>
+
+      {global10y.length > 0 && (
+        <>
+          <div className="ol-sechead">GLOBAL 10Y · FRED OECD LONG-TERM RATES · MONTHLY</div>
+          <table className="ol-table" style={{ maxWidth: 560 }}>
+            <thead>
+              <tr><th>COUNTRY</th><th>10Y</th><th>FREQ</th><th>vs UST 10Y BP</th><th>AS OF</th></tr>
+            </thead>
+            <tbody>
+              {global10y.map(row => (
+                <tr key={row.country}>
+                  <td className="strong">{MONTHLY_FLAG[row.country] || ''} {row.label}</td>
+                  <td className="strong">{fmtR(row.value)}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>M</td>
+                  <td>{row.value == null || us10 == null ? '—' : fmtBps(Math.round((row.value - us10) * 100))}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>{row.asOfDate || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="ol-placeholder">Monthly OECD series — a daily Δ is not meaningful; "M" marks the staleness.</div>
+        </>
+      )}
     </div>
   );
 }
@@ -180,7 +217,7 @@ function CreditTab() {
 
   return (
     <div>
-      <div className="ol-sechead">CREDIT & INFLATION · FRED · LATEST + Δ1D</div>
+      <div className="ol-sechead">CREDIT & INFLATION · US MARKET · FRED · LATEST + Δ1D</div>
       <div className="ol-grid">
         {tape.map(t => (
           <div key={t.id} className="ol-cell" style={{ minHeight: 72 }}>

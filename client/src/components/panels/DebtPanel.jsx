@@ -27,6 +27,7 @@ import {
 } from 'recharts';
 import { TOKEN_HEX } from '../../utils/tokenHex';
 import { normalizeCurvePayload } from '../../utils/curveShape';
+import { yieldAtMonths, slope2s10sBps, slopeRegimeWord } from '../../utils/curveTape';
 import { apiFetch } from '../../utils/api';
 import { fmtCompactPct } from '../../utils/format';
 import { swallow } from '../../utils/swallow';
@@ -53,14 +54,21 @@ const GLOBAL_ROWS = [
   { code: 'BR', flag: '🇧🇷', label: 'DI·BR' },
   { code: 'EU', flag: '🇩🇪', label: 'BUND·EU' },
   { code: 'UK', flag: '🇬🇧', label: 'GILT' },
+  // CH ships a full SNB curve in the same /api/yield-curves payload — it was
+  // simply never listed on the board (fix/bug-wave3 BUG 1b).
+  { code: 'CH', flag: '🇨🇭', label: 'CONF·CH' },
 ];
+
+// Monthly 10Y-only sovereigns (FRED OECD long-term rates) — flag lookup for
+// the additive `global10y` block on /api/debt/rates-tape.
+const MONTHLY_FLAGS = { JP: '🇯🇵', MX: '🇲🇽', AU: '🇦🇺', NO: '🇳🇴', SE: '🇸🇪' };
 
 // /api/debt/yields/global country codes for Δbp lookup.
 const GLOBAL_CHG_KEY = { US: 'US', EU: 'DE', UK: 'GB' }; // BR: no Yahoo ticker → no Δ
 
 // SVG stroke hexes (SVG can't resolve CSS vars): accent/up from TOKEN_HEX,
 // EU/UK from the panel's long-standing country palette.
-const REGION_HEX = { US: TOKEN_HEX.accent, BR: TOKEN_HEX.up, EU: '#ffcc00', UK: '#cc88ff' };
+const REGION_HEX = { US: TOKEN_HEX.accent, BR: TOKEN_HEX.up, EU: '#ffcc00', UK: '#cc88ff', CH: '#d65151' };
 
 // Tenor → months, for sorting/anchoring (DI = overnight).
 function tenorMonths(t) {
@@ -92,9 +100,15 @@ function fmtBp(v, dp = 1) {
 }
 
 /* ── Tape (4 cells, shared Tape primitive) ─────────────────────────────────
- * US 10Y (level+Δbp) · 2s10s (+regime word) · 10Y REAL · HY OAS.
- * Each cell degrades independently to "—". */
-function RatesTape({ tape }) {
+ * Cells 1-2 FOLLOW THE SELECTED CURVE (fix/bug-wave3 BUG 1a):
+ *   US / ALL  → US 10Y (FRED level+Δbp) · 2s10s (FRED, +regime word)
+ *   BR/EU/UK/CH → <COUNTRY> 10Y from the curves payload · 2s10s computed
+ *                 client-side from that curve ("—" when tenors missing).
+ * Cells 3-4 stay global US series (10Y REAL, HY OAS) and carry a small US
+ * badge so the mixed provenance is honest. Each cell degrades to "—". */
+const UsBadge = () => <span className="ds-tape-src">US</span>;
+
+function RatesTape({ tape, regionCell }) {
   const byId = useMemo(
     () => Object.fromEntries((tape || []).map(t => [t.id, t])),
     [tape]
@@ -118,18 +132,47 @@ function RatesTape({ tape }) {
   const dBp  = t => (t?.change1d != null ? fmtBp(t.change1d, 0) : null);
   const riskColor = chg => (chg > 0 ? 'var(--color-down)' : chg < 0 ? 'var(--color-up)' : 'var(--text-faint)');
 
+  // Cells 1-2: selected-region variant (regionCell != null ⇔ non-US region).
+  let cell1, cell2;
+  if (regionCell) {
+    const rWord = slopeRegimeWord(regionCell.slopeBps);
+    cell1 = {
+      key: 'r10y',
+      label: `${regionCell.code} 10Y`,
+      value: regionCell.y10 != null ? `${regionCell.y10.toFixed(2)}%` : null,
+      delta: regionCell.chgBps != null ? fmtBp(regionCell.chgBps) : null,
+      deltaColor: regionCell.chgBps != null ? riskColor(regionCell.chgBps) : null,
+    };
+    cell2 = {
+      key: 'r2s10s',
+      label: '2s10s',
+      value: regionCell.slopeBps != null
+        ? `${regionCell.slopeBps > 0 ? '+' : ''}${regionCell.slopeBps}bp`
+        : null,
+      delta: rWord,
+      deltaColor: rWord === 'INVERTED' ? 'var(--color-down)' : 'var(--text-muted)',
+    };
+  } else {
+    cell1 = {
+      key: 'us10y', label: 'US 10Y', value: pct(us10), delta: dPct(us10),
+      deltaColor: us10?.change1d != null ? riskColor(us10.change1d) : null,
+    };
+    cell2 = {
+      key: 's2s10s', label: '2s10s',
+      value: s210?.value != null ? `${s210.value > 0 ? '+' : ''}${Math.round(s210.value)}bp` : null,
+      delta: regimeWord, deltaColor: regimeColor,
+    };
+  }
+
   return (
     <Tape
       title="FRED — 30 min server cache"
       cells={[
-        { key: 'us10y', label: 'US 10Y', value: pct(us10), delta: dPct(us10),
-          deltaColor: us10?.change1d != null ? riskColor(us10.change1d) : null },
-        { key: 's2s10s', label: '2s10s',
-          value: s210?.value != null ? `${s210.value > 0 ? '+' : ''}${Math.round(s210.value)}bp` : null,
-          delta: regimeWord, deltaColor: regimeColor },
-        { key: 'real10y', label: '10Y REAL', value: pct(real), delta: dPct(real),
+        cell1,
+        cell2,
+        { key: 'real10y', label: <>10Y REAL <UsBadge /></>, value: pct(real), delta: dPct(real),
           deltaColor: real?.change1d != null ? riskColor(real.change1d) : null },
-        { key: 'hyOas', label: 'HY OAS', value: bp(hy), delta: dBp(hy),
+        { key: 'hyOas', label: <>HY OAS <UsBadge /></>, value: bp(hy), delta: dBp(hy),
           deltaColor: hy?.change1d != null ? riskColor(hy.change1d) : null },
       ]}
     />
@@ -173,6 +216,7 @@ function DebtPanel() {
   const [liveReady, setLiveReady]     = useState(false);
   const [error, setError]             = useState(null);
   const [tape, setTape]               = useState(null);
+  const [global10y, setGlobal10y]     = useState([]);   // monthly FRED OECD 10Y rows
   const [globalChg, setGlobalChg]     = useState({});   // { US: bp, DE: bp, GB: bp }
   const [lastUpdated, setLastUpdated] = useState(null);
   const [reloadKey, setReloadKey]     = useState(0);
@@ -183,7 +227,11 @@ function DebtPanel() {
     let alive = true;
     apiFetch('/api/debt/rates-tape')
       .then(r => (r.ok ? r.json() : null))
-      .then(j => { if (alive && j?.ok && Array.isArray(j.tape)) setTape(j.tape); })
+      .then(j => {
+        if (!alive || !j?.ok) return;
+        if (Array.isArray(j.tape)) setTape(j.tape);
+        if (Array.isArray(j.global10y)) setGlobal10y(j.global10y);
+      })
       .catch(e => swallow(e, 'panel.debt.rates_tape'));
     return () => { alive = false; };
   }, [reloadKey]);
@@ -314,6 +362,22 @@ function DebtPanel() {
     [tape]
   );
 
+  // ── Tape follows the selected curve (BUG 1a) ──
+  // Non-US regions derive 10Y + 2s10s client-side from the curves payload;
+  // US/ALL keep the FRED tape cells. `liveReady` gates the ref read.
+  const regionCell = useMemo(() => {
+    if (region === 'US' || region === 'ALL' || !liveReady) return null;
+    const c = getCurve(region);
+    const points = c?.points || null;
+    const chgKey = GLOBAL_CHG_KEY[region];
+    return {
+      code: region,
+      y10: points ? yieldAtMonths(points, 120) : null,
+      slopeBps: points ? slope2s10sBps(points) : null,
+      chgBps: chgKey != null ? (globalChg[chgKey] ?? null) : null,
+    };
+  }, [region, liveReady, getCurve, globalChg]);
+
   // CREDIT & INFLATION rows. IPCA IMPL. (NTN-B): the server does not yet
   // derive BR real-vs-nominal (no NTN-B real yields in routes/debt.js) —
   // render "—" honestly rather than estimate.
@@ -339,7 +403,7 @@ function DebtPanel() {
       <PanelChrome
         title="RATES & CREDIT"
         onTitleClick={() => openOverlay('rates')}
-        subtitle={region === 'ALL' ? 'US · BR · EU · UK CURVES' : `${regionMeta?.label || region} CURVE${single?.source ? ` · ${single.source.toUpperCase()}` : ''}`}
+        subtitle={region === 'ALL' ? 'US · BR · EU · UK · CH CURVES' : `${regionMeta?.label || region} CURVE${single?.source ? ` · ${single.source.toUpperCase()}` : ''}`}
         badge={<IntegrityBadge domain="yield-curves" />}
         updatedAt={lastUpdated}
         source={sourceLabel}
@@ -357,7 +421,7 @@ function DebtPanel() {
         )}
       />
 
-      <RatesTape tape={tape} />
+      <RatesTape tape={tape} regionCell={regionCell} />
 
       <div className="dp-board">
         {/* ── Left: main curve + 1M-ago ghost ── */}
@@ -488,6 +552,20 @@ function DebtPanel() {
               />
             );
           })}
+
+          {/* Monthly FRED OECD 10Y-only sovereigns (BUG 1b) — no mini-curve,
+              value + 'M' staleness badge; same BoardRow footprint, the column
+              scrolls (overflow-y:auto) so the layout is unchanged. */}
+          {global10y.map(row => (
+            <BoardRow
+              key={row.country}
+              label={<>{MONTHLY_FLAGS[row.country] || ''} {row.label}</>}
+              title={`FRED ${row.seriesId} — OECD long-term rate, monthly${row.asOfDate ? ` (as of ${row.asOfDate})` : ''}`}
+              value={row.value != null ? row.value.toFixed(2) : '—'}
+              delta="M"
+              deltaColor="var(--text-faint)"
+            />
+          ))}
 
           <BoardSectionLabel>CREDIT &amp; INFLATION</BoardSectionLabel>
           {creditRows.map(row => (

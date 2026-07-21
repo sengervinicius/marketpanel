@@ -34,6 +34,12 @@ const PAIRS = {
   DFII10:       null, // degraded series — e.g. FRED CSV outage
   BAMLH0A0HYM2: { value: 3.05, date: '2026-07-15', prev: 2.98, prevDate: '2026-07-14', change: 0.07 },
   BAMLC0A0CM:   { value: 0.96, date: '2026-07-15', prev: 0.97, prevDate: '2026-07-14', change: -0.01 },
+  // Global 10Y monthly block (fix/bug-wave3 BUG 1b) — OECD long-term rates.
+  IRLTLT01JPM156N: { value: 1.083, date: '2026-06-01', prev: 1.05, prevDate: '2026-05-01', change: 0.033 },
+  IRLTLT01MXM156N: null, // degraded country — must ship value:null, not vanish
+  IRLTLT01AUM156N: { value: 4.21,  date: '2026-06-01', prev: 4.30, prevDate: '2026-05-01', change: -0.09 },
+  IRLTLT01NOM156N: { value: 3.62,  date: '2026-06-01', prev: 3.60, prevDate: '2026-05-01', change: 0.02 },
+  IRLTLT01SEM156N: { value: 2.44,  date: '2026-06-01', prev: 2.41, prevDate: '2026-05-01', change: 0.03 },
 };
 
 require.cache[fredPath] = {
@@ -125,6 +131,25 @@ describe('GET /rates-tape (H2b US rates tape)', () => {
       assert.equal(byId[id].change1d, null, id);
     }
     assert.equal(r.body.ok, true); // 2 of 4 series is still a valid tape
+  });
+
+  it('ships the additive global10y monthly block (JP/MX/AU/NO/SE)', async () => {
+    const r = await getJson(port, '/rates-tape');
+    assert.equal(r.status, 200);
+    assert.ok(Array.isArray(r.body.global10y), 'global10y array present');
+    assert.equal(r.body.global10y.length, 5);
+    assert.deepEqual(r.body.global10y.map(g => g.country), ['JP', 'MX', 'AU', 'NO', 'SE']);
+
+    const byCountry = Object.fromEntries(r.body.global10y.map(g => [g.country, g]));
+    assert.deepEqual(byCountry.JP, {
+      country: 'JP', label: 'JAPAN', seriesId: 'IRLTLT01JPM156N',
+      tenor: '10Y', freq: 'M', value: 1.08, asOfDate: '2026-06-01',
+    });
+    // Degraded country stays in the payload with value:null (client renders "—").
+    assert.equal(byCountry.MX.value, null);
+    assert.equal(byCountry.MX.asOfDate, null);
+    assert.equal(byCountry.MX.freq, 'M');
+    assert.equal(byCountry.AU.value, 4.21);
   });
 
   it('caches the payload — repeated hits do not re-call the provider', async () => {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { apiFetch } from '../utils/api';
 import { swallow } from '../utils/swallow';
+import { createPollGate } from '../utils/chartPollGate';
 import {
   normalizeTicker, displayTicker, getFromDate, fmtLabel,
   RANGES,
@@ -51,6 +52,19 @@ export function useInstrumentData(ticker) {
   const [rangeIdx, setRangeIdx]   = useState(0);
   const [bars, setBars]           = useState([]);
   const [loading, setLoading]     = useState(true);
+
+  // fix/bug-wave3 BUG 4 — measure-mode pause for the intraday bars poll.
+  // A poll landing mid-measure replaced the bars array: recharts re-ran the
+  // chart (reads as a reload) and the clicked A/B indices pointed at shifted
+  // bars. While the gate is paused, ticks are deferred; disarming flushes
+  // one catch-up fetch.
+  const pollGateRef = useRef(null);
+  if (!pollGateRef.current) pollGateRef.current = createPollGate();
+  const refetchBarsRef = useRef(null);
+  const setChartPollPaused = useCallback((paused) => {
+    const flush = pollGateRef.current.setPaused(paused);
+    if (flush) refetchBarsRef.current?.();
+  }, []);
 
   // Snapshot & reference
   const [snap, setSnap]           = useState(null);
@@ -203,13 +217,18 @@ export function useInstrumentData(ticker) {
     }, 40000);
 
     runFetch(true);
+    // Measure-mode flush target (BUG 4) — always the current range's fetch.
+    refetchBarsRef.current = () => { if (!stale) runFetch(false); };
 
     // Intraday charts poll every 60s while tab visible; daily/weekly/
     // monthly bars don't move minute-to-minute so we don't bother.
+    // Ticks are gated: hidden tab → skip; measure mode armed → defer
+    // (flushed by setChartPollPaused(false)).
     if (isIntraday) {
       const tick = () => {
         if (stale) return;
-        if (typeof document === 'undefined' || document.visibilityState !== 'hidden') {
+        const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+        if (pollGateRef.current.shouldRun(hidden)) {
           runFetch(false);
         }
         pollTimer = setTimeout(tick, 60000);
@@ -218,10 +237,12 @@ export function useInstrumentData(ticker) {
     }
 
     // Eager refetch when the user comes back to the tab — better than
-    // waiting up to a full poll interval to catch up.
+    // waiting up to a full poll interval to catch up. Also gated: a wake
+    // mid-measure must not replace the bars under the user's clicks.
     const onVisible = () => {
       if (stale) return;
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible'
+          && pollGateRef.current.shouldRun(false)) {
         runFetch(false);
       }
     };
@@ -233,6 +254,7 @@ export function useInstrumentData(ticker) {
       stale = true;
       clearTimeout(watchdog);
       if (pollTimer) clearTimeout(pollTimer);
+      refetchBarsRef.current = null;
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', onVisible);
       }
@@ -586,6 +608,7 @@ export function useInstrumentData(ticker) {
     aiFunds,
     aiFundsLoading,
     aiFundsError,
+    setChartPollPaused,
 
     // S4 Wave 3: Enhanced data
     insiderData,

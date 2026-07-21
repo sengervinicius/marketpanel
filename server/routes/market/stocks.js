@@ -63,6 +63,9 @@ const {
   getYahooCrumb, resetYahooCrumb, sendError, eulerpool, twelvedata, fetch, YF_UA,
 } = require('./lib/providers');
 const { validateEquities } = require('../../services/dataIntegrityValidator');
+// fix/bug-wave3 BUG 3 — fundamentals cascade (yahoo → twelvedata → fmp) so a
+// single provider hiccup no longer nukes the AI Fundamentals context.
+const { getFundamentalsCascade } = require('../../providers/fundamentalsCascade');
 
 // ── Default stock tickers ───────────────────────────────────────────
 const DEFAULT_STOCK_TICKERS = [
@@ -1208,6 +1211,7 @@ router.get('/fundamentals/:symbol', async (req, res) => {
     const symbol = raw.replace(/^[XC]:/, '');
 
     if (symbol.endsWith('.SA')) {
+      try {
       const FIELDS = [
         'marketCap','enterpriseValue',
         'trailingPE','forwardPE',
@@ -1234,25 +1238,41 @@ router.get('/fundamentals/:symbol', async (req, res) => {
         q = json?.quoteResponse?.result?.[0];
         break;
       }
-      if (!q) return res.status(404).json({ error: 'No fundamental data for ' + symbol });
-      return res.json({
-        marketCap:          q.marketCap                  ?? null,
-        enterpriseValue:    q.enterpriseValue            ?? null,
-        peRatio:            q.trailingPE                 ?? null,
-        forwardPE:          q.forwardPE                  ?? null,
-        eps:                q.epsTrailingTwelveMonths    ?? null,
-        forwardEps:         q.epsForward                 ?? null,
-        dividendYield:      q.trailingAnnualDividendYield ?? null,
-        dividendRate:       q.trailingAnnualDividendRate  ?? null,
-        fiftyTwoWeekHigh:   q.fiftyTwoWeekHigh           ?? null,
-        fiftyTwoWeekLow:    q.fiftyTwoWeekLow            ?? null,
-        fiftyTwoWeekChange: q.fiftyTwoWeekChangePercent != null
-                              ? q.fiftyTwoWeekChangePercent / 100 : null,
-        beta:               q.beta                       ?? null,
-        sharesOutstanding:  q.sharesOutstanding          ?? null,
+      if (q) {
+        return res.json({
+          marketCap:          q.marketCap                  ?? null,
+          enterpriseValue:    q.enterpriseValue            ?? null,
+          peRatio:            q.trailingPE                 ?? null,
+          forwardPE:          q.forwardPE                  ?? null,
+          eps:                q.epsTrailingTwelveMonths    ?? null,
+          forwardEps:         q.epsForward                 ?? null,
+          dividendYield:      q.trailingAnnualDividendYield ?? null,
+          dividendRate:       q.trailingAnnualDividendRate  ?? null,
+          fiftyTwoWeekHigh:   q.fiftyTwoWeekHigh           ?? null,
+          fiftyTwoWeekLow:    q.fiftyTwoWeekLow            ?? null,
+          fiftyTwoWeekChange: q.fiftyTwoWeekChangePercent != null
+                                ? q.fiftyTwoWeekChangePercent / 100 : null,
+          beta:               q.beta                       ?? null,
+          sharesOutstanding:  q.sharesOutstanding          ?? null,
+          source:             'yahoo',
+        });
+      }
+      } catch (e) {
+        console.warn(`[fundamentals] Yahoo .SA failed for ${symbol}: ${e.message} — trying cascade`);
+      }
+      // BUG 3: Yahoo empty/erred — try TwelveData/FMP before giving up.
+      const saCascade = await getFundamentalsCascade(symbol, {});
+      if (saCascade) return res.json({ ...saCascade.data, source: saCascade.source });
+      return res.status(404).json({
+        error: 'No fundamental data for ' + symbol,
+        attempted: ['yahoo', 'twelvedata', 'fmp'],
       });
     }
 
+    // ── Non-.SA: cascade yahoo quoteSummary → twelvedata → fmp ──────────
+    // The Yahoo leg keeps the shared crumb machinery, so it stays here as
+    // an injected fetcher; the cascade only falls through on error/empty.
+    const yahooFn = async () => {
     let result = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       const { crumb, cookie } = await getYahooCrumb();
@@ -1274,9 +1294,7 @@ router.get('/fundamentals/:symbol', async (req, res) => {
       break;
     }
 
-    if (!result) {
-      return res.status(404).json({ error: 'No fundamental data for ' + symbol });
-    }
+    if (!result) return null;
 
     const ks = result.defaultKeyStatistics || {};
     const fd = result.financialData       || {};
@@ -1302,7 +1320,7 @@ router.get('/fundamentals/:symbol', async (req, res) => {
         })()
       : null;
 
-    res.json({
+    return {
       marketCap:           yr(sd.marketCap)        ?? yr(pr.marketCap)        ?? polyMktCap ?? null,
       enterpriseValue:     yr(ks.enterpriseValue)                             ?? null,
       peRatio:             yr(sd.trailingPE)        ?? yr(ks.trailingPE)      ?? null,
@@ -1337,7 +1355,18 @@ router.get('/fundamentals/:symbol', async (req, res) => {
       employees:           sp.fullTimeEmployees                               || null,
       website:             sp.website                                         || null,
       description:         sp.longBusinessSummary                             || null,
-    });
+    };
+    }; // end yahooFn
+
+    const cascade = await getFundamentalsCascade(symbol, { yahooFn });
+    if (!cascade) {
+      // Only now — after yahoo AND twelvedata AND fmp — is "unavailable" true.
+      return res.status(404).json({
+        error: 'No fundamental data for ' + symbol,
+        attempted: ['yahoo', 'twelvedata', 'fmp'],
+      });
+    }
+    return res.json({ ...cascade.data, source: cascade.source });
   } catch (e) {
     console.error('[API] /fundamentals/' + req.params.symbol + ' error:', e.message);
     sendError(res, e);

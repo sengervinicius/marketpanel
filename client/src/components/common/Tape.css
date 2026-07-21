@@ -53,3 +53,20 @@
 .ds-tape--gold .ds-tape-cell { border-right-color: var(--vault-gold-border); }
 .ds-tape--gold .ds-tape-k   { color: var(--vault-gold-muted); }
 .ds-tape--gold .ds-tape-v   { color: var(--vault-gold); }
+
+/* ── Source badge (e.g. "US" on globally-scoped cells) ─────────────
+ * fix/bug-wave3 BUG 1a: cells 3-4 of the RATES & CREDIT tape stay US
+ * series while cells 1-2 follow the selected curve — the badge keeps
+ * the mixed provenance honest. */
+.ds-tape-src {
+  display: inline-block;
+  font-size: 7px;
+  line-height: 1;
+  padding: 1px 3px;
+  margin-left: 3px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  color: var(--text-faint);
+  vertical-align: 1px;
+  letter-spacing: 0.06em;
+}

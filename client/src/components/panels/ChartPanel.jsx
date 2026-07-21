@@ -25,6 +25,11 @@ import { swallow } from '../../utils/swallow';
 // having to trust the price alone.
 import FreshnessDot from '../common/FreshnessDot';
 import PanelChrome from '../common/PanelChrome';
+// fix/bug-wave3 BUG 2 — dirty-flag guard so a stale server settings snapshot
+// can never clobber newer local grid edits across unmount/remount.
+import {
+  readGridMeta, markGridDirty, clearGridDirtyIfSynced, resolveIncomingServerGrid,
+} from '../../utils/chartGridSync';
 import './ChartPanel.css';
 
 const LS_KEY = 'chartGrid_v3';
@@ -633,6 +638,21 @@ function ChartPanel({ onGridChange, mobile = false }) {
   const [showQR,  setShowQR]  = useState(false);
   const [qrUrl,   setQrUrl]   = useState('');
   const gridSyncTimer = useRef(null);
+  const pendingSaveRef = useRef(null);
+
+  // POST the grid; on ack, clear the dirty flag ONLY if the grid on disk
+  // still matches what we saved (user may have kept editing meanwhile).
+  const postGrid = useCallback((grid) => {
+    apiFetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chartGrid: grid }),
+    })
+      .then(r => {
+        if (r && r.ok) clearGridDirtyIfSynced(window.localStorage, grid, LS_KEY);
+      })
+      .catch(() => { /* stay dirty — next edit/mount retries */ });
+  }, []);
   // Don't auto-POST to the server until we've heard back from the initial
   // /api/settings GET. Otherwise, on a user whose server settings were wiped
   // (as happened 2026-04-20) the debounced save effect fires with the
@@ -657,10 +677,18 @@ function ChartPanel({ onGridChange, mobile = false }) {
         const grid = s?.settings?.chartGrid;
         if (Array.isArray(grid) && grid.length) {
           serverHadGridRef.current = true;
-          const serverGrid = grid.slice(0, MAX);
-          setTickers(prev =>
-            JSON.stringify(prev) === JSON.stringify(serverGrid) ? prev : serverGrid
-          );
+          // BUG 2 guard: while local edits are pending (dirty flag persisted
+          // in localStorage, so it survives the Vault/Particle round-trip),
+          // the server snapshot is stale by definition — keep local state and
+          // let the save effect push it up instead of letting the snapshot
+          // clobber the user's adds/removes.
+          const { dirty } = readGridMeta(window.localStorage);
+          setTickers(prev => {
+            const { grid: next } = resolveIncomingServerGrid({
+              localGrid: prev, serverGrid: grid, dirty, max: MAX,
+            });
+            return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+          });
         } else if (initialSourceRef.current === 'fallback') {
           // Brand new user (or wiped-settings user with no localStorage):
           // they're about to see the hardcoded default. Log it so production
@@ -705,19 +733,34 @@ function ChartPanel({ onGridChange, mobile = false }) {
       return;
     }
     clearTimeout(gridSyncTimer.current);
+    pendingSaveRef.current = tickers;
     gridSyncTimer.current = setTimeout(() => {
-      apiFetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chartGrid: tickers }),
-      }).catch(() => {});
+      pendingSaveRef.current = null;
+      postGrid(tickers);
     }, 1500);
-  }, [tickers, onGridChange, mobile, serverLoaded]);
+  }, [tickers, onGridChange, mobile, serverLoaded, postGrid]);
+
+  // BUG 2: flush the debounced save on unmount. Navigating to another view
+  // right after an edit used to leave the POST racing the next mount's GET;
+  // firing it immediately shrinks that window, and the dirty flag guards
+  // whatever race remains.
+  useEffect(() => () => {
+    if (gridSyncTimer.current) clearTimeout(gridSyncTimer.current);
+    if (pendingSaveRef.current) {
+      const grid = pendingSaveRef.current;
+      pendingSaveRef.current = null;
+      postGrid(grid);
+    }
+  }, [postGrid]);
 
   // Any user edit promotes the grid from "fallback shown on screen" to
   // "real user state worth persisting" — flip the ref so the save effect
-  // stops skipping the POST.
-  const markUserEdit = useCallback(() => { serverHadGridRef.current = true; }, []);
+  // stops skipping the POST — and marks the grid dirty (persisted) so a
+  // stale server snapshot can't clobber the edit after a remount.
+  const markUserEdit = useCallback(() => {
+    serverHadGridRef.current = true;
+    try { markGridDirty(window.localStorage); } catch { /* storage optional */ }
+  }, []);
 
   const addTicker     = useCallback((raw)       => { const norm = normalizeTicker(raw);  markUserEdit(); setTickers(prev => prev.includes(norm) || prev.length >= MAX ? prev : [...prev, norm]); }, [markUserEdit]);
   const removeTicker  = useCallback((t)          => { markUserEdit(); setTickers(prev => prev.filter(x => x !== t)); }, [markUserEdit]);
