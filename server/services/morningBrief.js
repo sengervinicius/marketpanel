@@ -20,7 +20,7 @@ const predictionAggregator = require('./predictionAggregator');
 // ── Config ──────────────────────────────────────────────────────────────────
 const ANTHROPIC_URL  = 'https://api.anthropic.com/v1/messages';
 const PERPLEXITY_URL = 'https://api.perplexity.ai/chat/completions';
-const BRIEF_MODEL    = 'claude-sonnet-4-20250514'; // Phase 5: upgraded from Perplexity sonar
+const BRIEF_MODEL    = 'claude-sonnet-5'; // Phase 5: upgraded from Perplexity sonar
 const FALLBACK_MODEL = 'sonar-pro';                // Fallback if no Anthropic key
 const TIMEOUT_MS     = 20000;
 const BRIEF_INTERVAL = 15 * 60 * 1000; // Check every 15 minutes (was 60 min)

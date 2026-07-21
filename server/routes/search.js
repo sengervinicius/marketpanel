@@ -2738,12 +2738,38 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
         res.end();
       });
 
-      const apiResponse = await modelRouter.callProvider(provider, routerMessages, systemPrompt, { signal: controller.signal, userId });
+      // ── RESILIENCE (deep-analysis path) ─────────────────────────────
+      // Non-streaming primary (Sonnet) call. If the primary model throws
+      // (e.g. a retired model ID → HTTP 404) OR returns an empty completion,
+      // retry ONCE with the canonical Haiku model before surfacing an error,
+      // and flag the reply as degraded so the fallback is observable. Mirrors
+      // the tolerant provider pattern used by news-briefing / news-summary.
+      const _extractText = async (prov, apiResp) => {
+        const data = await apiResp.json();
+        if (prov.url.includes('perplexity')) return data.choices?.[0]?.message?.content || '';
+        return (Array.isArray(data.content) ? data.content : [])
+          .filter(b => b && b.type === 'text').map(b => b.text || '').join('');
+      };
 
-      // Extract full text from provider response
+      let servingProvider = provider;
+      let degradedDeep = false;
       let responseText = '';
-      const isPerplexity = provider.url.includes('perplexity');
-      const isAnthropic = provider.url.includes('anthropic');
+      try {
+        const apiResponse = await modelRouter.callProvider(provider, routerMessages, systemPrompt, { signal: controller.signal, userId });
+        responseText = await _extractText(provider, apiResponse);
+        if (!responseText || !responseText.trim()) {
+          throw new Error('primary model returned an empty completion');
+        }
+      } catch (primaryErr) {
+        const haiku = modelRouter.getProvider('claude_haiku');
+        const canFallback = haiku && haiku.model !== provider.model && process.env[haiku.keyEnv];
+        if (!canFallback) throw primaryErr;
+        logger.warn('chat', 'deep-analysis primary failed/empty — retrying once with Haiku', { error: primaryErr.message, primaryModel: provider.model });
+        const fbResponse = await modelRouter.callProvider(haiku, routerMessages, systemPrompt, { signal: controller.signal, userId });
+        responseText = await _extractText(haiku, fbResponse);
+        servingProvider = haiku;
+        degradedDeep = true;
+      }
 
       if (!res.headersSent) {
         res.writeHead(200, {
@@ -2753,18 +2779,14 @@ ${ctx_.portfolioMetricsContext ? `\n${ctx_.portfolioMetricsContext}\n` : ''}${ct
         });
       }
 
-      // Parse provider response to get full text
-      if (isPerplexity) {
-        const data = await apiResponse.json();
-        responseText = data.choices?.[0]?.message?.content || '';
-      } else if (isAnthropic) {
-        const data = await apiResponse.json();
-        responseText = data.content?.[0]?.text || '';
-      }
-
       // W1.3: scrub credentials + external URLs; auto-disclaim ticker+direction
       // pairs. Logs violations under ai_safety_violation for Sentry alerting.
-      responseText = guardAndLog(responseText, { userId, model: provider.model });
+      responseText = guardAndLog(responseText, { userId, model: servingProvider.model });
+
+      // Observable degradation marker when the Haiku fallback served.
+      if (degradedDeep && !res.writableEnded) {
+        res.write(`data: ${JSON.stringify({ degraded: true, model: 'haiku' })}\n\n`);
+      }
 
       // Stream the full response as chunks (matching modelRouter.streamResponse behavior)
       const chunkSize = 50;

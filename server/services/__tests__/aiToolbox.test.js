@@ -178,7 +178,7 @@ process.env.ANTHROPIC_API_KEY = 'test-key';
     },
   ];
   fetchCalls = [];
-  const provider = { url: 'https://api.anthropic.com/v1/messages', model: 'claude-sonnet-4-20250514', keyEnv: 'ANTHROPIC_API_KEY' };
+  const provider = { url: 'https://api.anthropic.com/v1/messages', model: 'claude-sonnet-5', keyEnv: 'ANTHROPIC_API_KEY' };
   const loopOut = await toolbox.runToolLoop(provider, [{ role: 'user', content: 'How is NVDA doing?' }], 'you are Particle', { userId: 1 });
   assert.strictEqual(loopOut.rounds, 2);
   assert.match(loopOut.finalText, /NVDA is at \$100/);

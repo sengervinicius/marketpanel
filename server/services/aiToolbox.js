@@ -37,6 +37,7 @@
 const fetch = require('node-fetch');
 const logger = require('../utils/logger');
 const aiCostLedger = require('./aiCostLedger');
+const modelRouter = require('./modelRouter');
 const { swallow } = require('../utils/swallow');
 
 // #257 R0.1-b — MCP registry cutover. When feature flag MCP_REGISTRY_V1
@@ -1782,13 +1783,47 @@ async function runToolLoopStream(provider, initialMessages, systemPrompt, res, {
       res.write(`data: ${JSON.stringify({ toolEvent: evt })}\n\n`);
     } catch (_) { /* fire-and-forget — never break the stream on a pill write */ }
   };
+
+  // ── RESILIENCE (chat must never blank) ─────────────────────────────────
+  // The primary model call must not silently blank the chat again. If the
+  // primary provider throws (e.g. a retired model ID → HTTP 404 / zero
+  // tokens) OR returns an empty completion, retry ONCE with the canonical
+  // Haiku model before surfacing a "Response interrupted" partial. This
+  // mirrors the tolerant provider pattern used by news-briefing /
+  // news-summary. When the fallback serves, we emit a {degraded:true,
+  // model:'haiku'} marker so the degradation is observable client-side.
+  const haikuProvider = modelRouter.getProvider('claude_haiku');
+  let servingProvider = provider;
+  let degraded = false;
+  let out = null;
+
+  const attempt = (p) => runToolLoop(p, initialMessages, systemPrompt, { userId, onToolEvent });
+
   try {
-    const out = await runToolLoop(provider, initialMessages, systemPrompt, { userId, onToolEvent });
+    try {
+      out = await attempt(provider);
+      if (!out || !out.finalText || !out.finalText.trim()) {
+        throw new Error('primary model returned an empty completion');
+      }
+    } catch (primaryErr) {
+      logger.warn('aiToolbox', 'primary model failed/empty — retrying once with Haiku fallback', {
+        error: primaryErr.message,
+        primaryModel: provider && provider.model,
+      });
+      const canFallback = haikuProvider
+        && haikuProvider.model !== (provider && provider.model)
+        && process.env[haikuProvider.keyEnv];
+      if (!canFallback) throw primaryErr;
+      // One-shot Haiku retry. If this also throws it propagates to the
+      // outer catch, which emits the interrupted partial.
+      out = await attempt(haikuProvider);
+      degraded = true;
+      servingProvider = haikuProvider;
+    }
+
     fullText = out.finalText || '';
     rounds = out.rounds;
 
-    // Emit the text as chunks. 120-char chunks feel incremental to humans
-    // without hammering SSE framing.
     if (typeof onRoundsMeta === 'function') {
       try { onRoundsMeta({ rounds }); } catch (e) { swallow(e, 'aiToolbox.onRoundsMeta'); }
     }
@@ -1798,15 +1833,25 @@ async function runToolLoopStream(provider, initialMessages, systemPrompt, res, {
     if (!fullText || !fullText.trim()) {
       fullText = "I wasn't able to assemble a useful answer this turn. Try rephrasing or ask a more specific question.";
     }
+
+    // Observable degradation marker — emitted before the content chunks so
+    // the client can badge the reply as served by the fallback model.
+    if (degraded && !res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ degraded: true, model: 'haiku' })}\n\n`);
+    }
+
+    // Emit the text as chunks. 120-char chunks feel incremental to humans
+    // without hammering SSE framing.
     const CHUNK = 120;
     for (let i = 0; i < fullText.length; i += CHUNK) {
       if (res.writableEnded) break;
       res.write(`data: ${JSON.stringify({ chunk: fullText.slice(i, i + CHUNK) })}\n\n`);
     }
 
-    // Ledger recording — best-effort.
-    if (userId && (out.usage.input || out.usage.output)) {
-      try { aiCostLedger.recordUsage(userId, provider.model, out.usage.input, out.usage.output); }
+    // Ledger recording — best-effort. Bill against the model that actually
+    // served the answer (Haiku when we fell back).
+    if (userId && out.usage && (out.usage.input || out.usage.output)) {
+      try { aiCostLedger.recordUsage(userId, servingProvider.model, out.usage.input, out.usage.output); }
       catch (_) { /* fire-and-forget */ }
     }
 
@@ -1819,7 +1864,7 @@ async function runToolLoopStream(provider, initialMessages, systemPrompt, res, {
       try { await onComplete(fullText); } catch (_) { /* ignore */ }
     }
   } catch (e) {
-    logger.error('aiToolbox', 'runToolLoopStream failed', { error: e.message });
+    logger.error('aiToolbox', 'runToolLoopStream failed (primary + Haiku fallback exhausted)', { error: e.message });
     if (!res.writableEnded) {
       res.write(`data: ${JSON.stringify({ partial: true, error: 'Response interrupted — tap to retry' })}\n\n`);
       res.write('data: [DONE]\n\n');
