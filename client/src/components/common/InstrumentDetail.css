@@ -247,6 +247,49 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* FIX-popup-fit — popout (asPage / `.id-page`) responsive stack.
+   In a narrow or manually-resized popout window the fixed two-pane
+   (chart left + 320px sidebar right) feels cramped and "too zoomed".
+   Below 1100px of popup viewport width, drop the two-pane to a SINGLE
+   COLUMN: chart on top at a comfortable height (full width so Recharts'
+   ResponsiveContainer fills it), sidebar (price / valuation / AI /
+   financials) stacked full-width below, everything reachable through the
+   page scroll container added in the #288 popout-scroll fix. Scoped to
+   `.id-page` and the NON-mobile body so the in-app `.id-overlay` desktop
+   two-pane and the mobile DETAIL tab (`.id-body--mobile`) are untouched.
+   At >=1100px (e.g. the default 1280-wide popout) the two-pane is kept. */
+@media (max-width: 1100px) {
+  .id-page .id-body:not(.id-body--mobile) {
+    flex-direction: column;
+    overflow: visible;
+    /* let the column grow with its stacked content; the page scrolls */
+    min-height: 0;
+  }
+  .id-page .id-body:not(.id-body--mobile) .id-chart-area {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+    /* definite height so the flex:7 / flex:2 chart rows (and Recharts'
+       ResponsiveContainer inside them) get real space to fill */
+    height: 420px;
+    min-height: 340px;
+  }
+  .id-page .id-body:not(.id-body--mobile) .id-sidebar {
+    width: 100%;
+    flex: none;
+    border-left: none;
+    border-top: 1px solid var(--border-subtle);
+    /* release the internal-scroll clip so the sidebar flows into the
+       page scroll container instead of scrolling within itself */
+    overflow-y: visible;
+    height: auto;
+  }
+  .id-page .id-body:not(.id-body--mobile) .id-sidebar-content {
+    flex: none;
+    overflow-y: visible;
+  }
+}
+
 /* Chart area */
 .id-chart-area {
   flex: 1;
