@@ -9,6 +9,8 @@ const router  = express.Router();
 const logger = require('../utils/logger');
 const { sendApiError } = require('../utils/apiError');
 const { getUserById, mergeSettings } = require('../authStore');
+// FEAT-5: brief email self-serve — shared validators (pure, tested)
+const { isValidEmail, isValidTimeZone, parseBriefTime } = require('../jobs/briefWindow');
 
 // Prototype pollution keys to reject
 const DANGEROUS_KEYS = ['__proto__', 'constructor', 'prototype'];
@@ -31,6 +33,10 @@ const VALID_SETTING_KEYS = {
   colSizes: 'object',           // { 'r0_3': [...], ... } — column sizes per row
   tourCompleted: 'boolean',     // onboarding tour finished
   termsAccepted: 'boolean',     // ToS acceptance
+  // FEAT-5: Daily Brief email self-serve (semantic checks in POST below)
+  briefEmail: 'string',         // destination address ('' = account email)
+  briefTime: 'string',          // 'HH:MM' 24h local send time
+  briefTz: 'string',            // IANA timezone, e.g. 'America/Sao_Paulo'
 };
 
 /**
@@ -97,6 +103,19 @@ router.post('/', async (req, res) => {
         logger.warn('Settings POST: Invalid setting value type', { userId: req.user.id, key, type: typeof value });
         return sendApiError(res, 400, `Invalid type for setting: ${key}`);
       }
+    }
+
+    // FEAT-5: semantic validation for the Daily Brief email settings —
+    // a malformed address/time/tz must never reach the 15-min sweep job.
+    if (partial.briefEmail !== undefined && partial.briefEmail !== '' && !isValidEmail(partial.briefEmail)) {
+      logger.warn('Settings POST: invalid briefEmail', { userId: req.user.id });
+      return sendApiError(res, 400, 'briefEmail must be a valid email address (or empty to use the account email)');
+    }
+    if (partial.briefTime !== undefined && parseBriefTime(partial.briefTime) == null) {
+      return sendApiError(res, 400, 'briefTime must be HH:MM (24h)');
+    }
+    if (partial.briefTz !== undefined && !isValidTimeZone(partial.briefTz)) {
+      return sendApiError(res, 400, 'briefTz must be a valid IANA timezone string');
     }
 
     const settings = await mergeSettings(req.user.id, partial);
