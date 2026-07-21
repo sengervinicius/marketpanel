@@ -1825,6 +1825,186 @@ Rules:
 });
 
 /**
+ * POST /earnings-preview — AI-powered EARNINGS preview for a single reporter.
+ *
+ * fix/rates-earnings-popout item 2b. Mirrors /event-preview's provider chain
+ * (Perplexity → Anthropic Haiku fallback, honest degrade when BOTH fail) but
+ * returns an earnings-shaped payload and caches 24h per symbol (earnings
+ * fundamentals move on the quarter, not the minute).
+ *
+ * Body:    { symbol, name?, date?, timing?, epsEstimate?, revEstimate? }
+ * Returns: { symbol, whatTheyDo, consensusEps, consensusRev,
+ *            lastQtrResult, watchFor: [<=2 bullets], provider, degraded }
+ */
+const _earningsPreviewCache = new Map();
+const EARNINGS_PREVIEW_TTL = 24 * 60 * 60 * 1000; // 24h
+
+router.post('/earnings-preview', async (req, res) => {
+  const perplexityKey = process.env.PERPLEXITY_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!perplexityKey && !anthropicKey) {
+    return res.status(503).json({ error: 'preview_unavailable', message: 'Preview unavailable — AI not configured.' });
+  }
+
+  const { symbol, name, date, timing, epsEstimate, revEstimate } = req.body || {};
+  if (!symbol || typeof symbol !== 'string') {
+    return res.status(400).json({ error: 'bad_request', message: 'symbol is required' });
+  }
+  const sym = symbol.toUpperCase().trim().slice(0, 12);
+
+  const cacheKey = sym;
+  const cached = _earningsPreviewCache.get(cacheKey);
+  if (cached && Date.now() < cached.exp) return res.json({ ...cached.v, cached: true });
+
+  let context = `Company ticker: ${sym}`;
+  if (name) context += `\nCompany name: ${name}`;
+  if (date) context += `\nReports on: ${date}${timing ? ` (${timing})` : ''}`;
+  if (epsEstimate != null) context += `\nStreet EPS estimate on file: ${epsEstimate}`;
+  if (revEstimate != null) context += `\nStreet revenue estimate on file: ${revEstimate}`;
+
+  const systemPrompt = `You are an equity analyst prepping a one-screen earnings preview for a portfolio manager. Given a company about to report, respond ONLY with valid JSON:
+{
+  "whatTheyDo": "ONE plain-English line on the business",
+  "consensusEps": "consensus EPS estimate with currency, or null if unknown",
+  "consensusRev": "consensus revenue estimate (e.g. $X.XB), or null if unknown",
+  "lastQtrResult": "ONE line: did they beat or miss last quarter and by roughly how much",
+  "watchFor": ["bullet 1", "bullet 2"]
+}
+Rules:
+- whatTheyDo and lastQtrResult are ONE sentence each.
+- watchFor is EXACTLY 2 short bullets (the two things that move the stock this print).
+- Use null (not guesses) for any consensus figure you are not confident about.
+- If a Street estimate is provided in the context, use it for consensusEps.
+- Do NOT give investment advice.`;
+
+  const _outcomes = { perplexity: null, anthropic: null };
+
+  async function tryPerplexity() {
+    if (!perplexityKey) return null;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const r = await fetch(PERPLEXITY_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${perplexityKey}`, 'Content-Type': 'application/json' },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model: MODEL, messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: context },
+          ], max_tokens: 400, temperature: 0.2,
+        }),
+      });
+      clearTimeout(timer);
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        _outcomes.perplexity = (r.status === 401 || r.status === 403) ? 'auth' : `http_${r.status}`;
+        console.warn(`[Search/AI Earnings Preview] Perplexity ${r.status}:`, errText.substring(0, 160));
+        return null;
+      }
+      const data = await r.json();
+      _outcomes.perplexity = 'ok';
+      return data.choices?.[0]?.message?.content || null;
+    } catch (e) {
+      clearTimeout(timer);
+      _outcomes.perplexity = e.name === 'AbortError' ? 'timeout' : 'network';
+      return null;
+    }
+  }
+
+  async function tryAnthropic() {
+    if (!anthropicKey) { _outcomes.anthropic = 'not_configured'; return null; }
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
+          'Content-Type': 'application/json',
+        },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 400,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: context }],
+        }),
+      });
+      clearTimeout(timer);
+      if (!r.ok) {
+        const errText = await r.text().catch(() => '');
+        _outcomes.anthropic = (r.status === 401 || r.status === 403) ? 'auth' : `http_${r.status}`;
+        console.warn(`[Search/AI Earnings Preview] Anthropic ${r.status}:`, errText.substring(0, 160));
+        return null;
+      }
+      const data = await r.json();
+      _outcomes.anthropic = 'ok';
+      return data.content?.[0]?.text || null;
+    } catch (e) {
+      clearTimeout(timer);
+      _outcomes.anthropic = e.name === 'AbortError' ? 'timeout' : 'network';
+      return null;
+    }
+  }
+
+  try {
+    let raw = await tryPerplexity();
+    let providerUsed = 'perplexity';
+    if (!raw) { raw = await tryAnthropic(); providerUsed = 'anthropic'; }
+    if (!raw) {
+      try {
+        require('@sentry/node').captureMessage(
+          'Earnings-preview degraded: both providers failed',
+          { level: 'error', tags: { route: 'earnings-preview',
+            perplexity_outcome: _outcomes.perplexity || 'skipped',
+            anthropic_outcome: _outcomes.anthropic || 'skipped' } }
+        );
+      } catch (_) { /* sentry optional */ }
+      return res.status(503).json({
+        error: 'preview_unavailable',
+        message: 'Preview unavailable — try again shortly.',
+      });
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim());
+    } catch {
+      parsed = { whatTheyDo: raw.trim().substring(0, 180), consensusEps: null, consensusRev: null, lastQtrResult: null, watchFor: [] };
+    }
+
+    const watchFor = Array.isArray(parsed.watchFor) ? parsed.watchFor.filter(Boolean).slice(0, 2) : [];
+    const result = {
+      symbol: sym,
+      whatTheyDo: parsed.whatTheyDo || null,
+      // Prefer the Street estimate we already hold over the model's recall.
+      consensusEps: (epsEstimate != null ? String(epsEstimate) : (parsed.consensusEps || null)),
+      consensusRev: parsed.consensusRev || null,
+      lastQtrResult: parsed.lastQtrResult || null,
+      watchFor,
+      provider: providerUsed,
+      degraded: providerUsed !== 'perplexity',
+      generatedAt: new Date().toISOString(),
+    };
+
+    _earningsPreviewCache.set(cacheKey, { v: result, exp: Date.now() + EARNINGS_PREVIEW_TTL });
+    if (_earningsPreviewCache.size > 200) {
+      const now = Date.now();
+      for (const [k, e] of _earningsPreviewCache) { if (now > e.exp) _earningsPreviewCache.delete(k); }
+    }
+
+    res.json(result);
+  } catch (err) {
+    // #220 — guard against late-abort write-after-send crashes.
+    if (res.headersSent) return;
+    console.error('[Search/AI Earnings Preview] Error:', err.message);
+    res.status(500).json({ error: 'preview_unavailable', message: 'Preview unavailable — try again shortly.' });
+  }
+});
+
+/**
  * POST /sector-rotation — AI-powered sector rotation commentary
  *
  * Body: { sectors: [{ name, changePct, volume }], marketBreadth: { up, down } }

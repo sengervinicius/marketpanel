@@ -116,3 +116,13 @@
 .hm-panel::-webkit-scrollbar { width: 4px; }
 .hm-panel::-webkit-scrollbar-track { background: transparent; }
 .hm-panel::-webkit-scrollbar-thumb { background: var(--text-faint); border-radius: 2px; }
+
+/* Static horizon badge — replaces the old dead 1D/1W switch (tiles are
+   always daily change; no weekly series exists client-side). */
+.hm-tf-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 2px 8px;
+}

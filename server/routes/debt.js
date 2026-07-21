@@ -443,6 +443,18 @@ const GLOBAL_10Y_MONTHLY = [
   { country: 'AU', label: 'AUSTRALIA', seriesId: 'IRLTLT01AUM156N' },
   { country: 'NO', label: 'NORWAY',    seriesId: 'IRLTLT01NOM156N' },
   { country: 'SE', label: 'SWEDEN',    seriesId: 'IRLTLT01SEM156N' },
+  // fix/rates-earnings-popout item 1 — Δ1M sources for the country-aware
+  // RATES tape (cell 3, <CTY> 10Y Δ1M). DE backs the EU/Bund chip, GB the
+  // UK/Gilt chip, BR the DI·BR chip. board:false — those regions already
+  // have live intraday curves on the GLOBAL 10Y board, so they must NOT
+  // render as duplicate monthly rows; they exist only for the tape Δ1M.
+  // The monthly series' prior observation IS the 1-month-ago print, so
+  // fetchLatestPair().change is exactly Δ1M. BR OECD long-term rate may be
+  // discontinued/absent on FRED — it degrades to value:null / change1m:null
+  // (tape renders "—") without failing the block.
+  { country: 'DE', label: 'GERMANY',   seriesId: 'IRLTLT01DEM156N', board: false },
+  { country: 'GB', label: 'UNITED KINGDOM', seriesId: 'IRLTLT01GBM156N', board: false },
+  { country: 'BR', label: 'BRAZIL',    seriesId: 'IRLTLT01BRM156N', board: false },
 ];
 const GLOBAL_10Y_TTL = 12 * 60 * 60 * 1000; // 12h — series prints ~monthly
 
@@ -463,7 +475,12 @@ async function getGlobal10yMonthly() {
       tenor:    '10Y',
       freq:     'M',
       value:    r && r.value != null ? parseFloat(r.value.toFixed(2)) : null,
+      // Δ1M in the series' own units (%) — the monthly prior observation is
+      // one month back. The tape converts to bps client-side.
+      change1m: r && r.change != null ? parseFloat(r.change.toFixed(2)) : null,
       asOfDate: r ? r.date : null,
+      // board:true → renders as a GLOBAL 10Y board row; false → tape-only.
+      board:    s.board !== false,
     };
   });
   // Cache only when at least one country resolved; a total FRED outage

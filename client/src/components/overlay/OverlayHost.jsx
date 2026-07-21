@@ -22,7 +22,7 @@ const RatesOverlay  = lazyWithRetry(() => import('./RatesOverlay'));
 // the top bar before the lazy body chunk arrives.
 export const OVERLAYS = {
   brazil: { title: 'BRAZIL — DEEP VIEW', tabs: ['MARKETS', 'RATES', 'FILINGS'], Component: BrazilOverlay },
-  rates:  { title: 'RATES — DEEP VIEW',  tabs: ['CURVES', 'SPREADS', 'CREDIT'], Component: RatesOverlay },
+  rates:  { title: 'RATES — DEEP VIEW',  tabs: ['CURVES', 'SPREADS', 'US CREDIT'], Component: RatesOverlay },
 };
 
 export default function OverlayHost() {

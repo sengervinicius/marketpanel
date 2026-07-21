@@ -4,7 +4,7 @@
  *                EARNINGS (Eulerpool → Finnhub /calendar/earnings)
  * AI-powered event previews via /api/search/event-preview.
  */
-import { useState, useCallback, useMemo, memo } from 'react';
+import { useState, useCallback, useMemo, memo, useEffect } from 'react';
 import { apiFetch } from '../../utils/api';
 import { useJsonQuery, STALE_TIMES } from '../../lib/queryHooks';
 // #286 — surface "live | curated | provider offline" so the footer
@@ -14,6 +14,7 @@ import { getProviderStatus } from '../../utils/providerStatus';
 // tabs, watchlist filter for earnings, surprise coloring on macro rows.
 import PanelChrome from '../common/PanelChrome';
 import { PanelTabRow } from './_shared';
+import ViewChips from '../common/ViewChips';
 import { useWatchlist } from '../../context/WatchlistContext';
 import './CalendarPanel.css';
 import { useOpenDetail } from '../../context/OpenDetailContext';
@@ -49,6 +50,19 @@ const STATIC_EVENTS = [
 // H2 W1.2 — surprise read: parse the leading numeric out of strings like
 // "2.4% YoY", "+228K", "4.25-4.50%" (first number wins) so actual can be
 // compared against consensus. Returns null when nothing parses.
+// fix/rates-earnings-popout item 2 — market-cap formatter for the earnings
+// rows + the >$10B material filter. Cap arrives from /api/snapshot/tickers
+// (results[SYM].ticker.fund.marketCap). Empty string when unknown.
+const MATERIAL_CAP = 10e9;          // >$10B threshold for the default filter
+const SNAPSHOT_BATCH_MAX = 50;      // server hard cap per /snapshot/tickers call
+function fmtCap(v) {
+  if (v == null || !Number.isFinite(v) || v <= 0) return '';
+  if (v >= 1e12) return `$${(v / 1e12).toFixed(1)}T`;
+  if (v >= 1e9)  return `$${(v / 1e9).toFixed(0)}B`;
+  if (v >= 1e6)  return `$${(v / 1e6).toFixed(0)}M`;
+  return `$${v.toFixed(0)}`;
+}
+
 function parseEventNum(v) {
   if (v == null) return null;
   if (typeof v === 'number') return Number.isFinite(v) ? v : null;
@@ -173,10 +187,13 @@ function EventRow({ event, expanded, onToggle, preview, previewLoading, previewE
  * [DATE chip mono (MON 27) | BMO/AMC badge | TICKER bold | company muted
  *  ellipsized | est EPS right-aligned mono]. `mine` rows (watchlist names
  * in the pinned MY NAMES group) carry the accent left edge. */
-function EarningsRow({ item, mine = false }) {
-  // wave-nov item 5 — earnings rows were completely inert (no click
-  // handlers at all). Adopt the shared contract: single click → in-app
-  // overlay detail (delayed), double click → standalone detail window.
+function EarningsRow({ item, mine = false, cap, expanded, onToggle, preview, previewLoading, previewError }) {
+  // fix/rates-earnings-popout item 2 — earnings rows are now macro-tab grade:
+  //  · CLICK the row → expandable AI earnings preview (whatTheyDo, consensus,
+  //    last-qtr beat/miss, 2 things to watch).
+  //  · CLICK the TICKER → in-app detail overlay; DOUBLE-CLICK → detail window
+  //    (wave-nov item 5 contract preserved; ticker click is isolated from the
+  //    row's expand toggle via stopPropagation).
   const openDetail = useOpenDetail();
   const dateStr = item.date || item.reportDate || '';
   const timingRaw = String(item.timing || item.when || '').toUpperCase();
@@ -189,21 +206,55 @@ function EarningsRow({ item, mine = false }) {
 
   const hasTicker = ticker && ticker !== '—';
   const rowClicks = useTickerClicks(ticker, { onSingle: (sym) => openDetail(sym) });
+  const capStr = fmtCap(cap);
 
   return (
-    <div
-      className={`cp-ern-row${mine ? ' cp-ern-row--mine' : ''}`}
-      title={hasTicker ? `${ticker} · ${name} · ${dateStr} · click → detail, double-click → window` : `${ticker} · ${name} · ${dateStr}`}
-      role={hasTicker ? 'button' : undefined}
-      style={hasTicker ? { cursor: 'pointer' } : undefined}
-      onClick={hasTicker ? rowClicks.onClick : undefined}
-      onDoubleClick={hasTicker ? rowClicks.onDoubleClick : undefined}
-    >
-      <span className="cp-chip-date">{dayChip(dateStr)}</span>
-      <span className={`cp-ern-tim cp-ern-tim--${timing.toLowerCase()}`}>{timing}</span>
-      <span className="cp-ern-tkr">{ticker}</span>
-      <span className="cp-ern-co">{name}</span>
-      <span className="cp-ern-eps">{eps}</span>
+    <div className={`cp-ern-item${expanded ? ' cp-ern-item--open' : ''}`}>
+      <div
+        className={`cp-ern-row${mine ? ' cp-ern-row--mine' : ''}${expanded ? ' cp-ern-row--open' : ''}`}
+        title={hasTicker ? `${ticker} · ${name}${capStr ? ` · ${capStr}` : ''} · ${dateStr} · click row → preview` : `${ticker} · ${name} · ${dateStr}`}
+        role="button"
+        style={{ cursor: 'pointer' }}
+        onClick={onToggle}
+      >
+        <span className="cp-chip-date">{dayChip(dateStr)}</span>
+        <span className={`cp-ern-tim cp-ern-tim--${timing.toLowerCase()}`}>{timing}</span>
+        <span
+          className="cp-ern-tkr"
+          role={hasTicker ? 'button' : undefined}
+          title={hasTicker ? `${ticker} · click → detail, double-click → window` : undefined}
+          style={hasTicker ? { cursor: 'pointer' } : undefined}
+          onClick={hasTicker ? (e) => { e.stopPropagation(); rowClicks.onClick(e); } : undefined}
+          onDoubleClick={hasTicker ? (e) => { e.stopPropagation(); rowClicks.onDoubleClick(e); } : undefined}
+        >{ticker}</span>
+        <span className="cp-ern-co">{name}</span>
+        <span className="cp-ern-cap">{capStr}</span>
+        <span className="cp-ern-eps">{eps}</span>
+        <span className={`cp-ern-caret${expanded ? ' cp-ern-caret--open' : ''}`} aria-hidden="true">▸</span>
+      </div>
+      {expanded && (
+        <div className="cp-ern-detail">
+          {previewLoading && <div className="cp-ai-loading">Loading earnings preview…</div>}
+          {previewError && <div className="cp-ai-error">{previewError}</div>}
+          {preview && (
+            <div className="cp-ai-preview">
+              {preview.whatTheyDo && <p className="cp-ai-summary">{preview.whatTheyDo}</p>}
+              <div className="cp-ern-cons">
+                <span><b>Cons. EPS</b> {preview.consensusEps ?? '—'}</span>
+                <span><b>Cons. Rev</b> {preview.consensusRev ?? '—'}</span>
+              </div>
+              {preview.lastQtrResult && <p className="cp-ai-expectation">Last qtr: {preview.lastQtrResult}</p>}
+              {preview.watchFor?.length > 0 && (
+                <div className="cp-ai-considerations">
+                  <span className="cp-ai-tag-label">WATCH FOR</span>
+                  {preview.watchFor.map((w, i) => <div key={i} className="cp-ai-consideration">{w}</div>)}
+                </div>
+              )}
+              {preview.degraded && <div className="cp-ai-src-note">preview via fallback model</div>}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -213,7 +264,10 @@ function CalendarPanel() {
   // H2 W1.2 — EARNINGS first (home-grade spec); MACRO replaces the old
   // ECONOMIC label. State ids keep the tab names.
   const [tab, setTab] = useState('EARNINGS');
-  const [watchOnly, setWatchOnly] = useState(false);
+  // fix/rates-earnings-popout item 2a — MIN-CAP filter: MINE | 10B | ALL.
+  // Default '10B' so only material reporters (>$10B) surface.
+  const [capFilter, setCapFilter] = useState('10B');
+  const [caps, setCaps] = useState({});   // { SYM: marketCap }
   const { watchlist } = useWatchlist();
   const [expandedId, setExpandedId] = useState(null);
   const [previews, setPreviews] = useState({});
@@ -308,6 +362,91 @@ function CalendarPanel() {
     }
   }, []);
 
+  // ── Market-cap batch fetch (item 2a) — feeds the >$10B filter + biggest-
+  // first sort. /api/snapshot/tickers ships marketCap at ticker.fund.marketCap;
+  // symbols are chunked to the 50/req cap. Degrades silently (empty map → the
+  // filter falls back to MINE|ALL, see capChipOptions/note below).
+  const earningsSymbols = useMemo(() => {
+    const set = new Set();
+    for (const it of earnings || []) {
+      const t = String(it.ticker || it.symbol || '').toUpperCase().trim();
+      if (t && /^[A-Z][A-Z0-9.\-]{0,11}$/.test(t)) set.add(t);
+    }
+    return [...set];
+  }, [earnings]);
+
+  useEffect(() => {
+    if (!earningsSymbols.length) return;
+    let alive = true;
+    const chunks = [];
+    // Cap total work at 150 symbols (3 requests) — plenty for a week's board.
+    const syms = earningsSymbols.slice(0, 150);
+    for (let i = 0; i < syms.length; i += SNAPSHOT_BATCH_MAX) chunks.push(syms.slice(i, i + SNAPSHOT_BATCH_MAX));
+    (async () => {
+      const map = {};
+      await Promise.all(chunks.map(async (chunk) => {
+        try {
+          const res = await apiFetch(`/api/snapshot/tickers?symbols=${encodeURIComponent(chunk.join(','))}`);
+          if (!res.ok) return;
+          const json = await res.json();
+          if (!json?.results) return;
+          for (const [sym, entry] of Object.entries(json.results)) {
+            const mc = entry?.ticker?.fund?.marketCap;
+            if (mc != null && Number.isFinite(mc)) map[sym] = mc;
+          }
+        } catch { /* cap column degrades to blank */ }
+      }));
+      if (alive && Object.keys(map).length) setCaps(prev => ({ ...prev, ...map }));
+    })();
+    return () => { alive = false; };
+  }, [earningsSymbols]);
+
+  const capOf = useCallback((item) => {
+    const t = String(item.ticker || item.symbol || '').toUpperCase();
+    return caps[t] ?? caps[t.replace(/\.SA$/, '')] ?? null;
+  }, [caps]);
+
+  // ── AI earnings preview (item 2b) — 24h server cache, Haiku fallback ──
+  const handleRequestEarningsPreview = useCallback(async (item) => {
+    const sym = String(item.ticker || item.symbol || '').toUpperCase();
+    if (!sym) return;
+    setLoadingId(sym);
+    setErrors(prev => ({ ...prev, [sym]: null }));
+    try {
+      const res = await apiFetch('/api/search/earnings-preview', {
+        method: 'POST',
+        body: JSON.stringify({
+          symbol: sym,
+          name: item.name || item.companyName || null,
+          date: item.date || item.reportDate || null,
+          timing: item.timing || item.when || null,
+          epsEstimate: item.epsEstimate ?? item.consensusEps ?? null,
+          revEstimate: item.revenueEstimate ?? null,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.message || 'Preview unavailable — try again shortly.');
+      }
+      const data = await res.json();
+      setPreviews(prev => ({ ...prev, [sym]: data }));
+    } catch (e) {
+      setErrors(prev => ({ ...prev, [sym]: e.message }));
+    } finally {
+      setLoadingId(null);
+    }
+  }, []);
+
+  // Toggle a row open and lazily request its preview (once) on first open.
+  const handleToggleEarnings = useCallback((item) => {
+    const sym = String(item.ticker || item.symbol || '').toUpperCase();
+    setExpandedId(prev => {
+      const next = prev === sym ? null : sym;
+      if (next && !previews[sym] && loadingId !== sym) handleRequestEarningsPreview(item);
+      return next;
+    });
+  }, [previews, loadingId, handleRequestEarningsPreview]);
+
   // Use dynamic or fall back to static
   const displayEvents = macroEvents || STATIC_EVENTS;
   const earningsAll = earnings || [];
@@ -316,25 +455,37 @@ function CalendarPanel() {
     return !!t && (watchSet.has(t) || watchSet.has(t.replace(/\.SA$/, '')));
   }, [watchSet]);
 
-  const earningsList = useMemo(() => {
-    if (!watchOnly) return earningsAll;
-    return earningsAll.filter(isMine);
-  }, [earningsAll, watchOnly, isMine]);
+  const hasCapData = useMemo(() => Object.keys(caps).length > 0, [caps]);
 
-  // Polish W2 item 5 — watchlist names pin to a MY NAMES group on top
-  // (chronological), the market-wide list renders below, day-grouped.
-  const byDate = useCallback((a, b) => {
+  // Biggest-market-cap-first within a day (item 2a); unknown caps sort last.
+  const byCapThenDate = useCallback((a, b) => {
+    const ca = capOf(a) ?? -1, cb = capOf(b) ?? -1;
+    if (cb !== ca) return cb - ca;
     const da = parseDay(a.date || a.reportDate)?.getTime() ?? Infinity;
     const db = parseDay(b.date || b.reportDate)?.getTime() ?? Infinity;
     return da - db;
-  }, []);
-  const mineEarnings = useMemo(
-    () => earningsList.filter(isMine).sort(byDate),
-    [earningsList, isMine, byDate],
-  );
+  }, [capOf]);
+
+  // MINE = watchlist only; 10B = material reporters (>$10B) once caps load
+  // (falls back to ALL while caps are still fetching / unavailable); ALL = all.
+  const earningsList = useMemo(() => {
+    if (capFilter === 'MINE') return earningsAll.filter(isMine);
+    if (capFilter === '10B' && hasCapData) {
+      return earningsAll.filter(it => { const c = capOf(it); return c != null && c >= MATERIAL_CAP; });
+    }
+    return earningsAll;
+  }, [earningsAll, capFilter, isMine, hasCapData, capOf]);
+
+  // MY NAMES stays pinned on top (watchlist names, even sub-$10B, so the user
+  // never loses their own names to the material filter). In MINE mode the
+  // whole board IS my names. Market list renders below, day-grouped.
+  const mineEarnings = useMemo(() => {
+    if (capFilter === 'MINE') return earningsList.slice().sort(byCapThenDate);
+    return earningsAll.filter(isMine).sort(byCapThenDate);
+  }, [capFilter, earningsList, earningsAll, isMine, byCapThenDate]);
   const marketEarnings = useMemo(
-    () => (watchOnly ? [] : earningsList.filter(i => !isMine(i)).sort(byDate)),
-    [earningsList, watchOnly, isMine, byDate],
+    () => (capFilter === 'MINE' ? [] : earningsList.filter(i => !isMine(i)).sort(byCapThenDate)),
+    [capFilter, earningsList, isMine, byCapThenDate],
   );
 
   return (
@@ -346,12 +497,16 @@ function CalendarPanel() {
           ? `${earningsResp?.source && earningsResp.source !== 'unavailable' ? earningsResp.source.toUpperCase() + ' · ' : ''}UPCOMING PRINTS`
           : 'FOMC · CPI · NFP · COPOM'}
         actions={tab === 'EARNINGS' ? (
-          <button
-            type="button"
-            className={`cal-wl-btn${watchOnly ? ' cal-wl-btn--active' : ''}`}
-            title="Only show earnings for tickers on your watchlist"
-            onClick={() => setWatchOnly(v => !v)}
-          >WATCHLIST</button>
+          <ViewChips
+            options={[
+              { key: 'MINE', label: 'MY NAMES', title: 'Only earnings for your watchlist names' },
+              { key: '10B',  label: '>$10B',    title: 'Only material reporters (market cap > $10B)' },
+              { key: 'ALL',  label: 'ALL',      title: 'All scheduled reporters' },
+            ]}
+            value={capFilter}
+            onChange={setCapFilter}
+            ariaLabel="Earnings size filter"
+          />
         ) : null}
       />
       <PanelTabRow
@@ -408,8 +563,10 @@ function CalendarPanel() {
                 unconfigured or down) — render the honest reason. */}
             {!earningsLoading && earningsList.length === 0 && (
               <div className="cp-provider-note" style={{ padding: 12, fontSize: 10, color: 'var(--text-muted)' }}>
-                {watchOnly && earningsAll.length > 0
+                {capFilter === 'MINE' && earningsAll.length > 0
                   ? 'No upcoming earnings for your watchlist tickers.'
+                  : capFilter === '10B' && hasCapData && earningsAll.length > 0
+                    ? 'No reporters above $10B in this window — switch to ALL.'
                   : getProviderStatus(earningsResp) === 'unavailable' || earningsResp?.empty === 'no-provider'
                     ? (earningsResp?.message || `Earnings feed offline — set ${earningsResp?.missingEnv || 'FINNHUB_API_KEY'} on the server.`)
                     : earningsResp?.empty === 'no-data'
@@ -425,18 +582,40 @@ function CalendarPanel() {
             {mineEarnings.length > 0 && (
               <div>
                 <div className="cp-day-div cp-day-div--mine">MY NAMES · {mineEarnings.length}</div>
-                {mineEarnings.map((item, i) => (
-                  <EarningsRow key={`mine-${item.ticker || item.symbol || i}`} item={item} mine />
-                ))}
+                {mineEarnings.map((item, i) => {
+                  const sym = String(item.ticker || item.symbol || '').toUpperCase();
+                  return (
+                    <EarningsRow
+                      key={`mine-${item.ticker || item.symbol || i}`}
+                      item={item} mine cap={capOf(item)}
+                      expanded={expandedId === sym}
+                      onToggle={() => handleToggleEarnings(item)}
+                      preview={previews[sym]}
+                      previewLoading={loadingId === sym}
+                      previewError={errors[sym]}
+                    />
+                  );
+                })}
               </div>
             )}
             {/* Market-wide list, grouped by day with thin dividers. */}
             {groupByDay(marketEarnings, it => it.date || it.reportDate).map(group => (
               <div key={group.key}>
                 <div className="cp-day-div">{group.label}</div>
-                {group.items.map((item, i) => (
-                  <EarningsRow key={item.ticker || item.symbol || i} item={item} />
-                ))}
+                {group.items.map((item, i) => {
+                  const sym = String(item.ticker || item.symbol || '').toUpperCase();
+                  return (
+                    <EarningsRow
+                      key={item.ticker || item.symbol || i}
+                      item={item} cap={capOf(item)}
+                      expanded={expandedId === sym}
+                      onToggle={() => handleToggleEarnings(item)}
+                      preview={previews[sym]}
+                      previewLoading={loadingId === sym}
+                      previewError={errors[sym]}
+                    />
+                  );
+                })}
               </div>
             ))}
           </>
@@ -452,7 +631,7 @@ function CalendarPanel() {
                   ? ' (curated · provider offline)'
                   : ' (curated)'
             }. Click for AI preview.`
-          : `${earningsList.length}${watchOnly ? ` of ${earningsAll.length}` : ''} upcoming earnings reports${watchOnly ? ' (watchlist)' : ''}.`
+          : `${earningsList.length}${capFilter !== 'ALL' ? ` of ${earningsAll.length}` : ''} upcoming reports${capFilter === 'MINE' ? ' (my names)' : capFilter === '10B' ? (hasCapData ? ' (>$10B)' : ' (all — cap data loading)') : ''}. Click a row for an AI preview.`
         }
       </div>
     </div>

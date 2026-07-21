@@ -40,6 +40,10 @@ const PAIRS = {
   IRLTLT01AUM156N: { value: 4.21,  date: '2026-06-01', prev: 4.30, prevDate: '2026-05-01', change: -0.09 },
   IRLTLT01NOM156N: { value: 3.62,  date: '2026-06-01', prev: 3.60, prevDate: '2026-05-01', change: 0.02 },
   IRLTLT01SEM156N: { value: 2.44,  date: '2026-06-01', prev: 2.41, prevDate: '2026-05-01', change: 0.03 },
+  // fix/rates-earnings-popout item 1 — tape-only Δ1M sources (board:false).
+  IRLTLT01DEM156N: { value: 2.55,  date: '2026-06-01', prev: 2.43, prevDate: '2026-05-01', change: 0.12 },
+  IRLTLT01GBM156N: { value: 4.60,  date: '2026-06-01', prev: 4.72, prevDate: '2026-05-01', change: -0.12 },
+  IRLTLT01BRM156N: null, // BR OECD series absent → degrades to value/change1m null
 };
 
 require.cache[fredPath] = {
@@ -133,23 +137,38 @@ describe('GET /rates-tape (H2b US rates tape)', () => {
     assert.equal(r.body.ok, true); // 2 of 4 series is still a valid tape
   });
 
-  it('ships the additive global10y monthly block (JP/MX/AU/NO/SE)', async () => {
+  it('ships the additive global10y monthly block (board + tape-only Δ1M rows)', async () => {
     const r = await getJson(port, '/rates-tape');
     assert.equal(r.status, 200);
     assert.ok(Array.isArray(r.body.global10y), 'global10y array present');
-    assert.equal(r.body.global10y.length, 5);
-    assert.deepEqual(r.body.global10y.map(g => g.country), ['JP', 'MX', 'AU', 'NO', 'SE']);
+    // 5 board countries + 3 tape-only Δ1M sources (DE/GB/BR).
+    assert.equal(r.body.global10y.length, 8);
+    assert.deepEqual(r.body.global10y.map(g => g.country),
+      ['JP', 'MX', 'AU', 'NO', 'SE', 'DE', 'GB', 'BR']);
 
     const byCountry = Object.fromEntries(r.body.global10y.map(g => [g.country, g]));
+    // Board rows carry board:true and a change1m (Δ1M in %).
     assert.deepEqual(byCountry.JP, {
       country: 'JP', label: 'JAPAN', seriesId: 'IRLTLT01JPM156N',
-      tenor: '10Y', freq: 'M', value: 1.08, asOfDate: '2026-06-01',
+      tenor: '10Y', freq: 'M', value: 1.08, change1m: 0.03, asOfDate: '2026-06-01', board: true,
     });
-    // Degraded country stays in the payload with value:null (client renders "—").
+    // Degraded country stays in the payload with value/change1m null.
     assert.equal(byCountry.MX.value, null);
+    assert.equal(byCountry.MX.change1m, null);
     assert.equal(byCountry.MX.asOfDate, null);
     assert.equal(byCountry.MX.freq, 'M');
+    assert.equal(byCountry.MX.board, true);
     assert.equal(byCountry.AU.value, 4.21);
+
+    // Tape-only Δ1M sources: board:false, carry change1m the tape converts to bps.
+    assert.equal(byCountry.DE.board, false);
+    assert.equal(byCountry.DE.change1m, 0.12);   // +12bp Δ1M for the EU/Bund tape cell
+    assert.equal(byCountry.GB.board, false);
+    assert.equal(byCountry.GB.change1m, -0.12);  // -12bp for the UK/Gilt tape cell
+    // BR series absent → present but null (tape renders "—").
+    assert.equal(byCountry.BR.board, false);
+    assert.equal(byCountry.BR.value, null);
+    assert.equal(byCountry.BR.change1m, null);
   });
 
   it('caches the payload — repeated hits do not re-call the provider', async () => {
