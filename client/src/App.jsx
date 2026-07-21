@@ -872,6 +872,11 @@ export default function App() {
               else addPanel(cmd.target);
               return;
             }
+            if (cmd.action === 'overlay') {
+              // Phase S §4 — full-screen deep views (OverlayProvider listens)
+              window.dispatchEvent(new CustomEvent('particle-open-overlay', { detail: { id: cmd.target } }));
+              return;
+            }
             if (cmd.action === 'navigate') {
               if (cmd.target === 'home') handleGoHome();
               else if (cmd.target === 'admin') { if (isAdmin) setMobileModePersist('admin'); }
@@ -1448,6 +1453,10 @@ export default function App() {
           if (cmd.action === 'panel-toggle') {
             if (mobileMode !== 'terminal') setMobileModePersist('terminal');
             togglePanel(cmd.target);
+            return;
+          }
+          if (cmd.action === 'overlay') {
+            window.dispatchEvent(new CustomEvent('particle-open-overlay', { detail: { id: cmd.target } }));
             return;
           }
           if (cmd.action === 'navigate') {

@@ -66,4 +66,33 @@ router.get('/snapshot/forex', async (req, res) => {
   }
 });
 
+// ── /market/fx-ptax — USD/BRL live + official BCB PTAX (Phase S overlays) ──
+// Powers the Brazil overlay's FX & FLOWS cell. The composite quote comes
+// from the existing fxProvider (TwelveData/Yahoo live leg + BCB Olinda
+// PTAX bulletin); the provider caches PTAX 15m internally, we add a short
+// route-level cache so a popular overlay doesn't hammer the live leg.
+router.get('/market/fx-ptax', async (req, res) => {
+  try {
+    const ck = 'market:fx-ptax';
+    const cached = cacheGet(ck);
+    if (cached) return res.json(cached);
+
+    const { getFxQuote } = require('../../providers/fxProvider');
+    const q = await getFxQuote('USDBRL');
+    const payload = {
+      ok: !q.error,
+      pair: 'USD/BRL',
+      live: q.live || null,   // { source, price, change, changePct, asOf }
+      ptax: q.ptax || null,   // { source, bulletin, bid, ask, mid, asOf }
+      asOf: new Date().toISOString(),
+      ...(q.error ? { error: q.error } : {}),
+    };
+    if (payload.ok) cacheSet(ck, payload, 60 * 1000);
+    return res.json(payload);
+  } catch (e) {
+    // Overlay cell degrades to em-dashes — never 5xx spam.
+    return res.json({ ok: false, error: e.message });
+  }
+});
+
 module.exports = router;

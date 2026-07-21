@@ -28,6 +28,10 @@ export default function EditablePanelHeader({
   onConfigOpen,
   onDropTicker,
   onSearchChange,
+  // Phase S §4 — when set, single-click on the title opens the panel's
+  // deep-view overlay (rename moves to double-click). CSS adds a subtle
+  // hover ↗ affordance.
+  onTitleClick,
   feedBadge,
   // Phase 2: Last updated timestamp (ISO string or Date)
   lastUpdated = null,
@@ -101,7 +105,12 @@ export default function EditablePanelHeader({
         {editingTitle ? (
           <input ref={titleRef} className="eph-title-input" value={titleVal} onChange={e => setTitleVal(e.target.value)} onBlur={saveTitle} onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false); }} maxLength={50} />
         ) : (
-          <span className="eph-title panel-chrome-title" onClick={() => { setEditingTitle(true); setTitleVal(title); }} title="Click to rename · Right-click for sections">{title}</span>
+          <span
+            className={`eph-title panel-chrome-title${onTitleClick ? ' eph-title--overlay' : ''}`}
+            onClick={onTitleClick ? onTitleClick : () => { setEditingTitle(true); setTitleVal(title); }}
+            onDoubleClick={onTitleClick ? () => { setEditingTitle(true); setTitleVal(title); } : undefined}
+            title={onTitleClick ? 'Click to open deep view · Double-click to rename' : 'Click to rename · Right-click for sections'}
+          >{title}</span>
         )}
         {subsections.map((sub, i) => (
           <span key={i}>

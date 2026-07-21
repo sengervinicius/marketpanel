@@ -27,6 +27,7 @@ const watchlistExtrasRouter = require('./watchlistExtras'); // H2b — watchlist
 const brazilFocusRouter  = require('./brazilFocus');     // H2b — BCB Focus strip (BrazilPanel)
 const brazilMacroRouter  = require('./brazilMacro');     // Phase S W1 — Brazil tape (SELIC/CDI/IPCA 12M)
 const fiiYieldsRouter    = require('./fiiYields');       // Phase S W1 — FII DY% via brapi fundamentals
+const cvmFilingsRouter   = require('./cvmFilings');      // Phase S overlays — Brazil deep view filings
 
 // Mount all sub-routers. moversRouter goes BEFORE dataRouter so the exact
 // GET /market/movers (query-param form) is matched ahead of the legacy
@@ -39,6 +40,7 @@ router.use(watchlistExtrasRouter);
 router.use(brazilFocusRouter);
 router.use(brazilMacroRouter);
 router.use(fiiYieldsRouter);
+router.use(cvmFilingsRouter);
 router.use(dataRouter);
 router.use(intelligenceRouter);
 router.use(stocksRouter);

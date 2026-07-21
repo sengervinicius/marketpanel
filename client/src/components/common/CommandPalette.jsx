@@ -23,6 +23,9 @@ const COMMAND_GROUPS = [
     commands: [
       { id: 'home', label: 'Go to Home', action: 'navigate', target: 'home', shortcut: 'Cmd+H' },
       { id: 'options-flow', label: 'Go to Options Flow', action: 'navigate', target: 'options-flow' },
+      // Phase S §4 — deep-view overlays (successors of the sector screens)
+      { id: 'overlay-brazil', label: 'Open Brazil view', action: 'overlay', target: 'brazil' },
+      { id: 'overlay-rates', label: 'Open Rates view', action: 'overlay', target: 'rates' },
       { id: 'defence', label: 'Go to Defence Screen', action: 'navigate', target: 'defence', shortcut: 'Cmd+1' },
       { id: 'commodities', label: 'Go to Commodities Screen', action: 'navigate', target: 'commodities', shortcut: 'Cmd+2' },
       { id: 'brazil-em', label: 'Go to Brazil EM Screen', action: 'navigate', target: 'brazil-em', shortcut: 'Cmd+3' },
