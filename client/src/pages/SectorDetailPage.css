@@ -40,7 +40,7 @@
 .secp-table { flex: 1; overflow-y: auto; }
 .secp-thead, .secp-row {
   display: grid;
-  grid-template-columns: 72px 1fr 90px 84px 130px;
+  grid-template-columns: 72px 1fr 90px 84px 88px 130px;
   gap: 8px; align-items: center;
   padding: 3px 14px;
 }

@@ -187,7 +187,7 @@ function EventRow({ event, expanded, onToggle, preview, previewLoading, previewE
  * [DATE chip mono (MON 27) | BMO/AMC badge | TICKER bold | company muted
  *  ellipsized | est EPS right-aligned mono]. `mine` rows (watchlist names
  * in the pinned MY NAMES group) carry the accent left edge. */
-function EarningsRow({ item, mine = false, cap, expanded, onToggle, preview, previewLoading, previewError }) {
+function EarningsRow({ item, mine = false, cap, resolvedName, expanded, onToggle, preview, previewLoading, previewError }) {
   // fix/rates-earnings-popout item 2 — earnings rows are now macro-tab grade:
   //  · CLICK the row → expandable AI earnings preview (whatTheyDo, consensus,
   //    last-qtr beat/miss, 2 things to watch).
@@ -199,7 +199,7 @@ function EarningsRow({ item, mine = false, cap, expanded, onToggle, preview, pre
   const timingRaw = String(item.timing || item.when || '').toUpperCase();
   const timing = timingRaw === 'BMO' ? 'BMO' : timingRaw === 'AMC' ? 'AMC' : 'TBD';
   const ticker = item.ticker || item.symbol || '—';
-  const name = item.name || item.companyName || '';
+  const name = item.name || item.companyName || resolvedName || '';
   const epsEst = item.epsEstimate ?? item.consensusEps ?? null;
   const eps = epsEst == null ? '—'
     : `EST ${typeof epsEst === 'number' ? epsEst.toFixed(2) : String(epsEst)}`;
@@ -268,6 +268,7 @@ function CalendarPanel() {
   // Default '10B' so only material reporters (>$10B) surface.
   const [capFilter, setCapFilter] = useState('10B');
   const [caps, setCaps] = useState({});   // { SYM: marketCap }
+  const [names, setNames] = useState({}); // { SYM: companyName } — resolved from snapshot (earnings feed has no names)
   const { watchlist } = useWatchlist();
   const [expandedId, setExpandedId] = useState(null);
   const [previews, setPreviews] = useState({});
@@ -384,6 +385,7 @@ function CalendarPanel() {
     for (let i = 0; i < syms.length; i += SNAPSHOT_BATCH_MAX) chunks.push(syms.slice(i, i + SNAPSHOT_BATCH_MAX));
     (async () => {
       const map = {};
+      const nameMap = {};
       await Promise.all(chunks.map(async (chunk) => {
         try {
           const res = await apiFetch(`/api/snapshot/tickers?symbols=${encodeURIComponent(chunk.join(','))}`);
@@ -393,10 +395,16 @@ function CalendarPanel() {
           for (const [sym, entry] of Object.entries(json.results)) {
             const mc = entry?.ticker?.fund?.marketCap;
             if (mc != null && Number.isFinite(mc)) map[sym] = mc;
+            // Earnings feeds ship tickers with no company name; the snapshot
+            // does. Resolve it here so the row can show "AAPL  Apple Inc."
+            // (movers-box layout) instead of a bare symbol.
+            const nm = entry?.ticker?.name;
+            if (nm) nameMap[sym] = nm;
           }
-        } catch { /* cap column degrades to blank */ }
+        } catch { /* cap/name columns degrade to blank */ }
       }));
       if (alive && Object.keys(map).length) setCaps(prev => ({ ...prev, ...map }));
+      if (alive && Object.keys(nameMap).length) setNames(prev => ({ ...prev, ...nameMap }));
     })();
     return () => { alive = false; };
   }, [earningsSymbols]);
@@ -405,6 +413,11 @@ function CalendarPanel() {
     const t = String(item.ticker || item.symbol || '').toUpperCase();
     return caps[t] ?? caps[t.replace(/\.SA$/, '')] ?? null;
   }, [caps]);
+
+  const nameOf = useCallback((item) => {
+    const t = String(item.ticker || item.symbol || '').toUpperCase();
+    return names[t] ?? names[t.replace(/\.SA$/, '')] ?? null;
+  }, [names]);
 
   // ── AI earnings preview (item 2b) — 24h server cache, Haiku fallback ──
   const handleRequestEarningsPreview = useCallback(async (item) => {
@@ -587,7 +600,7 @@ function CalendarPanel() {
                   return (
                     <EarningsRow
                       key={`mine-${item.ticker || item.symbol || i}`}
-                      item={item} mine cap={capOf(item)}
+                      item={item} mine cap={capOf(item)} resolvedName={nameOf(item)}
                       expanded={expandedId === sym}
                       onToggle={() => handleToggleEarnings(item)}
                       preview={previews[sym]}
@@ -607,7 +620,7 @@ function CalendarPanel() {
                   return (
                     <EarningsRow
                       key={item.ticker || item.symbol || i}
-                      item={item} cap={capOf(item)}
+                      item={item} cap={capOf(item)} resolvedName={nameOf(item)}
                       expanded={expandedId === sym}
                       onToggle={() => handleToggleEarnings(item)}
                       preview={previews[sym]}

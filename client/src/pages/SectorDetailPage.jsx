@@ -132,7 +132,8 @@ export default function SectorDetailPage() {
           <span>NAME</span>
           <span className="secp-num">LAST</span>
           <span className="secp-num">1D%</span>
-          <span className="secp-num" title="approx index weight × day move (index pct-points); weights are rough public approximations of the top-10 holdings">CONTRIB (approx)</span>
+          <span className="secp-num" title="approx share of the ETF this name represents">WEIGHT</span>
+          <span className="secp-num" title="approx index weight × day move (index pct-points); weights are rough public approximations">CONTRIB (approx)</span>
         </div>
         {rows.map((r) => {
           const pos = (r.changePct ?? 0) >= 0;
@@ -157,6 +158,7 @@ export default function SectorDetailPage() {
               <span className="secp-name">{loading && !r.name ? '…' : (r.name || '—')}</span>
               <span className="secp-num">{fmtNum(r.price)}</span>
               <span className={`secp-num ${pos ? 'secp-up' : 'secp-dn'}`}>{fmtPct(r.changePct)}</span>
+              <span className="secp-num secp-weight">{r.weight != null ? r.weight.toFixed(1) + '%' : '\u2014'}</span>
               <span className={`secp-num ${cpos ? 'secp-up' : 'secp-dn'}`}>{fmtContrib(r.contrib)}</span>
             </div>
           );
@@ -164,7 +166,7 @@ export default function SectorDetailPage() {
       </div>
 
       <div className="secp-foot">
-        CONTRIB ≈ approx. index weight × 1D move (pct-points) · top-10 SPDR holdings, weights hardcoded approximations · dbl-click row → instrument window
+        WEIGHT = approx share of the SPDR sector ETF · CONTRIB ≈ weight × 1D move (pct-points) · holdings + weights are hardcoded public approximations · dbl-click row → instrument window
       </div>
     </div>
   );
