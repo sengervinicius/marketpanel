@@ -101,7 +101,28 @@ router.post('/register', authLimiter, async (req, res) => {
       }
     }
   } catch (e) {
-    res.status(400).json({ error: 'Registration failed. Please try different credentials.', code: 'registration_failed' });
+    // Surface the ACTUAL reason for known validation/uniqueness failures so a
+    // new user isn't left guessing (the old blanket message hid "password needs
+    // a number", "email already registered", etc.). Unexpected/internal errors
+    // still get the generic message so we don't leak internals.
+    const msg = (e && e.message) ? String(e.message) : '';
+    const KNOWN = [
+      'Username and password required',
+      'Username must be at least 3 characters',
+      'Password must be at least 8 characters',
+      'Password must contain an uppercase letter',
+      'Password must contain a lowercase letter',
+      'Password must contain a number',
+      'Invalid email format',
+      'Email already registered',
+      'Username taken',
+    ];
+    const isKnown = KNOWN.some(k => msg.includes(k));
+    logger.warn('auth/register', 'registration failed', { reason: msg || 'unknown' });
+    res.status(400).json({
+      error: isKnown ? msg : 'Registration failed. Please try different credentials.',
+      code: 'registration_failed',
+    });
   }
 });
 
