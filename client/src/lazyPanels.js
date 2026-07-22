@@ -10,6 +10,7 @@ import { lazyWithRetry } from './utils/lazyWithRetry';
 
 // ── Primary panels ───────────────────────────────────────────────────────
 export const ETFPanel          = lazyWithRetry(() => import('./components/panels/ETFPanel'));
+export const BloombergTVPanel  = lazyWithRetry(() => import('./components/panels/BloombergTVPanel'));
 export const AlertCenterPanel  = lazyWithRetry(() => import('./components/panels/AlertCenterPanel'));
 export const NewsPanel         = lazyWithRetry(() => import('./components/panels/NewsPanel'));
 export const ScreenerPanel     = lazyWithRetry(() => import('./components/panels/ScreenerPanel'));

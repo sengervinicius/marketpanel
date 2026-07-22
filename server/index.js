@@ -237,7 +237,7 @@ app.use(helmet({
       fontSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "blob:", "https:"],
       connectSrc: ["'self'", "https://senger-server.onrender.com", "wss://senger-server.onrender.com", "https://the-particle.com", "https://api.stripe.com", "https://appleid.cdn-apple.com"],
-      frameSrc: ["'self'", "https://js.stripe.com", "https://appleid.apple.com"],
+      frameSrc: ["'self'", "https://js.stripe.com", "https://appleid.apple.com", "https://www.youtube.com", "https://www.youtube-nocookie.com"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: [],
     },

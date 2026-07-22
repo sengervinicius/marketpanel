@@ -28,6 +28,7 @@ import {
   FixedIncomeScreen,
   BrazilScreen,
   TechAIScreen,
+  BloombergTVPanel,
 } from '../../lazyPanels';
 // SearchPanel removed from desktop layout — header searchbar is the single search entry-point
 // WirePanel removed
@@ -206,6 +207,7 @@ const PANEL_REGISTRY = {
   movers:         { component: MoversPanel,        getProps: (c) => ({ onTickerClick: c.openDetail }) }, // H2 W1
   sectors:        { component: SectorsPanel,       getProps: (c) => ({ onTickerClick: c.openDetail }) }, // H2 W1 (registry-only, not in default layout)
   sectorPulse:    { component: SectorPulsePanel }, // FIX 3: MARKET MAP — blocks not clickable (overlay hook next phase)
+  bloombergTV:    { component: BloombergTVPanel }, // live Bloomberg TV (YouTube embed)
   brief:          { component: BriefPanel,         getProps: (c) => ({ onTickerClick: c.openDetail }) }, // Phase S W2 — Daily Brief, default row 3 lead
 
 

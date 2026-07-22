@@ -331,6 +331,17 @@ export const PANEL_DEFINITIONS = {
     minSymbols:     0,
     maxSymbols:     0,
   },
+  bloombergTV: {
+    id:             'bloombergTV',
+    label:          'Bloomberg TV',
+    defaultTitle:   'Bloomberg TV',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false, // live video, no instrument list
+    icon:           'TV',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
 
   predictions: {
     id:             'predictions',
@@ -494,7 +505,7 @@ export function getEditablePanels() {
 // leftmost slot the mockup assumes. Calendar and sectorPulse both stay.
 export const DEFAULT_LAYOUT = {
   desktopRows: [
-    ['charts',       'watchlist',     'globalIndices'],
+    ['charts',       'watchlist',     'globalIndices', 'bloombergTV'],
     ['forex',        'commodities',   'usEquities',    'brazilB3',      'debt'],
     // P2 item 4 gave row 3 a sector box; Phase S W1 item 2 swaps the tinted
     // grid ('sectors') for SECTOR PULSE. 12-col grid splits 5 panels as
