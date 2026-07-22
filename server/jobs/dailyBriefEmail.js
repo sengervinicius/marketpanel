@@ -25,7 +25,7 @@ const briefEngine = require('../services/briefEngine');
 const emailService = require('../services/emailService');
 const authStore = require('../authStore');
 const {
-  shouldSendBrief, isValidEmail, DEFAULT_TIME, DEFAULT_TZ,
+  shouldSendBrief, isValidEmail, DEFAULT_TIME, DEFAULT_TZ, MAX_ELAPSED_MIN,
 } = require('./briefWindow');
 
 /** 'MON JUL 20 · 07:30 BRT' — the panel header's date label, per-user tz. */
@@ -63,9 +63,13 @@ let lastSweepAt = null;
  * failure so the next tick may retry).
  */
 async function runOnce(now = new Date()) {
+  // First sweep after a (re)start uses the full catch-up window rather than
+  // one cron tick. Render spins idle instances down, so the 07:30 window can
+  // elapse while the server is asleep; on wake we still want to deliver
+  // today's brief (idempotency via briefLastSentDate prevents a double-send).
   const elapsedMinutes = lastSweepAt
     ? Math.max(15, Math.ceil((now - lastSweepAt) / 60000))
-    : 15;
+    : MAX_ELAPSED_MIN;
   lastSweepAt = now;
 
   const users = (authStore.listAllUsers() || []).filter(
