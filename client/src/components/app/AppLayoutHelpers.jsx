@@ -29,6 +29,7 @@ import {
   BrazilScreen,
   TechAIScreen,
   BloombergTVPanel,
+  MoversPredictionsPanel,
 } from '../../lazyPanels';
 // SearchPanel removed from desktop layout — header searchbar is the single search entry-point
 // WirePanel removed
@@ -204,7 +205,7 @@ const PANEL_REGISTRY = {
   heatmap:        { component: HeatmapPanel },
   predictions:    { component: PredictionPanel },
   optionsFlow:    { component: OptionsFlowPanel },
-  movers:         { component: MoversPanel,        getProps: (c) => ({ onTickerClick: c.openDetail }) }, // H2 W1
+  movers:         { component: MoversPredictionsPanel, getProps: (c) => ({ onTickerClick: c.openDetail }) }, // Movers (top) + market Predictions (bottom)
   sectors:        { component: SectorsPanel,       getProps: (c) => ({ onTickerClick: c.openDetail }) }, // H2 W1 (registry-only, not in default layout)
   sectorPulse:    { component: SectorPulsePanel }, // FIX 3: MARKET MAP — blocks not clickable (overlay hook next phase)
   bloombergTV:    { component: BloombergTVPanel }, // live Bloomberg TV (YouTube embed)

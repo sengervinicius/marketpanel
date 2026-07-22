@@ -283,8 +283,8 @@ export const PANEL_DEFINITIONS = {
 
   movers: {
     id:             'movers',
-    label:          'Movers',
-    defaultTitle:   'Top Movers',
+    label:          'Movers / Predictions',
+    defaultTitle:   'Movers / Predictions',
     defaultSymbols: [],
     allowedGroups:  null,
     editable:       false,

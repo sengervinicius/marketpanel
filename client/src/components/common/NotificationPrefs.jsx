@@ -15,7 +15,6 @@ const CHANNELS = [
   { key: 'email', label: 'Email', icon: '✉', description: 'Receive alert emails' },
   { key: 'discord', label: 'Discord', icon: '💬', description: 'Discord webhook' },
   { key: 'webhook', label: 'Webhook', icon: '🔗', description: 'Generic HTTP POST' },
-  { key: 'push', label: 'Push', icon: '📱', description: 'Mobile push (coming soon)', disabled: true },
 ];
 
 function NotificationPrefs({ onClose }) {
