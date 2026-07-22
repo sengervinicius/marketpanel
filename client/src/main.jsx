@@ -85,17 +85,30 @@ window.addEventListener('vite:preloadError', (event) => {
   }
 });
 
-// Unregister legacy service worker — it uses stale-while-revalidate caching
-// which serves old JS bundles, preventing bug fixes from reaching users.
-// Vite's content-hashed filenames + standard HTTP caching are sufficient.
+// Legacy service-worker KILLER. An older build shipped a stale-while-revalidate
+// SW that caches index.html + JS chunks. After a deploy it keeps serving an old
+// index that points at deleted chunk hashes -> the app crashes ("Failed to
+// fetch dynamically imported module") and plain reloads keep hitting the SW's
+// cached copy, so the fix never reaches the user. If THIS page is under SW
+// control, unregister + clear all caches, then reload ONCE (session-guarded)
+// so the next load is network-fresh and SW-free.
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(registrations => {
-    registrations.forEach(r => r.unregister());
-  });
-  // Purge the old service worker cache
-  if ('caches' in window) {
-    caches.keys().then(keys => keys.forEach(k => caches.delete(k)));
-  }
+  (async () => {
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      const controlled = !!navigator.serviceWorker.controller;
+      await Promise.all(regs.map(r => r.unregister()));
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      const KEY = 'particle_sw_purged_v1';
+      if ((controlled || regs.length) && !sessionStorage.getItem(KEY)) {
+        sessionStorage.setItem(KEY, '1');
+        window.location.reload();
+      }
+    } catch { /* best effort — SW/cache APIs unavailable */ }
+  })();
 }
 
 // Minimal loading screen shown while the initial /api/auth/me check runs
