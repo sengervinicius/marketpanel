@@ -85,6 +85,50 @@ router.post('/email-optin', async (req, res) => {
   }
 });
 
+// ── POST /api/brief/send-test — deliver today's brief to the user NOW ─────
+// Self-serve verification for the daily email: builds the SAME brief the
+// 07:30 job sends and mails it immediately, returning the provider result
+// so "I set it up but got nothing" is diagnosable in one click (provider
+// null ⇒ email channel not configured; ok:false ⇒ provider refused).
+router.post('/send-test', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const emailService = require('../services/emailService');
+    const authStore = require('../authStore');
+    const { dateLabel } = require('../jobs/dailyBriefEmail');
+    const { isValidEmail } = require('../jobs/briefWindow');
+
+    const user = authStore.getUserById(userId);
+    const st = (user && user.settings) || {};
+    const to = isValidEmail(st.briefEmail) ? st.briefEmail : (user && user.email);
+    if (!to) return sendApiError(res, 400, 'No deliverable email address on file');
+
+    const result = await briefEngine.getBrief(userId, { force: true });
+    const brief = result && result.brief;
+    if (!brief || !brief.oneThing) return sendApiError(res, 503, 'Brief not available right now');
+
+    const label = dateLabel(new Date(), st.briefTz, st.briefTime);
+    const html = briefEngine.renderEmailHtml(brief, { dateLabel: label });
+    const ok = await emailService.sendEmail({
+      to,
+      subject: `Your Daily Brief (test) \u2014 ${label}`,
+      html,
+      reason: 'notifications',
+      fromName: 'Particle Brief',
+    });
+
+    res.json({
+      ok,
+      to,
+      provider: emailService.getActiveProvider ? emailService.getActiveProvider() : null,
+      configured: emailService.isConfigured ? emailService.isConfigured() : null,
+    });
+  } catch (e) {
+    logger.error('brief', 'POST /send-test error', { error: e.message, userId: req.user.id });
+    sendApiError(res, 500, 'Failed to send test brief');
+  }
+});
+
 // ── GET /api/brief/today ──────────────────────────────────────────────────
 router.get('/today', async (req, res) => {
   try {
