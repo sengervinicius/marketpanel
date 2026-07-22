@@ -21,11 +21,29 @@
  * @param {string} sym - Raw symbol (e.g., 'GBPBRL', 'VALE3.SA', 'BTCUSD')
  * @returns {string} Canonical key (e.g., 'GBPBRL', 'VALE3', 'BTCUSD')
  */
-import { canonicalKey } from './tickerNormalize.js';
+import { canonicalKey, toPolygon } from './tickerNormalize.js';
 export function normalizeSymbol(sym) {
   if (!sym) return sym;
   // Preserve the legacy return-raw-input-on-null behaviour some callers rely on.
   return canonicalKey(sym) || sym;
+}
+
+/**
+ * displayToApi — convert a stored/display symbol to the canonical API form.
+ * Watchlists store forex as the slashed display form ('EUR/USD'), which the
+ * quote endpoints and PriceContext do NOT resolve (they expect 'EURUSD' /
+ * 'C:EURUSD'). This ONLY rewrites slashed symbols (which otherwise return no
+ * data) — everything else passes through untouched, so there is no risk to
+ * already-working tickers.
+ *   'EUR/USD' -> 'C:EURUSD' · 'BTC/USD' -> 'X:BTCUSD' · 'AAPL' -> 'AAPL'
+ */
+export function displayToApi(sym) {
+  if (!sym) return sym;
+  const t = String(sym).toUpperCase().trim();
+  if (t.includes('/') && !t.startsWith('C:') && !t.startsWith('X:')) {
+    return toPolygon(t.replace(/\//g, ''));
+  }
+  return sym;
 }
 
 export function fmtPrice(n, decimals = 2) {

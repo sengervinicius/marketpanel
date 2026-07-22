@@ -14,6 +14,7 @@ import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useTickerPrice } from '../../context/PriceContext';
 import { apiFetch } from '../../utils/api';
 import { swallow } from '../../utils/swallow';
+import { displayToApi } from '../../utils/format';
 import './MobileWave1.css';
 
 const VIEWS = [
@@ -28,15 +29,16 @@ function fmtPrice(v) {
   return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: dp });
 }
 
-function Row({ symbol, name, onRemove }) {
-  const q = useTickerPrice(symbol);
+function Row({ symbol, display, name, onRemove }) {
+  const q = useTickerPrice(symbol); // symbol is the API form (e.g. C:EURUSD)
   const openDetail = useOpenDetail();
+  const label = display || symbol;
   const pct = q?.changePct;
   const cls = pct == null ? 'flat' : pct >= 0 ? 'u' : 'd';
   return (
     <div className="mw-row tap" onClick={() => openDetail(symbol)}>
       <div className="mw-row-l">
-        <span className="mw-tk">{symbol}</span>
+        <span className="mw-tk">{label}</span>
         {name ? <span className="mw-nm">{name}</span> : null}
       </div>
       <div className="mw-row-r">
@@ -44,8 +46,8 @@ function Row({ symbol, name, onRemove }) {
         <span className={`mw-chg ${cls}`}>{pct != null ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` : '·'}</span>
         <button
           className="mw-rowbtn"
-          aria-label={`Remove ${symbol}`}
-          onClick={(e) => { e.stopPropagation(); onRemove(symbol); }}
+          aria-label={`Remove ${label}`}
+          onClick={(e) => { e.stopPropagation(); onRemove(display || symbol); }}
         >×</button>
       </div>
     </div>
@@ -57,7 +59,11 @@ function WatchlistMobile() {
   const [view, setView] = useState('trader');
   const [meta, setMeta] = useState({}); // sym → { name, changePct }
 
-  const symbolsKey = useMemo(() => (watchlist || []).slice(0, 50).join(','), [watchlist]);
+  const pairs = useMemo(
+    () => (watchlist || []).slice(0, 50).map(orig => ({ orig, api: displayToApi(orig) })),
+    [watchlist],
+  );
+  const symbolsKey = useMemo(() => pairs.map(p => p.api).join(','), [pairs]);
 
   useEffect(() => {
     if (!symbolsKey) return undefined;
@@ -68,10 +74,9 @@ function WatchlistMobile() {
         .then(j => {
           if (!alive || !j?.results) return;
           const map = {};
-          for (const [sym, entry] of Object.entries(j.results)) {
-            const t = entry?.ticker;
-            if (!t) continue;
-            map[sym] = { name: t.name || null, changePct: t.todaysChangePerc ?? null };
+          for (const { orig, api } of pairs) {
+            const t = j.results[api]?.ticker || j.results[orig]?.ticker;
+            if (t) map[orig] = { name: t.name || null, changePct: t.todaysChangePerc ?? null };
           }
           setMeta(map);
         })
@@ -80,16 +85,16 @@ function WatchlistMobile() {
     load();
     const id = setInterval(load, 60_000);
     return () => { alive = false; clearInterval(id); };
-  }, [symbolsKey]);
+  }, [symbolsKey, pairs]);
 
   const ordered = useMemo(() => {
-    const list = [...(watchlist || [])];
+    const list = [...pairs];
     // Trader view leads with the biggest movers; other views keep list order.
     if (view === 'trader') {
-      list.sort((a, b) => (meta[b]?.changePct ?? -Infinity) - (meta[a]?.changePct ?? -Infinity));
+      list.sort((a, b) => (meta[b.orig]?.changePct ?? -Infinity) - (meta[a.orig]?.changePct ?? -Infinity));
     }
     return list;
-  }, [watchlist, meta, view]);
+  }, [pairs, meta, view]);
 
   return (
     <div className="mw-scroll">
@@ -103,8 +108,8 @@ function WatchlistMobile() {
         <div className="mw-card"><div className="mw-empty">Your watchlist is empty — add names from Search.</div></div>
       ) : (
         <div className="mw-card mw-card--list">
-          {ordered.map(sym => (
-            <Row key={sym} symbol={sym} name={meta[sym]?.name} onRemove={removeTicker} />
+          {ordered.map(({ orig, api }) => (
+            <Row key={orig} symbol={api} display={orig} name={meta[orig]?.name} onRemove={removeTicker} />
           ))}
         </div>
       )}

@@ -19,6 +19,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useWatchlist } from '../../context/WatchlistContext';
+import { displayToApi } from '../../utils/format';
 import { apiFetch } from '../../utils/api';
 import { swallow } from '../../utils/swallow';
 import MobileQuoteRow from './MobileQuoteRow';
@@ -65,8 +66,15 @@ function MoodStrip() {
 /* ── Your book · today ────────────────────────────────────────────── */
 function YourBook() {
   const { watchlist } = useWatchlist();
-  const [meta, setMeta] = useState({}); // sym → { name, changePct }
-  const symbolsKey = useMemo(() => (watchlist || []).slice(0, 20).join(','), [watchlist]);
+  const [meta, setMeta] = useState({}); // origSym → { name, changePct }
+  // Pair each watchlist symbol with its API form (fixes slashed forex like
+  // 'EUR/USD' which the quote endpoint can't resolve). meta stays keyed by the
+  // ORIGINAL symbol for display/sort.
+  const pairs = useMemo(
+    () => (watchlist || []).slice(0, 20).map(orig => ({ orig, api: displayToApi(orig) })),
+    [watchlist],
+  );
+  const symbolsKey = useMemo(() => pairs.map(p => p.api).join(','), [pairs]);
 
   useEffect(() => {
     if (!symbolsKey) return undefined;
@@ -77,10 +85,9 @@ function YourBook() {
         .then(j => {
           if (!alive || !j?.results) return;
           const map = {};
-          for (const [sym, entry] of Object.entries(j.results)) {
-            const t = entry?.ticker;
-            if (!t) continue;
-            map[sym] = { name: t.name || null, changePct: t.todaysChangePerc ?? null };
+          for (const { orig, api } of pairs) {
+            const t = j.results[api]?.ticker || j.results[orig]?.ticker;
+            if (t) map[orig] = { name: t.name || null, changePct: t.todaysChangePerc ?? null };
           }
           setMeta(map);
         })
@@ -89,16 +96,15 @@ function YourBook() {
     load();
     const id = setInterval(load, 60_000);
     return () => { alive = false; clearInterval(id); };
-  }, [symbolsKey]);
+  }, [symbolsKey, pairs]);
 
   const ordered = useMemo(() => {
-    const list = [...(watchlist || [])];
-    return list.sort((a, b) => {
-      const pa = meta[a]?.changePct ?? -Infinity;
-      const pb = meta[b]?.changePct ?? -Infinity;
+    return [...pairs].sort((a, b) => {
+      const pa = meta[a.orig]?.changePct ?? -Infinity;
+      const pb = meta[b.orig]?.changePct ?? -Infinity;
       return pb - pa;
     });
-  }, [watchlist, meta]);
+  }, [pairs, meta]);
 
   if (!ordered.length) {
     return (
@@ -113,8 +119,8 @@ function YourBook() {
     <>
       <div className="mw-sechead">Your book · today</div>
       <div className="mw-card mw-card--list">
-        {ordered.map(sym => (
-          <MobileQuoteRow key={sym} symbol={sym} name={meta[sym]?.name} />
+        {ordered.map(({ orig, api }) => (
+          <MobileQuoteRow key={orig} symbol={api} display={orig} name={meta[orig]?.name} />
         ))}
       </div>
     </>
