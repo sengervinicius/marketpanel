@@ -12,6 +12,8 @@ import ShareModal from './ShareModal';
 import PositionEditor from './PositionEditor';
 import InstrumentOptionsPanel from './InstrumentOptionsPanel';
 import './InstrumentDetail.css';
+import { API_BASE } from '../../utils/api';
+import { readSSEStream } from '../../utils/sseStream';
 import {
   NO_DATA_EXCHANGES, RELATED_NAMES, SECTOR_TICKER_MAP, RelatedTickerChip,
 } from './InstrumentDetailMeta';
@@ -175,8 +177,11 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const { addAlert } = useAlerts();
   const { showToast } = useToast();
 
-  // ── Phase 6: AI Chat Quick Ask ──
+  // ── Phase 6: AI Chat Quick Ask (inline streaming answer) ──
   const [quickAskInput, setQuickAskInput] = useState('');
+  const [quickAskAnswer, setQuickAskAnswer] = useState('');
+  const [quickAskLoading, setQuickAskLoading] = useState(false);
+  const quickAskAbortRef = useRef(null);
 
   // ── Clear delta state when range changes ───────────────────────────────
   useEffect(() => {
@@ -202,12 +207,44 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   }, [disp, updateSelectedTicker]);
 
   // ── Phase 6: Handle quick ask to AI chat ──
-  const handleQuickAsk = useCallback(() => {
-    if (!quickAskInput.trim() || !handleOpenChat) return;
-    // Call onOpenChat with the ticker and question
-    handleOpenChat({ ticker: disp, question: quickAskInput });
-    setQuickAskInput('');
-  }, [quickAskInput, disp, handleOpenChat]);
+  const handleQuickAsk = useCallback(async () => {
+    const q = quickAskInput.trim();
+    if (!q || quickAskLoading) return;
+    setQuickAskLoading(true);
+    setQuickAskAnswer('');
+    try { quickAskAbortRef.current?.abort(); } catch { /* noop */ }
+    const ctrl = new AbortController();
+    quickAskAbortRef.current = ctrl;
+    try {
+      // Answer inline via the streaming chat endpoint. Self-contained so
+      // it works in the detached in-depth popup window (which has no chat
+      // drawer), and it inherits the endpoint's Perplexity->Haiku fallback.
+      const res = await fetch(`${API_BASE}/api/search/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ messages: [{ role: 'user', content: q }], symbol: disp }),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) throw new Error(`chat ${res.status}`);
+      let acc = '';
+      await readSSEStream(res, {
+        onData: (d) => {
+          if (d && typeof d.chunk === 'string') { acc += d.chunk; setQuickAskAnswer(acc); }
+        },
+        signal: ctrl.signal,
+      });
+      if (!acc.trim()) setQuickAskAnswer('AI is temporarily unavailable — please try again in a moment.');
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+      setQuickAskAnswer('AI is temporarily unavailable — please try again in a moment.');
+    } finally {
+      setQuickAskLoading(false);
+    }
+  }, [quickAskInput, disp, quickAskLoading]);
+
+  // Abort any in-flight quick-ask stream on unmount.
+  useEffect(() => () => { try { quickAskAbortRef.current?.abort(); } catch { /* noop */ } }, []);
 
   // ── Clear comparison data when modal closes ────────────────────────────────
   useEffect(() => {
@@ -1930,31 +1967,36 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           </div>
         )}
 
-        {/* Quick Ask AI Chat Input */}
-        {handleOpenChat && (
-          <div className="id-ai-quick-ask">
-            <input
-              type="text"
-              className="id-ai-quick-ask-input"
-              placeholder={`Ask anything about ${disp}...`}
-              value={quickAskInput}
-              onChange={(e) => setQuickAskInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleQuickAsk();
-                }
-              }}
-              maxLength={500}
-            />
-            <button
-              className="id-ai-quick-ask-btn"
-              onClick={handleQuickAsk}
-              disabled={!quickAskInput.trim()}
-              title="Open AI chat with your question"
-            >
-              {'\u2191'}
-            </button>
+        {/* Quick Ask — inline streaming answer (works in the detached popup too) */}
+        <div className="id-ai-quick-ask">
+          <input
+            type="text"
+            className="id-ai-quick-ask-input"
+            placeholder={`Ask anything about ${disp}...`}
+            value={quickAskInput}
+            onChange={(e) => setQuickAskInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleQuickAsk();
+              }
+            }}
+            maxLength={500}
+          />
+          <button
+            className="id-ai-quick-ask-btn"
+            onClick={handleQuickAsk}
+            disabled={!quickAskInput.trim() || quickAskLoading}
+            title="Ask AI about this instrument"
+          >
+            {'\u2191'}
+          </button>
+        </div>
+        {(quickAskLoading || quickAskAnswer) && (
+          <div className="id-ai-quick-ask-answer">
+            {quickAskAnswer
+              ? <p className="id-ai-text">{quickAskAnswer}</p>
+              : <span className="id-ai-quick-ask-thinking">Thinking\u2026</span>}
           </div>
         )}
       </div>
