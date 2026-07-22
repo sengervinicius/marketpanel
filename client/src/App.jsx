@@ -693,9 +693,12 @@ export default function App() {
     && !localStorage.getItem('particle_terms_accepted');
 
   // Wrapped handlers that also set localStorage for instant re-render protection on refresh
-  const handleAcceptTerms = useCallback(() => {
-    localStorage.setItem('particle_terms_accepted', '1');
-    acceptTerms();
+  const handleAcceptTerms = useCallback(async () => {
+    // Set the local suppress-flag ONLY after the server confirms the write,
+    // so a failed consent save can't leave the client hiding the modal while
+    // the server still has termsAccepted:false.
+    const ok = await acceptTerms();
+    if (ok) localStorage.setItem('particle_terms_accepted', '1');
   }, [acceptTerms]);
 
   // ── Subscription gating ──────────────────────────────────────────────────

@@ -119,8 +119,16 @@ router.post('/', async (req, res) => {
     }
 
     const settings = await mergeSettings(req.user.id, partial);
-    logger.info('Settings updated', { userId: req.user.id, keys: Object.keys(partial) });
-    res.json({ ok: true, settings });
+    // __persisted: true=durable, false=all DB writes failed (in-memory only),
+    // null=no DB configured. Surface it so the client stops treating an
+    // unpersisted save as durable.
+    const persisted = settings && settings.__persisted;
+    if (persisted === false) {
+      logger.error('Settings NOT durably persisted (all stores failed)', { userId: req.user.id, keys: Object.keys(partial) });
+    } else {
+      logger.info('Settings updated', { userId: req.user.id, keys: Object.keys(partial) });
+    }
+    res.json({ ok: true, settings, persisted: persisted !== false });
   } catch (e) {
     logger.error('POST /settings error:', e);
     sendApiError(res, 500, 'Failed to update settings');

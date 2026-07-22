@@ -16,6 +16,21 @@
 
 export const API_BASE = import.meta.env.VITE_API_URL || '';
 
+// Best-effort settings flush for pagehide/unmount. Uses fetch keepalive so the
+// request survives the page being torn down — this is what stops a layout /
+// watchlist / resize edit made moments before a reload from being lost.
+export function beaconSettings(partial) {
+  try {
+    return fetch(`${API_BASE}/api/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      keepalive: true,
+      body: JSON.stringify(partial),
+    }).catch(() => {});
+  } catch { return undefined; }
+}
+
 // ── In-memory token store ───────────────────────────────────────────────────
 // Set by AuthContext on login/refresh/restore. Read by apiFetch for every request.
 let _accessToken = null;

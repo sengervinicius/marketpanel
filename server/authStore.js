@@ -214,8 +214,11 @@ function defaultSettings() {
  * No-ops gracefully if MongoDB is not connected.
  */
 async function persistUser(user) {
+  let attempted = false;
+  let ok = false;
   // MongoDB write-through
   if (usersCollection) {
+    attempted = true;
     try {
       const { _id, ...doc } = user;
       await usersCollection.replaceOne(
@@ -223,13 +226,16 @@ async function persistUser(user) {
         { ...doc, username_lower: user.username.toLowerCase() },
         { upsert: true },
       );
+      ok = true;
     } catch (e) {
       // MongoDB write failure — will attempt Postgres fallback
+      logger.error('authStore', 'MongoDB persistUser failed', { userId: user.id, error: e.message });
     }
   }
 
   // Postgres write-through
   if (pg.isConnected()) {
+    attempted = true;
     try {
       await pg.query(`
         INSERT INTO users (id, username, email, email_verified, hash, apple_user_id, settings, is_paid,
@@ -258,10 +264,15 @@ async function persistUser(user) {
         user.planTier || 'trial',
         user.createdAt || Date.now(),
       ]);
+      ok = true;
     } catch (e) {
       // Postgres write failure — data will be retained in memory
+      logger.error('authStore', 'Postgres persistUser failed', { userId: user.id, error: e.message });
     }
   }
+  // true = durably written, false = all configured stores failed (data only in
+  // memory, will be lost on restart), null = no durable store configured (dev).
+  return attempted ? ok : null;
 }
 
 /**
@@ -1010,7 +1021,10 @@ async function mergeSettings(userId, partial) {
   const { panels, layout, home, charts, ...rest } = partial;
   Object.assign(s, rest);
 
-  await persistUser(user); // write-through to MongoDB
+  const persisted = await persistUser(user); // write-through to MongoDB/Postgres
+  // Surface the durable-write result to callers WITHOUT changing the returned
+  // settings shape or leaking into JSON responses (non-enumerable).
+  try { Object.defineProperty(s, '__persisted', { value: persisted, enumerable: false, configurable: true }); } catch { /* frozen? ignore */ }
   return s;
 }
 

@@ -41,6 +41,9 @@ export function useGridLayouts(desktopRows) {
   const [local, setLocal] = useState(null);
   const touchedRef = useRef(false);
   const timerRef = useRef(null);
+  const pendingRef = useRef(null);
+  const updateRef = useRef(updateSettings);
+  updateRef.current = updateSettings;
 
   useEffect(() => {
     if (!touchedRef.current && isValidLayoutsState(serverLayouts)) {
@@ -48,7 +51,14 @@ export function useGridLayouts(desktopRows) {
     }
   }, [serverLayouts]);
 
-  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+  useEffect(() => () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      // Flush the last pending grid edit so a fast unmount/navigation/reload
+      // doesn't drop it before the 1s debounce fires (the "my layout reset" bug).
+      if (pendingRef.current) { try { updateRef.current({ layouts: pendingRef.current }); } catch { /* noop */ } }
+    }
+  }, []);
 
   const layouts = useMemo(() => {
     if (isValidLayoutsState(local)) return local;
@@ -61,8 +71,10 @@ export function useGridLayouts(desktopRows) {
     setLocal(next);
     if (timerRef.current) clearTimeout(timerRef.current);
     if (debounce) {
-      timerRef.current = setTimeout(() => updateSettings({ layouts: next }), PERSIST_DEBOUNCE_MS);
+      pendingRef.current = next;
+      timerRef.current = setTimeout(() => { pendingRef.current = null; updateSettings({ layouts: next }); }, PERSIST_DEBOUNCE_MS);
     } else {
+      pendingRef.current = null;
       updateSettings({ layouts: next });
     }
   }, [updateSettings]);

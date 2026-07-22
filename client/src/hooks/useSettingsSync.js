@@ -11,7 +11,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { apiFetch } from '../utils/api';
+import { apiFetch, beaconSettings } from '../utils/api';
 import { swallow } from '../utils/swallow';
 
 const SYNC_DEBOUNCE_MS = 2000;
@@ -69,6 +69,22 @@ function flushToServer() {
 export function syncSettingToServer(serverKey, value) {
   _pendingUpdates[serverKey] = value;
   flushToServer();
+}
+
+// Flush queued UI-state updates when the page is hidden/closed. Without this
+// a column/row resize or panel show-hide made <2s before a reload was lost
+// (the 2s debounce never fired). keepalive beacon survives teardown.
+if (typeof window !== 'undefined') {
+  const _beaconFlush = () => {
+    if (document.visibilityState !== 'hidden') return;
+    const updates = { ..._pendingUpdates };
+    if (Object.keys(updates).length === 0) return;
+    for (const k of Object.keys(_pendingUpdates)) delete _pendingUpdates[k];
+    if (_flushTimer) clearTimeout(_flushTimer);
+    beaconSettings(updates);
+  };
+  window.addEventListener('pagehide', _beaconFlush);
+  document.addEventListener('visibilitychange', _beaconFlush);
 }
 
 /**

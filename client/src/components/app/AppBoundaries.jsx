@@ -14,7 +14,6 @@ import { useState, useRef, useCallback, Component } from 'react';
 
 // ── Terms of Service acceptance modal ──────────────────────────────────────
 export function TermsAcceptanceModal({ onAccept }) {
-  // eslint-disable-next-line no-unused-vars
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const contentRef = useRef(null);
 
@@ -70,14 +69,16 @@ export function TermsAcceptanceModal({ onAccept }) {
         }}>
           <button
             onClick={onAccept}
+            disabled={!scrolledToBottom}
             style={{
               width: '100%', padding: '12px 0', borderRadius: 8,
               background: 'var(--accent)', color: 'var(--color-text-inverse)',
-              fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer',
-              opacity: 1, transition: 'opacity 150ms',
+              fontWeight: 600, fontSize: 14, border: 'none',
+              cursor: scrolledToBottom ? 'pointer' : 'not-allowed',
+              opacity: scrolledToBottom ? 1 : 0.45, transition: 'opacity 150ms',
             }}
           >
-            I Accept the Terms of Service
+            {scrolledToBottom ? 'I Accept the Terms of Service' : 'Scroll to the bottom to accept'}
           </button>
           <div style={{ textAlign: 'center', fontSize: 10, color: 'var(--text-faint)' }}>
             Data provided for informational purposes only. Not financial advice.

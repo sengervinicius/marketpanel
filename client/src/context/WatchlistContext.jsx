@@ -6,7 +6,7 @@
  */
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { apiFetch } from '../utils/api';
+import { apiFetch, beaconSettings } from '../utils/api';
 import { swallow } from '../utils/swallow';
 
 const WatchlistContext = createContext(null);
@@ -32,6 +32,7 @@ function loadWatchlist() {
 export function WatchlistProvider({ children }) {
   const [watchlist, setWatchlist] = useState(loadWatchlist);
   const syncTimer = useRef(null);
+  const pendingRef = useRef(null);
   const hasFetchedServer = useRef(false);
 
   // ── Persist to localStorage immediately ──────────────────────────────
@@ -41,8 +42,10 @@ export function WatchlistProvider({ children }) {
 
   // ── Debounced persist to server ──────────────────────────────────────
   const persistServer = useCallback((next) => {
+    pendingRef.current = next;
     if (syncTimer.current) clearTimeout(syncTimer.current);
     syncTimer.current = setTimeout(async () => {
+      pendingRef.current = null;
       try {
         await apiFetch('/api/settings', {
           method: 'POST',
@@ -53,6 +56,24 @@ export function WatchlistProvider({ children }) {
         console.warn('[Watchlist] Server sync failed:', err.message);
       }
     }, SYNC_DEBOUNCE_MS);
+  }, []);
+
+  // Flush the last watchlist edit if the page is hidden/closed before the 1.5s
+  // debounce fires, so the server (cross-device) copy isn't left stale.
+  useEffect(() => {
+    const flush = () => {
+      if (document.visibilityState === 'hidden' && pendingRef.current) {
+        if (syncTimer.current) clearTimeout(syncTimer.current);
+        beaconSettings({ watchlist: pendingRef.current });
+        pendingRef.current = null;
+      }
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', flush);
+    };
   }, []);
 
   // ── On mount: fetch server watchlist and merge with local ────────────

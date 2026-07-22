@@ -61,7 +61,7 @@ export default function EarningsCalendarWidget() {
           <h3>Upcoming Earnings</h3>
         </div>
         <div className="earnings-empty">
-          {error ? `Error: ${error}` : 'No upcoming earnings in next 7 days'}
+          {error ? 'Earnings feed unavailable — try again shortly.' : 'No upcoming earnings in the next 7 days'}
         </div>
       </div>
     );

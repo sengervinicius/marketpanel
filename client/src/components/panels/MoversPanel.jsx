@@ -124,7 +124,7 @@ function MoversPanel({ onTickerClick }) {
           <div className="mv-state">…</div>
         ) : rows.length === 0 ? (
           <div className="mv-state">
-            <span>{note || error || 'NO DATA'}</span>
+            <span>{note || (error ? 'Couldn’t load movers — tap retry.' : 'NO DATA')}</span>
             <button className="mv-retry-btn" onClick={() => { setLoading(true); load(); }}>RETRY</button>
           </div>
         ) : (

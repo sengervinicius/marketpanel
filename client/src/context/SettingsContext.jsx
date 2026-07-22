@@ -5,7 +5,7 @@
  */
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { apiFetch } from '../utils/api';
+import { apiFetch, beaconSettings } from '../utils/api';
 import { WORKSPACE_TEMPLATES, SCREEN_PRESETS, getTemplate } from '../config/templates';
 import { DEFAULT_LAYOUT, DEFAULT_HOME_SECTIONS, DEFAULT_CHARTS_CONFIG } from '../config/panels';
 import { buildResetDefaultsPayload } from '../config/resetDefaults';
@@ -313,14 +313,19 @@ export function SettingsProvider({ children, isAuthenticated }) {
   }, [isAuthenticated]);
 
   const persistSettings = useCallback(async (partial) => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) return false;
     try {
-      await apiFetch('/api/settings', {
+      const res = await apiFetch('/api/settings', {
         method: 'POST',
         body: JSON.stringify(partial),
       });
+      // Only treat as saved when the server actually acked (2xx). This is what
+      // lets callers (e.g. terms acceptance) avoid marking a write durable that
+      // never reached the DB.
+      if (!res || !res.ok) return false;
       setSettingsDirty(false);
-    } catch (e) { swallow(e, 'context.settings.persist'); }
+      return true;
+    } catch (e) { swallow(e, 'context.settings.persist'); return false; }
   }, [isAuthenticated]);
 
   // Debounced server save (500ms delay) to batch rapid setting changes
@@ -457,7 +462,11 @@ export function SettingsProvider({ children, isAuthenticated }) {
 
   const acceptTerms = useCallback(async () => {
     setSettingsState(prev => ({ ...prev, termsAccepted: true }));
-    await persistSettings({ termsAccepted: true });
+    // Return the durable-write result so the caller only sets the local
+    // suppress-flag after the server actually recorded consent (avoids a
+    // silent client/server desync where the modal never shows again but the
+    // server keeps termsAccepted:false forever).
+    return persistSettings({ termsAccepted: true });
   }, [persistSettings]);
 
   const completeParticleOnboarding = useCallback(async () => {
@@ -506,6 +515,24 @@ export function SettingsProvider({ children, isAuthenticated }) {
       }
     };
   }, [settingsDirty, settings, persistSettings]);
+
+  // Flush pending saves when the page is being hidden/closed. Uses a keepalive
+  // beacon so the write survives teardown — this closes the race where a
+  // layout/panel change made <500ms before a reload never reached the server.
+  useEffect(() => {
+    const flush = () => {
+      if (document.visibilityState === 'hidden' && settingsDirty) {
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        beaconSettings(settings);
+      }
+    };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', flush);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', flush);
+    };
+  }, [settingsDirty, settings]);
 
   return (
     <SettingsContext.Provider value={{
