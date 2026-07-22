@@ -276,25 +276,7 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
         );
       })()}
 
-      {/* ── Theme (gated — #239 / P1.5) ── */}
-      {lightThemeEnabled && (
-        <>
-          <SettingsSection label="APPEARANCE" />
-          <div
-            role="button"
-            tabIndex={0}
-            style={rowStyle}
-            {...makeRowClickable(handleTheme)}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            aria-label={`Toggle theme. Current: ${theme === 'dark' ? 'Dark mode' : 'Light mode'}`}
-            aria-pressed={theme === 'dark'}
-          >
-            <span className="app-text-muted-small">{theme === 'dark' ? '◑ DARK MODE' : 'LIGHT MODE'}</span>
-            <span className="app-text-accent-bold-small">TOGGLE</span>
-          </div>
-        </>
-      )}
+      {/* Light theme removed (CIO request) — Particle is dark-only. */}
 
       {/* ── Reset Layout ── */}
       <SettingsSection label="LAYOUT" />

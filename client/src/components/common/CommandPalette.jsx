@@ -44,7 +44,6 @@ const COMMAND_GROUPS = [
       { id: 'new-alert', label: 'New Alert', action: 'action', target: 'new-alert' },
       { id: 'upload-vault', label: 'Upload to Vault', action: 'action', target: 'upload-vault' },
       { id: 'clear-chat', label: 'Clear Chat History', action: 'action', target: 'clear-chat' },
-      { id: 'toggle-theme', label: 'Toggle Theme', action: 'action', target: 'toggle-theme' },
     ],
   },
   {
