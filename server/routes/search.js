@@ -468,68 +468,27 @@ Rules:
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 10000);
 
-  try {
-    const response = await fetch(PERPLEXITY_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      signal: ctrl.signal,
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        max_tokens: 800,
-        temperature: 0.15,
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => '');
-      console.error(`[Search/AI Fundamentals] Perplexity error ${response.status}:`, errText.substring(0, 200));
-      // BUG 3: the LLM failing must not read as "unavailable" when the data
-      // legs succeeded — serve the gathered fundamentals, clearly degraded.
-      const fb = buildFundamentalsFallback(sym, fundamentals, quote, newsItems);
-      if (fb) return res.json(fb);
-      return res.status(502).json({ error: `AI provider error (${response.status})` });
-    }
-
-    const data = await response.json();
-    const raw = data.choices?.[0]?.message?.content;
-    if (!raw) {
-      const fb = buildFundamentalsFallback(sym, fundamentals, quote, newsItems);
-      if (fb) return res.json(fb);
-      return res.status(502).json({ error: 'Empty response from AI provider' });
-    }
-
-    // Parse JSON from response (handle potential markdown code fences)
+  // Parse the LLM's JSON payload (tolerant of markdown fences) and send the
+  // structured card. Shared by the Perplexity and Claude paths.
+  const sendParsed = (raw, provider) => {
     let parsed;
     try {
       const jsonStr = raw.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
       parsed = JSON.parse(jsonStr);
     } catch (parseErr) {
       console.error('[Search/AI Fundamentals] JSON parse failed, raw:', raw.substring(0, 300));
-      // Return raw as summary fallback
       parsed = {
         summary: raw.replace(/```json?\s*/gi, '').replace(/```/g, '').trim(),
-        businessModel: '',
-        segments: [],
-        financialHighlights: [],
-        valuationSnapshot: [],
-        riskFactors: [],
+        businessModel: '', segments: [], financialHighlights: [],
+        valuationSnapshot: [], riskFactors: [],
       };
     }
-
     const result = {
       symbol: sym,
       generatedAt: new Date().toISOString(),
       livePrice: quote?.price ?? null,
-      // BUG 3: surface which provider served the fundamentals context
-      // (/api/fundamentals now cascades yahoo → twelvedata → fmp).
       dataSource: fundamentals?.source ?? null,
+      provider: provider || null,
       summary: parsed.summary || '',
       businessModel: parsed.businessModel || '',
       segments: Array.isArray(parsed.segments) ? parsed.segments : [],
@@ -537,15 +496,87 @@ Rules:
       valuationSnapshot: Array.isArray(parsed.valuationSnapshot) ? parsed.valuationSnapshot : [],
       riskFactors: Array.isArray(parsed.riskFactors) ? parsed.riskFactors : [],
     };
-
-    // Cache (TTL varies by asset class)
     _fundsCache.set(sym, { v: result, exp: Date.now() + getFundsCacheTTL(sym) });
     if (_fundsCache.size > 100) {
       const now = Date.now();
       for (const [k, e] of _fundsCache) { if (now > e.exp) _fundsCache.delete(k); }
     }
+    return res.json(result);
+  };
 
-    res.json(result);
+  // Claude fallback for the structured analysis. Invoked whenever Perplexity
+  // is unavailable (e.g. an expired PERPLEXITY_API_KEY returns 401). Keeps AI
+  // Fundamentals provider-agnostic so a single key outage no longer forces the
+  // card into the data-only "AI OFFLINE" state.
+  async function claudeFundamentalsRaw() {
+    try {
+      const modelRouter = require('../services/modelRouter');
+      const provider = modelRouter.getProvider('claude_haiku');
+      if (!provider) return null;
+      const r = await modelRouter.callProvider(
+        provider,
+        [{ role: 'user', content: userPrompt }],
+        systemPrompt,
+        { maxTokens: 800 }
+      );
+      const d = await r.json();
+      return d?.content?.[0]?.text || null;
+    } catch (e) {
+      console.error('[Search/AI Fundamentals] Claude fallback failed:', e.message);
+      return null;
+    }
+  }
+
+  try {
+    let raw = null;
+    let provider = 'perplexity';
+
+    // -- Primary: Perplexity (has live web grounding) --
+    try {
+      const response = await fetch(PERPLEXITY_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          max_tokens: 800,
+          temperature: 0.15,
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        raw = data.choices?.[0]?.message?.content || null;
+      } else {
+        const errText = await response.text().catch(() => '');
+        console.error(`[Search/AI Fundamentals] Perplexity error ${response.status}:`, errText.substring(0, 200));
+      }
+    } catch (ppErr) {
+      if (ppErr && ppErr.name === 'AbortError') throw ppErr; // handled by outer catch
+      console.error('[Search/AI Fundamentals] Perplexity request failed:', ppErr.message);
+    }
+
+    // Perplexity's timeout no longer needs to gate the Claude attempt.
+    clearTimeout(timer);
+
+    // -- Fallback: Claude (Haiku) when Perplexity gave us nothing --
+    if (!raw) {
+      provider = 'anthropic';
+      raw = await claudeFundamentalsRaw();
+    }
+
+    if (raw) return sendParsed(raw, provider);
+
+    // -- Both LLMs unavailable -> data-only degraded card --
+    const fb = buildFundamentalsFallback(sym, fundamentals, quote, newsItems);
+    if (fb) return res.json(fb);
+    return res.status(502).json({ error: 'AI providers unavailable' });
   } catch (err) {
     // #220 — guard against late-abort write-after-send crashes.
     if (res.headersSent) return;

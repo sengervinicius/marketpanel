@@ -2206,3 +2206,21 @@
     flex: 1 1 100%;
   }
 }
+
+/* Inline quick-ask answer (in-depth AI). Streams below the ask box; works
+   identically in the in-app overlay and the detached popup window. */
+.id-ai-quick-ask-answer {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--bg-elevated, #161616);
+  border: 1px solid color-mix(in srgb, var(--accent, #e55a00) 22%, transparent);
+  border-radius: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.id-ai-quick-ask-answer .id-ai-text { margin: 0; white-space: pre-wrap; }
+.id-ai-quick-ask-thinking {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #9aa0a6);
+  opacity: 0.85;
+}
