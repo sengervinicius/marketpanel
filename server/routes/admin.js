@@ -728,21 +728,46 @@ router.post('/feedback/:id/ack', async (req, res) => {
   }
 });
 
-// ── POST /api/admin/grant-trial/:email  { days?: number } ─────────────────
-// Comp / extend a trial. Sets trial_ends_at = now + days (default 14) and
-// re-activates the subscription flag. Used to restore access for expired
-// early accounts (their 14-day trial legitimately elapsed) without making
-// them pay. Admin-gated (router.use(requireAdmin) above).
+// ── POST /api/admin/grant-trial/:email  { days?, fullAccess?, tier? } ─────
+// Comp / extend a trial. Default: re-grant a `days`-day trial (14) with the
+// standard Trial-tier limits. With { fullAccess: true } (optionally a
+// specific `tier`, default nuclear_particle) the account is comped to a full
+// unlimited plan for proper testing — no daily AI/vault caps, premium UI
+// unlocked — WITHOUT a real payment. Safe from the billing reconciler, which
+// only touches accounts that have a Stripe subscription id. Admin-gated.
+//   Revoke a comp: POST /grant-trial/:email { revoke: true }
+const { TIERS } = require('../config/tiers');
 router.post('/grant-trial/:email', async (req, res) => {
   try {
     const email = decodeURIComponent(req.params.email || '');
-    const days = Number(req.body && req.body.days) > 0 ? Number(req.body.days) : 14;
+    const body = req.body || {};
+    const days = Number(body.days) > 0 ? Number(body.days) : 14;
     const user = authStore.findUserByEmail(email);
     if (!user) return res.status(404).json({ error: 'User not found', email });
+
+    // Revoke path — back to a plain trial (or expire), no full access.
+    if (body.revoke === true) {
+      await authStore.updateUser(user.id, { isPaid: false, planTier: 'trial', subscriptionActive: true });
+      logger.info('admin', 'grant-trial revoke', { email, by: req.user.email || req.user.id });
+      return res.json({ ok: true, email, revoked: true, planTier: 'trial' });
+    }
+
     const trialEndsAt = Date.now() + days * 24 * 60 * 60 * 1000;
-    await authStore.updateUser(user.id, { trialEndsAt, subscriptionActive: true });
-    logger.info('admin', 'grant-trial', { email, days, by: req.user.email || req.user.id });
-    res.json({ ok: true, email, days, trialEndsAt });
+    const patch = { trialEndsAt, subscriptionActive: true };
+
+    const fullAccess = body.fullAccess === true || typeof body.tier === 'string';
+    if (fullAccess) {
+      const tier = (typeof body.tier === 'string' && TIERS[body.tier]) ? body.tier : 'nuclear_particle';
+      // Mark active on the full tier so BOTH server enforcement (reads
+      // planTier) and client UI (reads status/limits) drop all caps. This is
+      // a comp, not a payment: no Stripe ids are set, so the reconciler
+      // (WHERE stripe_subscription_id IS NOT NULL) never touches it.
+      patch.isPaid = true;
+      patch.planTier = tier;
+    }
+    await authStore.updateUser(user.id, patch);
+    logger.info('admin', 'grant-trial', { email, days, fullAccess, tier: patch.planTier || user.planTier, by: req.user.email || req.user.id });
+    res.json({ ok: true, email, days, trialEndsAt, fullAccess: !!fullAccess, tier: patch.planTier || user.planTier });
   } catch (e) {
     logger.error('admin', 'grant-trial failed', { error: e.message });
     res.status(500).json({ error: 'grant-trial failed' });
