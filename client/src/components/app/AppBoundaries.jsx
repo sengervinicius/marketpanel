@@ -90,6 +90,26 @@ export function TermsAcceptanceModal({ onAccept }) {
 }
 
 // ── Error Boundary — catches runtime crashes and shows diagnostic info ─────
+function isChunkLoadError(err) {
+  if (!err) return false;
+  const name = err.name || '';
+  const msg = String(err.message || '');
+  return (
+    name === 'ChunkLoadError' ||
+    /Failed to fetch dynamically imported module/i.test(msg) ||
+    /Loading chunk [\d]+ failed/i.test(msg) ||
+    /Importing a module script failed/i.test(msg) ||
+    /dynamically imported module/i.test(msg)
+  );
+}
+const _APP_RELOAD_KEY = 'particle_app_reload';
+function _appReloadedRecently() {
+  try { return Date.now() - Number(sessionStorage.getItem(_APP_RELOAD_KEY) || 0) < 20000; } catch { return false; }
+}
+function _appMarkReload() {
+  try { sessionStorage.setItem(_APP_RELOAD_KEY, String(Date.now())); } catch { /* storage off */ }
+}
+
 export class AppErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -101,6 +121,12 @@ export class AppErrorBoundary extends Component {
   componentDidCatch(error, errorInfo) {
     this.setState({ errorInfo });
     console.error('[AppErrorBoundary] Caught render crash:', error, errorInfo);
+    // Stale-deploy chunk 404 (a new client bundle rotated the hashes) -> pull
+    // the fresh index once. Guarded so a genuinely missing chunk can't loop.
+    if (isChunkLoadError(error) && !_appReloadedRecently()) {
+      _appMarkReload();
+      window.location.reload();
+    }
   }
   render() {
     if (this.state.hasError) {
@@ -111,13 +137,19 @@ export class AppErrorBoundary extends Component {
           color: 'var(--color-text-primary)', fontFamily: 'var(--font-family-mono)', padding: 24, gap: 16,
         }}>
           <div style={{ color: 'var(--color-accent)', fontWeight: 700, fontSize: 13, letterSpacing: '3px' }}>PARTICLE</div>
-          <div style={{ color: 'var(--color-down)', fontSize: 14, fontWeight: 600 }}>App crashed — render error</div>
-          <div style={{ color: '#ff9900', fontSize: 11, maxWidth: 600, wordBreak: 'break-word', textAlign: 'center' }}>
-            {this.state.error?.message || 'Unknown error'}
+          <div style={{ color: 'var(--color-down)', fontSize: 14, fontWeight: 600 }}>
+            {isChunkLoadError(this.state.error) ? 'Updating to the latest version…' : 'App crashed — render error'}
           </div>
-          <pre style={{ color: '#888', fontSize: 9, maxWidth: '90vw', maxHeight: '40vh', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
-            {this.state.error?.stack || ''}{'\n'}{this.state.errorInfo?.componentStack || ''}
-          </pre>
+          <div style={{ color: '#ff9900', fontSize: 11, maxWidth: 600, wordBreak: 'break-word', textAlign: 'center' }}>
+            {isChunkLoadError(this.state.error)
+              ? 'A new version was deployed. Reload to get the update.'
+              : (this.state.error?.message || 'Unknown error')}
+          </div>
+          {!isChunkLoadError(this.state.error) && (
+            <pre style={{ color: '#888', fontSize: 9, maxWidth: '90vw', maxHeight: '40vh', overflow: 'auto', whiteSpace: 'pre-wrap' }}>
+              {this.state.error?.stack || ''}{'\n'}{this.state.errorInfo?.componentStack || ''}
+            </pre>
+          )}
           <button
             onClick={() => { this.setState({ hasError: false, error: null, errorInfo: null }); window.location.reload(); }}
             style={{ background: 'var(--color-particle)', color: 'var(--color-text-inverse)', border: 'none', padding: '8px 24px', borderRadius: 4, cursor: 'pointer', fontSize: 12, letterSpacing: '1px' }}
