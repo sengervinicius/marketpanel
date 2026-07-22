@@ -26,6 +26,9 @@ export const PortfolioMobile   = lazyWithRetry(() => import('./components/panels
 export const HomePanelMobile   = lazyWithRetry(() => import('./components/panels/HomePanelMobile'));
 export const ChartsPanelMobile = lazyWithRetry(() => import('./components/panels/ChartsPanelMobile'));
 export const MobileMoreScreen  = lazyWithRetry(() => import('./components/panels/MobileMoreScreen'));
+export const MarketsMobile     = lazyWithRetry(() => import('./components/panels/MarketsMobile'));
+export const WatchlistMobile   = lazyWithRetry(() => import('./components/panels/WatchlistMobile'));
+export const BriefPanelMobile  = lazyWithRetry(() => import('./components/panels/BriefPanel'));
 
 // ── Onboarding / app-level ───────────────────────────────────────────────
 export const WelcomeTour       = lazyWithRetry(() => import('./components/onboarding/WelcomeTour'));

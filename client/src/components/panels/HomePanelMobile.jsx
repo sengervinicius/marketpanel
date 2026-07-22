@@ -1,474 +1,249 @@
 /**
- * HomePanelMobile.jsx
+ * HomePanelMobile.jsx — Mobile Wave 1 Home.
  *
- * Mobile Home tab — curated section cards with live prices.
- * Phase M: Shows expandable ticker lists (all tickers per section),
- * fixes ticker→detail navigation so tapped symbol opens correctly,
- * and adds "View all" expansion.
+ * Glanceable "state of the world" per the approved mockup
+ * (particle-mobile-mockups.html · Home):
+ *   · Mood / breadth strip        — GET /api/market/mood
+ *   · THE ONE THING card          — GET /api/brief (data.oneThing)
+ *   · Your book · today           — useWatchlist names via /api/snapshot/tickers,
+ *                                   sorted by day move, tap → detail sheet
+ *   · Macro that touches you       — GET /api/brief (data.macro)
+ *   · Indexes tile row             — live via PriceContext
+ *
+ * A mobile-first rethink, not a shrunk terminal: the dense terminal
+ * grids (options flow, section lists, market-screen gallery, news wire)
+ * now live on the Markets tab and in the More menu.
  */
 
-import { TOKEN_HEX } from '../../utils/tokenHex';
-import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
-import { useSettings } from '../../context/SettingsContext';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTickerPrice } from '../../context/PriceContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
+import { useWatchlist } from '../../context/WatchlistContext';
 import { apiFetch } from '../../utils/api';
 import { swallow } from '../../utils/swallow';
-import {
-  US_STOCKS, BRAZIL_ADRS, FOREX_PAIRS, CRYPTO_PAIRS, COMMODITIES,
-} from '../../utils/constants';
-import { getMobileHomeScreens } from '../../config/templates';
-import { checkAIAvailable } from '../../hooks/useAIInsight';
-import OptionsHomeWidget from '../common/OptionsHomeWidget';
+import MobileQuoteRow from './MobileQuoteRow';
 import './HomePanelMobile.css';
+import './MobileWave1.css';
 
-/**
- * Phase 4: Featured Sector Cards — surfaces sector screens prominently on mobile Home.
- * Shows live ETF price + change as tappable cards.
- */
-const FEATURED_SECTORS = [
-  { id: 'technology',       label: 'Tech & AI',   etf: 'XLK',  color: TOKEN_HEX.sectorTech },
-  { id: 'defence',          label: 'Defence',      etf: 'ITA',  color: TOKEN_HEX.sectorDefence },
-  { id: 'commodities',      label: 'Commodities',  etf: 'DJP',  color: TOKEN_HEX.sectorCommodities },
-  { id: 'crypto',           label: 'Crypto',       etf: 'BITO', color: TOKEN_HEX.sectorCrypto },
-  { id: 'global-macro',     label: 'Macro',        etf: 'SPY',  color: TOKEN_HEX.sectorMacro },
-  { id: 'brazil-em',        label: 'Brazil',       etf: 'EWZ',  color: TOKEN_HEX.sectorBrazil },
-  { id: 'asian-markets',    label: 'Asia',         etf: 'EWJ',  color: TOKEN_HEX.sectorEnergy },
-  { id: 'european-markets', label: 'Europe',       etf: 'VGK',  color: TOKEN_HEX.sectorEurope },
-];
+/* ── Mood / breadth strip ─────────────────────────────────────────── */
+function MoodStrip() {
+  const [mood, setMood] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    apiFetch('/api/market/mood')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (alive && j?.ok && j.composite != null) setMood(j); })
+      .catch(e => swallow(e, 'panel.homeMobile.mood'));
+    return () => { alive = false; };
+  }, []);
 
-const SectorChip = memo(function SectorChip({ sector, onTap }) {
-  const q = useTickerPrice(sector.etf);
-  const pct = q?.changePct;
-  const isUp = pct != null && pct >= 0;
+  const composite = mood?.composite; // 0–100
+  const label = mood?.label || (composite == null ? 'MARKET MOOD' : composite >= 55 ? 'RISK-ON' : composite <= 45 ? 'RISK-OFF' : 'NEUTRAL');
+  const tone = composite == null ? 'neutral' : composite >= 55 ? 'on' : composite <= 45 ? 'off' : 'neutral';
+  const pin = composite == null ? 50 : Math.max(2, Math.min(98, composite));
+  const c = mood?.components || {};
+
+  const parts = [];
+  if (c.vix?.value != null) parts.push(`VIX ${c.vix.value}`);
+  if (c.breadth?.value != null) parts.push(`breadth ${c.breadth.value}%`);
+  if (c.hyOas?.changeBps != null) parts.push(`HY OAS Δ${c.hyOas.changeBps > 0 ? '+' : ''}${c.hyOas.changeBps}bp`);
+  if (c.crypto?.value != null) parts.push(`crypto F&G ${c.crypto.value}`);
+
   return (
-    <button
-      className="hpm-sector-chip"
-      style={{ borderColor: sector.color + '44' }}
-      onClick={() => onTap(sector.id)}
-    >
-      <span className="hpm-sector-chip-label">{sector.label}</span>
-      <span className={`hpm-sector-chip-pct ${isUp ? 'up' : pct != null ? 'down' : ''}`}>
-        {pct != null ? `${isUp ? '+' : ''}${pct.toFixed(1)}%` : '...'}
-      </span>
-    </button>
-  );
-});
-
-const FeaturedSectors = memo(function FeaturedSectors({ onSectorScreen }) {
-  if (!onSectorScreen) return null;
-  return (
-    <div className="hpm-sectors-featured">
-      <div className="hpm-section-header" style={{ padding: '0 16px' }}>
-        <span className="hpm-section-title">Sector Screens</span>
-        <span className="hpm-section-count">{FEATURED_SECTORS.length}</span>
+    <div className="mw-card mw-card--accent">
+      <div className="mw-mood">
+        <span className="mw-mood-lbl" data-tone={tone}>{label}</span>
+        <div className="mw-gauge"><div className="mw-gauge-pin" style={{ left: `${pin}%` }} /></div>
       </div>
-      <div className="hpm-sectors-scroll">
-        {FEATURED_SECTORS.map(s => (
-          <SectorChip key={s.id} sector={s} onTap={onSectorScreen} />
+      <div className="mw-mood-sub">
+        {parts.length ? parts.join(' · ') : 'Composite mood loading…'}
+      </div>
+    </div>
+  );
+}
+
+/* ── Your book · today ────────────────────────────────────────────── */
+function YourBook() {
+  const { watchlist } = useWatchlist();
+  const [meta, setMeta] = useState({}); // sym → { name, changePct }
+  const symbolsKey = useMemo(() => (watchlist || []).slice(0, 20).join(','), [watchlist]);
+
+  useEffect(() => {
+    if (!symbolsKey) return undefined;
+    let alive = true;
+    const load = () => {
+      apiFetch(`/api/snapshot/tickers?symbols=${encodeURIComponent(symbolsKey)}`)
+        .then(r => (r.ok ? r.json() : null))
+        .then(j => {
+          if (!alive || !j?.results) return;
+          const map = {};
+          for (const [sym, entry] of Object.entries(j.results)) {
+            const t = entry?.ticker;
+            if (!t) continue;
+            map[sym] = { name: t.name || null, changePct: t.todaysChangePerc ?? null };
+          }
+          setMeta(map);
+        })
+        .catch(e => swallow(e, 'panel.homeMobile.yourbook'));
+    };
+    load();
+    const id = setInterval(load, 60_000);
+    return () => { alive = false; clearInterval(id); };
+  }, [symbolsKey]);
+
+  const ordered = useMemo(() => {
+    const list = [...(watchlist || [])];
+    return list.sort((a, b) => {
+      const pa = meta[a]?.changePct ?? -Infinity;
+      const pb = meta[b]?.changePct ?? -Infinity;
+      return pb - pa;
+    });
+  }, [watchlist, meta]);
+
+  if (!ordered.length) {
+    return (
+      <>
+        <div className="mw-sechead">Your book · today</div>
+        <div className="mw-card"><div className="mw-empty">Your watchlist is empty — add names from Search.</div></div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="mw-sechead">Your book · today</div>
+      <div className="mw-card mw-card--list">
+        {ordered.map(sym => (
+          <MobileQuoteRow key={sym} symbol={sym} name={meta[sym]?.name} />
         ))}
       </div>
-    </div>
+    </>
   );
-});
-
-// Curated sections aligned to PARTICLE_HOME_SCREEN_REPORT.md audit
-// Order: US leadership → global overview → FX → crypto → commodities → Brazil
-const MOBILE_HOME_SECTIONS = [
-  { id: 'us-equities',    label: 'US Equities' },
-  { id: 'global-indexes', label: 'Global Indexes' },
-  { id: 'fx-markets',     label: 'FX Markets' },
-  { id: 'crypto',         label: 'Crypto' },
-  { id: 'commodities',    label: 'Commodities' },
-  { id: 'brazil-b3',      label: 'Brazil B3' },
-];
-
-// Preview tickers shown collapsed (first N per section)
-const PREVIEW_COUNT = 4;
-
-// Curated ticker lists per section — globally representative, audit-aligned
-const SECTION_TICKERS = {
-  'us-equities':    ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'META', 'TSLA', 'JPM', 'XOM', 'GS', 'WMT', 'LLY', 'BRK-B'],
-  'global-indexes': ['SPY', 'QQQ', 'DIA', 'IWM', 'EWZ', 'EEM', 'VGK', 'EWJ', 'FXI', 'EFA'],
-  'fx-markets':     ['C:EURUSD', 'C:USDJPY', 'C:GBPUSD', 'C:USDBRL', 'C:USDCNY', 'C:USDCHF', 'C:AUDUSD', 'C:USDCAD', 'C:USDMXN'],
-  'brazil-b3':      ['PETR4.SA', 'VALE3.SA', 'ITUB4.SA', 'BBDC4.SA', 'ABEV3.SA', 'WEGE3.SA', 'B3SA3.SA', 'BBAS3.SA'],
-  'commodities':    ['GLD', 'SLV', 'USO', 'UNG', 'CORN', 'WEAT', 'SOYB', 'CPER', 'BHP'],
-  'crypto':         ['X:BTCUSD', 'X:ETHUSD', 'X:SOLUSD', 'X:XRPUSD', 'X:BNBUSD', 'X:DOGEUSD'],
-};
-
-function formatPrice(v) {
-  if (v == null) return null;
-  return v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function displaySymbol(sym) {
-  if (!sym) return '';
-  if (sym.startsWith('C:')) return sym.slice(2, 5) + '/' + sym.slice(5);
-  if (sym.startsWith('X:')) return sym.slice(2).replace('USD', '');
-  if (sym.endsWith('.SA')) return sym.slice(0, -3);
-  return sym;
-}
+/* ── Brief-backed cards (THE ONE THING + Macro) ───────────────────── */
+function BriefCards() {
+  const [brief, setBrief] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-/* ── TickerRow: individual row with live price from PriceContext ──── */
-const TickerRow = memo(function TickerRow({ symbol }) {
-  const quote = useTickerPrice(symbol);
-  const priceStr = formatPrice(quote?.price);
-  const pct = quote?.changePct;
-  const openDetail = useOpenDetail();
+  useEffect(() => {
+    let alive = true;
+    apiFetch('/api/brief')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (alive) { setBrief(j?.data || null); setLoading(false); } })
+      .catch(e => { swallow(e, 'panel.homeMobile.brief'); if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
+
+  const oneThing = brief?.oneThing;
+  const macro = brief?.macro || [];
 
   return (
-    <div
-      className="hpm-ticker-row"
-      onClick={(e) => {
-        e.stopPropagation();
-        openDetail(symbol);
-      }}
-    >
-      <span className="hpm-ticker-sym">{displaySymbol(symbol)}</span>
-      <span className="hpm-ticker-price">
-        {priceStr != null
-          ? priceStr
-          : <span className="hpm-ticker-loading">--</span>
-        }
-      </span>
-      <span className={`hpm-ticker-chg ${pct != null && pct >= 0 ? 'up' : pct != null ? 'down' : ''}`}>
-        {pct != null
-          ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`
-          : ''
-        }
-      </span>
-    </div>
-  );
-});
-
-/* ── SectionLoadingCheck: returns true if at least one ticker has data ── */
-function useSectionHasData(tickers) {
-  // Check first 4 tickers (preview set) for any loaded price
-  const t0 = useTickerPrice(tickers[0]);
-  const t1 = useTickerPrice(tickers[1] || tickers[0]);
-  const t2 = useTickerPrice(tickers[2] || tickers[0]);
-  const t3 = useTickerPrice(tickers[3] || tickers[0]);
-  return t0?.price != null || t1?.price != null || t2?.price != null || t3?.price != null;
-}
-
-/* ── Section skeleton for loading state ────────────────────────── */
-function SectionSkeleton({ count = 4 }) {
-  return (
-    <div className="hpm-ticker-list">
-      {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="hpm-ticker-row" style={{ opacity: 0.3 }}>
-          <span className="hpm-ticker-sym" style={{ background: '#1a1a1a', borderRadius: 3, width: 40, height: 12, display: 'inline-block' }} />
-          <span className="hpm-ticker-price" style={{ background: '#1a1a1a', borderRadius: 3, width: 50, height: 12, display: 'inline-block' }} />
-          <span style={{ background: '#1a1a1a', borderRadius: 3, width: 40, height: 12, display: 'inline-block' }} />
+    <>
+      <div className="mw-card">
+        <div className="mw-sechead" style={{ margin: '0 0 6px' }}>The one thing</div>
+        <div className="mw-onething">
+          {oneThing || (loading ? 'Composing today’s brief…' : 'No brief yet — open the Brief tab to generate one.')}
         </div>
-      ))}
-      <div style={{ textAlign: 'center', fontSize: 9, color: 'var(--color-text-muted)', padding: '4px 0' }}>Loading prices...</div>
-    </div>
-  );
-}
-
-/* ── SectionCard: expandable card with View All ─────────────────── */
-const SectionCard = memo(function SectionCard({ section, tickers }) {
-  const [expanded, setExpanded] = useState(false);
-  const hasData = useSectionHasData(tickers);
-  const needsExpand = tickers.length > PREVIEW_COUNT;
-  const visibleTickers = expanded ? tickers : tickers.slice(0, PREVIEW_COUNT);
-
-  return (
-    <div className="hpm-section-card">
-      <div className="hpm-section-header">
-        <span className="hpm-section-title">{section.label}</span>
-        <span className="hpm-section-count">{tickers.length}</span>
       </div>
-      {!hasData ? (
-        <SectionSkeleton count={Math.min(tickers.length, PREVIEW_COUNT)} />
-      ) : (
-        <div className="hpm-ticker-list">
-          {visibleTickers.map(sym => (
-            <TickerRow key={sym} symbol={sym} />
-          ))}
-        </div>
-      )}
-      {needsExpand && hasData && (
-        <button
-          className="hpm-view-all-btn"
-          onClick={(e) => { e.stopPropagation(); setExpanded(v => !v); }}
-        >
-          {expanded ? 'Show less' : `View all ${tickers.length} tickers`}
-        </button>
-      )}
-    </div>
-  );
-});
 
-/* ── MarketScreensGallery: horizontal-scroll screen cards ──── */
-const MarketScreensGallery = memo(function MarketScreensGallery({ onApplyScreen }) {
-  const screens = useMemo(() => getMobileHomeScreens(), []);
-  const [applying, setApplying] = useState(null);
-
-  const handleTap = useCallback(async (screen) => {
-    if (applying) return;
-    setApplying(screen.id);
-    try { await onApplyScreen?.(screen.id, 'full'); } catch (e) { swallow(e, 'panel.homeMobile.apply_screen'); }
-    setTimeout(() => setApplying(null), 600);
-  }, [applying, onApplyScreen]);
-
-  if (!screens.length) return null;
-
-  return (
-    <div className="hpm-screens-section">
-      <div className="hpm-section-header" style={{ padding: '0 16px' }}>
-        <span className="hpm-section-title">Market Screens</span>
-        <span className="hpm-section-count">{screens.length}</span>
-      </div>
-      <div className="hpm-screens-scroll">
-        {screens.map(s => (
-          <div
-            key={s.id}
-            className={`hpm-screen-card ${applying === s.id ? 'hpm-screen-card--applying' : ''}`}
-            style={{ borderLeftColor: s.mobileCardStyle || 'var(--color-particle)' }}
-            onClick={() => handleTap(s)}
-          >
-            <div className="hpm-screen-card-label">{s.visualLabel}</div>
-            <div className="hpm-screen-card-subtitle">{s.subtitle}</div>
-            <div className="hpm-screen-card-heroes">
-              {(s.heroSymbols || []).slice(0, 3).map(sym => (
-                <span key={sym} className="hpm-screen-card-hero">{sym.replace('.SA','').replace('=F','')}</span>
-              ))}
-            </div>
-            {applying === s.id && <div className="hpm-screen-card-applying">Applying...</div>}
+      {macro.length > 0 && (
+        <>
+          <div className="mw-sechead">Macro that touches you</div>
+          <div className="mw-card mw-card--list">
+            {macro.slice(0, 5).map((m, i) => (
+              <div className="mw-row" key={`${m.label}-${i}`}>
+                <div className="mw-row-l">
+                  <span className="mw-tk">{m.label}</span>
+                  {m.line ? <span className="mw-nm">{m.line}</span> : null}
+                </div>
+                {m.odds ? <div className="mw-row-r"><span className="mw-chip odds">{m.odds}</span></div> : null}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
+    </>
+  );
+}
+
+/* ── Indexes tile row ─────────────────────────────────────────────── */
+const INDEX_TILES = [
+  { symbol: 'SPY', label: 'S&P 500' },
+  { symbol: 'QQQ', label: 'NASDAQ' },
+  { symbol: 'EWZ', label: 'IBOV (EWZ)' },
+];
+
+function IndexTile({ symbol, label }) {
+  const q = useTickerPrice(symbol);
+  const openDetail = useOpenDetail();
+  const price = q?.price;
+  const pct = q?.changePct;
+  const cls = pct == null ? '' : pct >= 0 ? 'u' : 'd';
+  return (
+    <div className="mw-tile" onClick={() => openDetail(symbol)} style={{ cursor: 'pointer' }}>
+      <div className="mw-tile-t">{label}</div>
+      <div className="mw-tile-v">{price != null ? price.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—'}</div>
+      <div className={`mw-tile-c ${cls}`}>{pct != null ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` : '·'}</div>
     </div>
   );
-});
+}
 
-/* ── Main component ──────────────────────────────────────────────── */
-function HomePanelMobile({ onSearchClick, onSectorScreen }) {
-  const { settings, applyTemplate } = useSettings();
-  const [news, setNews] = useState([]);
-  const [aiPulse, setAiPulse] = useState(null);
-  const [aiPulseLoading, setAiPulseLoading] = useState(false);
-  const [aiPulseError, setAiPulseError] = useState(null);
-
-  // ── Pull-to-refresh ──────────────────────────────────────────
-  const [refreshing, setRefreshing] = useState(false);
-  const [pullY, setPullY] = useState(0);
-  const touchStartY = useRef(0);
+/* ── Main ─────────────────────────────────────────────────────────── */
+function HomePanelMobile() {
+  // Pull-to-refresh: re-fetch by remounting brief/mood via key bump.
   const containerRef = useRef(null);
-
+  const touchStartY = useRef(0);
+  const [pullY, setPullY] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const PULL_THRESHOLD = 60;
 
-  const handleTouchStart = useCallback((e) => {
-    if (containerRef.current && containerRef.current.scrollTop === 0) {
-      touchStartY.current = e.touches[0].clientY;
-    } else {
-      touchStartY.current = 0;
-    }
+  const onTouchStart = useCallback((e) => {
+    touchStartY.current = containerRef.current && containerRef.current.scrollTop === 0
+      ? e.touches[0].clientY : 0;
   }, []);
-
-  const handleTouchMove = useCallback((e) => {
+  const onTouchMove = useCallback((e) => {
     if (!touchStartY.current) return;
     const dy = e.touches[0].clientY - touchStartY.current;
-    if (dy > 0 && dy <= 120) {
-      setPullY(dy);
-    }
+    if (dy > 0 && dy <= 120) setPullY(dy);
   }, []);
-
-  const handleTouchEnd = useCallback(() => {
+  const onTouchEnd = useCallback(() => {
     if (pullY >= PULL_THRESHOLD && !refreshing) {
       setRefreshing(true);
       setPullY(0);
-      // Re-fetch news
-      apiFetch('/api/news')
-        .then(r => r.ok ? r.json() : { articles: [] })
-        .then(d => setNews((d.articles || d.results || []).slice(0, 5)))
-        .catch(() => {})
-        .finally(() => {
-          setTimeout(() => setRefreshing(false), 600);
-        });
+      setRefreshKey(k => k + 1);
+      setTimeout(() => setRefreshing(false), 700);
     } else {
       setPullY(0);
     }
     touchStartY.current = 0;
   }, [pullY, refreshing]);
 
-  const fetchNews = useCallback(() => {
-    apiFetch('/api/news')
-      .then(r => r.ok ? r.json() : { articles: [] })
-      .then(d => setNews((d.articles || d.results || []).slice(0, 5)))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => { fetchNews(); }, [fetchNews]);
-
-  const userSections = useMemo(() => {
-    const sections = settings?.home?.sections || [];
-    return sections
-      .filter(s => (s.symbols || []).some(sym => !Object.values(SECTION_TICKERS).flat().includes(sym)))
-      .map(s => ({
-        id: s.id,
-        label: s.title || s.id,
-        symbols: s.symbols || [],
-      }));
-  }, [settings?.home?.sections]);
-
-  const fetchAiPulse = useCallback(() => {
-    if (aiPulseLoading) return;
-
-    // Check if AI is available before attempting fetch
-    if (!checkAIAvailable()) {
-      setAiPulseError('_unavailable');
-      return;
-    }
-
-    setAiPulse(null);
-    setAiPulseError(null);
-    setAiPulseLoading(true);
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10000);
-
-    apiFetch('/api/search/ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: 'Give me a brief 2-sentence market pulse summary for today. Focus on major US indices, any notable moves, and overall sentiment.' }),
-      signal: controller.signal,
-    })
-      .then(r => {
-        if (!r.ok) throw new Error('unavailable');
-        return r.json();
-      })
-      .then(data => {
-        if (data?.summary) {
-          setAiPulse(data.summary);
-        } else {
-          setAiPulseError('_unavailable');
-        }
-      })
-      .catch(() => {
-        // Never show raw error — use sentinel for "unavailable" state
-        setAiPulseError('_unavailable');
-      })
-      .finally(() => {
-        clearTimeout(timer);
-        setAiPulseLoading(false);
-      });
-  }, [aiPulseLoading]);
-
-  const openNews = (item) => {
-    const url = item.article_url || item.link || item.url;
-    if (url) window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
   return (
     <div
-      className="hpm-container"
+      className="mw-scroll"
       ref={containerRef}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
-      {/* Pull-to-refresh indicator */}
       {(pullY > 10 || refreshing) && (
-        <div className="hpm-ptr-indicator" style={{ height: refreshing ? 36 : Math.min(pullY, 60), opacity: refreshing ? 1 : Math.min(pullY / PULL_THRESHOLD, 1) }}>
-          <span className={`hpm-ptr-text${refreshing ? ' hpm-ptr-spinning' : ''}`}>
-            {refreshing ? '↻ Refreshing...' : pullY >= PULL_THRESHOLD ? '↑ Release to refresh' : '↓ Pull to refresh'}
-          </span>
+        <div style={{ textAlign: 'center', fontSize: 10, color: 'var(--text-muted)', height: refreshing ? 24 : Math.min(pullY, 60), lineHeight: '24px', overflow: 'hidden' }}>
+          {refreshing ? '↻ Refreshing…' : pullY >= PULL_THRESHOLD ? '↑ Release to refresh' : '↓ Pull to refresh'}
         </div>
       )}
 
-      {/* AI Market Pulse card */}
-      <div className="hpm-ai-card" onClick={fetchAiPulse}>
-        <span className="hpm-ai-badge">MARKET PULSE</span>
-        {!aiPulse && !aiPulseLoading && !aiPulseError && (
-          <div className="hpm-ai-tagline">Tap for AI-powered market overview</div>
-        )}
-        {aiPulseLoading && <div className="hpm-ai-loading">Analyzing markets...</div>}
-        {aiPulseError && !aiPulseLoading && (
-          <div className="hpm-ai-error" style={{ color: 'var(--color-text-secondary)' }}>
-            <span>Market data is loading</span>
-            <span className="hpm-ai-retry">Tap to retry</span>
-          </div>
-        )}
-        {aiPulse && <div className="hpm-ai-result">{aiPulse}</div>}
-      </div>
+      <MoodStrip key={`mood-${refreshKey}`} />
+      <BriefCards key={`brief-${refreshKey}`} />
+      <YourBook />
 
-      {/* Phase 4: Featured Sector Screen Cards */}
-      <FeaturedSectors onSectorScreen={onSectorScreen} />
-
-      {/* #222 — Prediction Markets and Brazil B3 & DI Curve cards removed per CIO
-          feedback; those surfaces still exist on desktop and via direct screen
-          navigation, but they don't belong on the mobile home grid. */}
-
-      {/* Upload Research CTA removed — not suitable for mobile */}
-
-      {/* Options Flow Widget */}
-      <OptionsHomeWidget onNavigate={(view) => {
-        // Navigate to options flow tab in 'more' section
-        if (onSearchClick) onSearchClick();
-      }} />
-
-      {/* Market Screens Gallery — horizontal scroll */}
-      <MarketScreensGallery onApplyScreen={applyTemplate} />
-
-      {/* Curated Section Cards — full ticker lists with View All */}
-      <div className="hpm-section-grid">
-        {MOBILE_HOME_SECTIONS.map(section => (
-          <SectionCard
-            key={section.id}
-            section={section}
-            tickers={SECTION_TICKERS[section.id] || []}
-          />
-        ))}
-
-        {/* User-Added Section Cards */}
-        {userSections.map(section => (
-          <SectionCard
-            key={`user-${section.id}`}
-            section={{ id: section.id, label: section.label }}
-            tickers={section.symbols}
-          />
-        ))}
-      </div>
-
-      {/* News Feed Card — always visible, shows loading skeleton or headlines */}
-      <div className="hpm-news-card">
-        <div className="hpm-section-header">
-          <span className="hpm-section-title">News Feed</span>
-          {news.length > 0 && <span className="hpm-section-count">{news.length}</span>}
-        </div>
-        {news.length === 0 ? (
-          <div className="hpm-news-loading">
-            {[1,2,3].map(i => (
-              <div key={i} className="hpm-news-item" style={{ opacity: 0.4 }}>
-                <div className="shimmer-bar" style={{ width: '30%', height: 10, marginBottom: 4 }} />
-                <div className="shimmer-bar" style={{ width: '90%', height: 14, marginBottom: 4 }} />
-                <div className="shimmer-bar" style={{ width: '20%', height: 10 }} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          news.slice(0, 5).map((item, i) => (
-            <div className="hpm-news-item" key={i} onClick={() => openNews(item)}>
-              <div className="hpm-news-source">{item.publisher?.name || item.source || ''}</div>
-              <div className="hpm-news-headline">{item.title}</div>
-              <div className="hpm-news-time">
-                {item.published_utc ? (() => {
-                  const diff = (Date.now() - new Date(item.published_utc).getTime()) / 1000;
-                  if (diff < 60) return 'now';
-                  if (diff < 3600) return Math.round(diff / 60) + 'm ago';
-                  if (diff < 86400) return Math.round(diff / 3600) + 'h ago';
-                  return Math.round(diff / 86400) + 'd ago';
-                })() : ''}
-              </div>
-            </div>
-          ))
-        )}
+      <div className="mw-sechead">Indexes</div>
+      <div className="mw-tiles">
+        {INDEX_TILES.map(t => <IndexTile key={t.symbol} symbol={t.symbol} label={t.label} />)}
       </div>
     </div>
   );
 }
 
-export default memo(HomePanelMobile);
+export default HomePanelMobile;
