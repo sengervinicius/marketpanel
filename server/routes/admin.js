@@ -728,4 +728,25 @@ router.post('/feedback/:id/ack', async (req, res) => {
   }
 });
 
+// ── POST /api/admin/grant-trial/:email  { days?: number } ─────────────────
+// Comp / extend a trial. Sets trial_ends_at = now + days (default 14) and
+// re-activates the subscription flag. Used to restore access for expired
+// early accounts (their 14-day trial legitimately elapsed) without making
+// them pay. Admin-gated (router.use(requireAdmin) above).
+router.post('/grant-trial/:email', async (req, res) => {
+  try {
+    const email = decodeURIComponent(req.params.email || '');
+    const days = Number(req.body && req.body.days) > 0 ? Number(req.body.days) : 14;
+    const user = authStore.findUserByEmail(email);
+    if (!user) return res.status(404).json({ error: 'User not found', email });
+    const trialEndsAt = Date.now() + days * 24 * 60 * 60 * 1000;
+    await authStore.updateUser(user.id, { trialEndsAt, subscriptionActive: true });
+    logger.info('admin', 'grant-trial', { email, days, by: req.user.email || req.user.id });
+    res.json({ ok: true, email, days, trialEndsAt });
+  } catch (e) {
+    logger.error('admin', 'grant-trial failed', { error: e.message });
+    res.status(500).json({ error: 'grant-trial failed' });
+  }
+});
+
 module.exports = router;

@@ -516,14 +516,17 @@ async function createUser(username, passwordPlain, email, extras = {}) {
   const now  = Date.now();
   const id   = nextId++;
 
-  // Check if this email has already used a trial (trial abuse prevention)
-  // This check happens BEFORE granting a trial to prevent bypass
+  // Product rule: EVERY new account gets the full 14-day trial. The old
+  // one-trial-per-email gate set trialEndsAt=now for any re-used email, which
+  // locked a brand-new login out at the door ("subscription required" before
+  // they ever used the app). That abuse prevention is now OPT-IN via
+  // TRIAL_ONCE_PER_EMAIL=true; when unset (default) every registration is
+  // granted a trial.
   let grantTrial = true;
-  if (email) {
+  if (email && process.env.TRIAL_ONCE_PER_EMAIL === 'true') {
     try {
       const pgResult = await pg.query('SELECT email FROM used_trials WHERE LOWER(email) = LOWER($1)', [email]);
       if (pgResult && pgResult.rows && pgResult.rows.length > 0) {
-        // Email already had a trial — don't grant another one
         grantTrial = false;
       }
     } catch (e) {
