@@ -39,6 +39,7 @@ import Tape from '../common/Tape';
 import BoardRow, { BoardSectionLabel } from '../common/BoardRow';
 import ViewChips from '../common/ViewChips';
 import { useOverlay } from '../overlay/OverlayContext';
+import { useTickerPrice } from '../../context/PriceContext';
 import './DebtPanel.css';
 
 // Region chips — switch the main curve only.
@@ -231,10 +232,83 @@ function MiniCurveSvg({ points, stroke }) {
 }
 
 /* ── Main panel ─────────────────────────────────────────────────── */
+// ── Bonds subbox (under the curve) ───────────────────────────────────────────
+// Shows issue-level corporate bonds from /api/market/bonds/corporate when the
+// Eulerpool key is configured; until then falls back to liquid bond/credit
+// ETFs priced live via useTickerPrice — so the box is always useful and
+// upgrades automatically the moment the key is set.
+const CORP_FALLBACK_ETFS = [
+  { sym: 'LQD', name: 'IG Corp' },
+  { sym: 'HYG', name: 'High Yield' },
+  { sym: 'EMB', name: 'EM Sovereign' },
+  { sym: 'TLT', name: '20+Y Treasury' },
+  { sym: 'IEF', name: '7-10Y Treasury' },
+  { sym: 'AGG', name: 'US Aggregate' },
+];
+
+function fmtBondYield(y) {
+  if (y == null || isNaN(y)) return '\u2014';
+  const v = Number(y);
+  const pct = Math.abs(v) < 1 ? v * 100 : v;
+  return pct.toFixed(2) + '%';
+}
+
+function DpEtfBondRow({ sym, name }) {
+  const q = useTickerPrice(sym);
+  const chg = q?.changePct;
+  return (
+    <div className="dp-bond-row">
+      <span className="dp-bond-sym">{sym}</span>
+      <span className="dp-bond-name">{name}</span>
+      <span className="dp-bond-px">{q?.price != null ? Number(q.price).toFixed(2) : '\u2014'}</span>
+      <span className="dp-bond-chg" style={{ color: chg == null ? 'var(--text-faint)' : chg >= 0 ? 'var(--color-up)' : 'var(--color-down)' }}>
+        {chg != null ? `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%` : '\u2014'}
+      </span>
+    </div>
+  );
+}
+
+function DpBonds() {
+  const [corp, setCorp] = useState(null); // null=loading, []=none, [...]=rows
+  useEffect(() => {
+    let alive = true;
+    apiFetch('/api/market/bonds/corporate?limit=6')
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (alive) setCorp(Array.isArray(j?.data) ? j.data : []); })
+      .catch(() => { if (alive) setCorp([]); });
+    return () => { alive = false; };
+  }, []);
+  const hasCorp = Array.isArray(corp) && corp.length > 0;
+  return (
+    <div className="dp-corp">
+      <div className="dp-corp-head">
+        <span>CORPORATE BONDS</span>
+        <span className="dp-corp-src">{hasCorp ? 'EULERPOOL' : 'ETF PROXY'}</span>
+      </div>
+      <div className="dp-corp-list">
+        {hasCorp
+          ? corp.map((b, i) => (
+              <div className="dp-bond-row" key={b.isin || b.ticker || i} title={b.issuer || ''}>
+                <span className="dp-bond-name dp-bond-issuer">{(b.issuer || '\u2014').slice(0, 22)}</span>
+                <span className="dp-bond-sub">{b.maturity || ''}</span>
+                <span className="dp-bond-px">{b.coupon != null ? fmtBondYield(b.coupon) : '\u2014'}</span>
+                <span className="dp-bond-chg" style={{ color: 'var(--text-secondary)' }}>{fmtBondYield(b.yield)}</span>
+              </div>
+            ))
+          : CORP_FALLBACK_ETFS.map(e => <DpEtfBondRow key={e.sym} sym={e.sym} name={e.name} />)}
+      </div>
+    </div>
+  );
+}
+
 function DebtPanel() {
   // Phase S §4 — title click opens the Rates deep-view overlay.
   const { open: openOverlay } = useOverlay();
   const [region, setRegion]           = useState('US');
+  // Which curves overlay in ALL mode (the "+" curve toggle). Default = all
+  // curves that actually have data (US/BR/EU/UK/CH); SONIA/others have none.
+  const [overlayCurves, setOverlayCurves] = useState(() => new Set(GLOBAL_ROWS.map(r => r.code)));
+  const [curveMenuOpen, setCurveMenuOpen] = useState(false);
   const [liveReady, setLiveReady]     = useState(false);
   const [error, setError]             = useState(null);
   const [tape, setTape]               = useState(null);
@@ -484,6 +558,34 @@ function DebtPanel() {
           ) : (
             <div className="dp-chart-wrap">
               {hasGhost && <span className="dp-ghost-legend">– – 1M AGO</span>}
+              {region === 'ALL' && (
+                <div className="dp-curve-toggle">
+                  <button
+                    type="button"
+                    className="dp-curve-btn"
+                    onClick={() => setCurveMenuOpen(o => !o)}
+                    title="Choose which curves to overlay"
+                  >+ CURVES</button>
+                  {curveMenuOpen && (
+                    <div className="dp-curve-menu">
+                      {GLOBAL_ROWS.map(r => (
+                        <label key={r.code} className="dp-curve-item">
+                          <input
+                            type="checkbox"
+                            checked={overlayCurves.has(r.code)}
+                            onChange={() => setOverlayCurves(prev => {
+                              const n = new Set(prev);
+                              if (n.has(r.code)) n.delete(r.code); else n.add(r.code);
+                              return n;
+                            })}
+                          />
+                          <span>{r.flag} {r.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={chartData} margin={{ top: 6, right: 8, bottom: 2, left: 0 }}>
                   <defs>
@@ -550,7 +652,7 @@ function DebtPanel() {
                       />
                     </>
                   ) : (
-                    GLOBAL_ROWS.map(r => (
+                    GLOBAL_ROWS.filter(r => overlayCurves.has(r.code)).map(r => (
                       <Line
                         key={r.code}
                         type="monotone" dataKey={r.code} name={r.label}
@@ -564,6 +666,7 @@ function DebtPanel() {
               </ResponsiveContainer>
             </div>
           )}
+          <DpBonds />
         </div>
 
         {/* ── Right: global 10Y + credit & inflation board ── */}

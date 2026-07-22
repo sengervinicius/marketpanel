@@ -96,3 +96,93 @@
 }
 
 .dp-retry-btn:hover { background: var(--color-accent-dim); }
+
+/* ── Bonds subbox under the curve (added-jul) ─────────────────────────── */
+.dp-corp {
+  flex: none;
+  max-height: 40%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 2px;
+}
+.dp-corp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 3px 6px 2px 2px;
+  flex: none;
+}
+.dp-corp-head > span:first-child {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+.dp-corp-src {
+  font-size: 7.5px;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+.dp-corp-list { flex: 1; min-height: 0; overflow-y: auto; }
+.dp-corp-list::-webkit-scrollbar { width: 0; }
+.dp-bond-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 7px;
+  align-items: center;
+  padding: 2px 6px 2px 2px;
+  font-size: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.dp-bond-sym {
+  font-family: var(--font-family-mono);
+  font-size: 9.5px;
+  color: var(--text-primary);
+  min-width: 30px;
+}
+.dp-bond-name, .dp-bond-issuer {
+  color: var(--text-secondary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dp-bond-sub { font-size: 8.5px; color: var(--text-faint); font-family: var(--font-family-mono); }
+.dp-bond-px, .dp-bond-chg {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  font-size: 9.5px;
+}
+
+/* ── Curve overlay toggle ("+ CURVES") ────────────────────────────────── */
+.dp-curve-toggle { position: absolute; top: 4px; left: 6px; z-index: 3; }
+.dp-curve-btn {
+  font-family: var(--font-family-mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  padding: 1px 6px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.dp-curve-btn:hover { color: var(--accent); border-color: var(--accent); }
+.dp-curve-menu {
+  position: absolute;
+  top: 18px; left: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+}
+.dp-curve-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 9px; color: var(--text-secondary);
+  white-space: nowrap; cursor: pointer;
+}
+.dp-curve-item input { accent-color: var(--accent); width: 11px; height: 11px; cursor: pointer; }
