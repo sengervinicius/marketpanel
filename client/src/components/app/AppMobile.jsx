@@ -9,18 +9,20 @@ import './ParticleNav.css';
 // Phase 9.7: "Portfolio" → "Watchlist" per Phase 9.2 unification
 export const MOBILE_TABS = [
   { id: 'home',      label: 'Home' },
-  { id: 'charts',    label: 'Charts' },
+  { id: 'markets',   label: 'Markets' },
+  { id: 'brief',     label: 'Brief' },
   { id: 'watchlist', label: 'Watchlist' },
-  { id: 'search',    label: 'Search' },
   { id: 'more',      label: 'More' },
 ];
 
 // Terminal sub-nav tabs (compact pills inside Terminal mode)
+// Wave 1: Home · Markets · Brief · Watchlist · More. Charts and Search
+// remain reachable from the More menu.
 export const TERMINAL_TABS = [
   { id: 'home',      label: 'Home' },
-  { id: 'charts',    label: 'Charts' },
+  { id: 'markets',   label: 'Markets' },
+  { id: 'brief',     label: 'Brief' },
   { id: 'watchlist', label: 'Watchlist' },
-  { id: 'search',    label: 'Search' },
   { id: 'more',      label: 'More' },
 ];
 
@@ -37,6 +39,16 @@ export function TabIcon({ id, active }) {
     case 'charts': return (
       <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+    );
+    case 'markets': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="3 17 9 11 13 15 21 6" /><polyline points="15 6 21 6 21 12" />
+      </svg>
+    );
+    case 'brief': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="3" width="16" height="18" rx="2" /><line x1="8" y1="9" x2="16" y2="9" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="13" y2="17" />
       </svg>
     );
     case 'search': return (
@@ -75,6 +87,16 @@ function SubNavIcon({ id }) {
     case 'charts': return (
       <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+      </svg>
+    );
+    case 'markets': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="3 17 9 11 13 15 21 6" /><polyline points="15 6 21 6 21 12" />
+      </svg>
+    );
+    case 'brief': return (
+      <svg style={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="3" width="16" height="18" rx="2" /><line x1="8" y1="9" x2="16" y2="9" /><line x1="8" y1="13" x2="16" y2="13" /><line x1="8" y1="17" x2="13" y2="17" />
       </svg>
     );
     case 'watchlist': return (

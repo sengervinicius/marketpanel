@@ -167,11 +167,12 @@ export function LayoutMoveOverlay({ panelId, rowIdx, colIdx, rowLen, totalRows, 
 // When present, a future S3 merge can unify desktop/mobile rendering by checking
 // isMobile and picking the appropriate component automatically.
 // Current mobile variants (rendered directly in App.jsx mobile section):
-//   charts   → ChartsPanelMobile    (601 lines — separate chart grid UX)
-//   watchlist → PortfolioMobile      (451 lines — simplified positions view)
-//   home     → HomePanelMobile      (358 lines — mobile-only home screen)
-//   watchlistMobile → WatchlistPanelMobile (291 lines — mobile watchlist)
-//   alerts   → AlertsMobile          (compact alert list)
+//   home      → HomePanelMobile     (Wave 1 glanceable home)
+//   markets   → MarketsMobile       (segmented Indexes/FX/Comm/Rates/Sectors)
+//   brief     → BriefPanel          (shared Daily Brief, mobile wrapper)
+//   watchlist → WatchlistMobile     (Wave 1 real watchlist)
+//   charts    → ChartsPanelMobile   (separate chart grid UX; under More)
+//   holdings  → PortfolioMobile     (positions view; under More)
 const PANEL_REGISTRY = {
   // ── Core panels ──────────────────────────────────────────────────────────
   charts:         { component: ChartPanel,         getProps: (c) => ({ onGridChange: c.setChartGridCount }), hasMobileVariant: true }, // FIX 4: no ticker prop — clicks never reach the grid

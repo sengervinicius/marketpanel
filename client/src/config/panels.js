@@ -501,7 +501,7 @@ export const DEFAULT_LAYOUT = {
     // 3/3/2/2/2 via migrateDesktopRowsToGrid (leftmost get the remainder).
     ['brief',        'news',          'movers',        'calendar',      'sectorPulse'],
   ],
-  mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
+  mobileTabs: ['home', 'markets', 'brief', 'watchlist', 'more'],
 };
 
 /**

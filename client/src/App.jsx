@@ -45,6 +45,9 @@ import {
   HomePanelMobile,
   ChartsPanelMobile,
   MobileMoreScreen,
+  MarketsMobile,
+  WatchlistMobile,
+  BriefPanelMobile,
   WelcomeTour,
   VaultPanel,
   AdminDashboard,
@@ -184,12 +187,12 @@ export default function App() {
   const [activeTab, setActiveTab] = useState(() => {
     let saved;
     try { saved = localStorage.getItem(LS_TAB); } catch { saved = null; }
-    // Migrate old tab IDs
-    if (saved === 'markets') return 'home';
+    // Wave 1: migrate retired top-level tabs to Home
+    if (saved === 'charts' || saved === 'search') return 'home';
     // Use saved tab if valid, otherwise fall back to defaultStartTab from settings
     if (MOBILE_TABS.find(t => t.id === saved)) return saved;
     const startTab = settings?.defaultStartTab;
-    if (startTab && ['home','charts','watchlist','search'].includes(startTab)) return startTab;
+    if (startTab && ['home','markets','brief','watchlist'].includes(startTab)) return startTab;
     return 'home';
   });
   // ── 2-state mobile mode: 'particle' (AI screen) or 'terminal' (classic tabs) ──
@@ -439,7 +442,9 @@ export default function App() {
   const goChart = useCallback((t) => {
     const sym = typeof t === 'object' ? (t.symbol || t) : t;
     setChartTicker(sym);
-    setActiveTabPersist('charts');
+    // Wave 1: Charts lives under the More menu now.
+    setActiveTabPersist('more');
+    setMoreView('charts');
   }, [setChartTicker]);
 
   const goDetail = useCallback((t) => {
@@ -640,7 +645,8 @@ export default function App() {
           break;
         case 'chart_open':
           setChartTicker(ticker);
-          setActiveTabPersist('charts');
+          setActiveTabPersist('more');
+          setMoreView('charts');
           break;
         case 'watchlist_add':
           // Dispatch a secondary event that the WatchlistProvider child can pick up,
@@ -736,7 +742,7 @@ export default function App() {
   }, []);
   const mobileScreenTitle = useMemo(() => {
     if (activeTab === 'more' && moreView) {
-      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel', predictions: 'Prediction Markets' };
+      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel', predictions: 'Prediction Markets', charts: 'Charts', search: 'Search', holdings: 'Holdings' };
       return titles[moreView] || moreView;
     }
     return null;
@@ -1462,28 +1468,56 @@ export default function App() {
             {/* Mobile tabs — ALWAYS mounted, hidden via display:none when not active or in particle mode */}
             <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'home' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Home">
-                <HomePanelMobile
-                  onSearchClick={() => setActiveTabPersist('search')}
-                />
+                <HomePanelMobile />
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'charts' ? 'none' : 'flex' }}>
+            {/* Markets — segmented Indexes / FX / Commodities / Rates / Sectors */}
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'markets' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
+              <PanelErrorBoundary name="Markets">
+                <Suspense fallback={null}>
+                  <MarketsMobile />
+                </Suspense>
+              </PanelErrorBoundary>
+            </div>
+
+            {/* Brief — the Daily Brief, finally on mobile */}
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'brief' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
+              <PanelErrorBoundary name="Brief">
+                <Suspense fallback={null}>
+                  <BriefPanelMobile onTickerClick={goDetail} />
+                </Suspense>
+              </PanelErrorBoundary>
+            </div>
+
+            {/* Watchlist — the real watchlist (not holdings) */}
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'watchlist' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
+              <PanelErrorBoundary name="Watchlist">
+                <Suspense fallback={null}>
+                  <WatchlistMobile />
+                </Suspense>
+              </PanelErrorBoundary>
+            </div>
+
+            {/* Charts — reachable from the More menu */}
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'charts' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Charts">
                 <ChartsPanelMobile />
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'search' ? 'none' : 'flex' }}>
+            {/* Search — reachable from the More menu */}
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'search' ? 'none' : 'flex' }}>
               <PanelErrorBoundary name="Search">
                 <SearchPanel onTickerSelect={goDetail} />
               </PanelErrorBoundary>
             </div>
 
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'watchlist' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
+            {/* Holdings — reachable from the More menu (was the old Watchlist tab) */}
+            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'holdings' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
               <PanelErrorBoundary name="Portfolio">
                 <PortfolioMobile
-                  onManage={() => setActiveTabPersist('search')}
+                  onManage={() => { setMoreView('search'); }}
                 />
               </PanelErrorBoundary>
             </div>

@@ -1,0 +1,144 @@
+/**
+ * MobileWave1.css — shared styles for the Mobile Wave 1 rebuild.
+ * Home · Markets · Watchlist screens. Matches the approved mockup
+ * (particle-mobile-mockups.html). Uses theme tokens only.
+ */
+
+.mw-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 14px calc(20px + env(safe-area-inset-bottom, 0px));
+  width: 100%;
+}
+.mw-scroll::-webkit-scrollbar { width: 0; }
+
+.mw-sechead {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--text-faint);
+  font-weight: 700;
+  margin: 16px 4px 8px;
+  text-transform: uppercase;
+}
+.mw-sechead:first-child { margin-top: 4px; }
+
+.mw-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 13px 14px;
+  margin-bottom: 10px;
+}
+.mw-card--list { padding: 4px 12px; }
+.mw-card--accent {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-subtle));
+}
+
+/* ── mood / breadth strip ── */
+.mw-mood { display: flex; align-items: center; gap: 10px; }
+.mw-mood-lbl {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  color: var(--price-up); white-space: nowrap;
+}
+.mw-mood-lbl[data-tone="off"] { color: var(--price-down); }
+.mw-mood-lbl[data-tone="neutral"] { color: var(--text-muted); }
+.mw-gauge {
+  flex: 1; height: 7px; border-radius: 4px;
+  background: linear-gradient(90deg, var(--price-down), #caa000, var(--price-up));
+  position: relative;
+}
+.mw-gauge-pin {
+  position: absolute; top: -3px; width: 3px; height: 13px;
+  background: #fff; border-radius: 2px; transform: translateX(-50%);
+}
+.mw-mood-sub {
+  color: var(--text-muted); font-size: 10.5px; margin-top: 7px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── the one thing ── */
+.mw-onething { font-size: 13.5px; line-height: 1.5; color: var(--text-primary); }
+.mw-onething b { color: var(--accent); }
+
+/* ── rows ── */
+.mw-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 2px; border-bottom: 1px solid var(--border-subtle);
+  gap: 8px;
+}
+.mw-row:last-child { border-bottom: 0; }
+.mw-row.tap { cursor: pointer; }
+.mw-row.tap:active { background: var(--bg-hover); }
+.mw-row-l { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mw-tk { font-weight: 700; font-size: 13px; letter-spacing: 0.03em; color: var(--text-primary); }
+.mw-nm {
+  font-size: 11px; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 170px;
+}
+.mw-row-r { display: flex; align-items: center; gap: 10px; }
+.mw-price {
+  font-variant-numeric: tabular-nums; font-size: 13px; text-align: right;
+  color: var(--text-primary);
+}
+.mw-chg {
+  font-variant-numeric: tabular-nums; font-size: 12px; min-width: 58px;
+  text-align: right; padding: 2px 6px; border-radius: 5px;
+}
+.mw-chg.u { color: var(--price-up); background: var(--color-up-bg); }
+.mw-chg.d { color: var(--price-down); background: var(--color-down-bg); }
+.mw-chg.flat { color: var(--text-muted); }
+
+.mw-rowbtn {
+  background: none; border: 0; color: var(--text-faint);
+  font-size: 16px; line-height: 1; padding: 4px 6px; cursor: pointer;
+}
+.mw-rowbtn:active { color: var(--price-down); }
+
+/* ── segmented control ── */
+.mw-seg {
+  display: flex; gap: 6px; background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle); border-radius: 10px;
+  padding: 4px; margin-bottom: 12px;
+}
+.mw-seg button {
+  flex: 1; text-align: center; font-size: 11.5px; padding: 7px 0;
+  border-radius: 7px; color: var(--text-muted); cursor: pointer;
+  font-weight: 600; background: none; border: 0; font-family: inherit;
+}
+.mw-seg button[data-on="true"] { background: var(--accent); color: #fff; }
+
+/* ── chips ── */
+.mw-chip {
+  display: inline-block; font-size: 9px; letter-spacing: 0.08em;
+  font-weight: 700; padding: 2px 7px; border-radius: 4px;
+  background: var(--bg-surface); color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+.mw-chip.odds { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+
+/* ── index tiles ── */
+.mw-tiles {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px;
+}
+.mw-tile {
+  background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+  border-radius: 11px; padding: 10px;
+}
+.mw-tile-t { font-size: 10px; color: var(--text-muted); letter-spacing: 0.05em; }
+.mw-tile-v { font-variant-numeric: tabular-nums; font-size: 14px; margin-top: 3px; color: var(--text-primary); }
+.mw-tile-c { font-variant-numeric: tabular-nums; font-size: 11px; margin-top: 1px; }
+.mw-tile-c.u { color: var(--price-up); }
+.mw-tile-c.d { color: var(--price-down); }
+
+/* ── sector ramp ── */
+.mw-sec { display: flex; align-items: center; gap: 8px; padding: 7px 0; cursor: pointer; }
+.mw-sec:active { opacity: 0.7; }
+.mw-sec-n { font-size: 11px; width: 132px; font-weight: 600; color: var(--text-primary); }
+.mw-sec-bar { height: 8px; border-radius: 3px; min-width: 4px; transition: width 0.3s; }
+.mw-sec-v { font-variant-numeric: tabular-nums; font-size: 11px; margin-left: auto; }
+.mw-sec-v.u { color: var(--price-up); }
+.mw-sec-v.d { color: var(--price-down); }
+
+.mw-empty { color: var(--text-muted); font-size: 12px; padding: 20px 4px; text-align: center; }
