@@ -44,6 +44,7 @@ const SETTINGS_PANEL_IDS = [
   'heatmap',
   'predictions',
   'optionsFlow',
+  'bloombergTV',
 ];
 
 export const PANEL_DEFS = SETTINGS_PANEL_IDS
@@ -343,20 +344,10 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
         prompt on future turns. Until this panel existed the user had no way
         to see, edit, or forget what the model remembered — a trust hole.
       */}
-      <SettingsSection label="PARTICLE MEMORY" />
-      <ParticleMemoryPanel />
-
-      {/* ── Knowledge Vault ── */}
-      <SettingsSection label="KNOWLEDGE VAULT" />
-      <Suspense fallback={null}>
-        <VaultPanel />
-      </Suspense>
-
-      {/* ── Inbound Email → Personal Vault (P4) ── */}
-      <SettingsSection label="VAULT INBOX" />
-      <InboundEmailRow />
-      {/* wave-nov Phase Z — static, copy-ready automation recipes */}
-      <HowToAutomateBlock />
+      {/* Particle Memory + Knowledge Vault + Vault Inbox removed from Settings
+          (CIO request): Memory was broken (returned HTML→JSON error) and a
+          trust-noise item; the Vault has its own dedicated VAULT mode in the
+          header, so embedding the whole vault + inbox here was clutter. */}
 
       {/* ── Help ── */}
       <SettingsSection label="HELP" />
