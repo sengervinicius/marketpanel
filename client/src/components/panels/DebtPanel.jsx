@@ -39,7 +39,6 @@ import Tape from '../common/Tape';
 import BoardRow, { BoardSectionLabel } from '../common/BoardRow';
 import ViewChips from '../common/ViewChips';
 import { useOverlay } from '../overlay/OverlayContext';
-import { useTickerPrice } from '../../context/PriceContext';
 import './DebtPanel.css';
 
 // Region chips — switch the main curve only.
@@ -235,7 +234,7 @@ function MiniCurveSvg({ points, stroke }) {
 // ── Bonds subbox (under the curve) ───────────────────────────────────────────
 // Shows issue-level corporate bonds from /api/market/bonds/corporate when the
 // Eulerpool key is configured; until then falls back to liquid bond/credit
-// ETFs priced live via useTickerPrice — so the box is always useful and
+// ETFs priced live via a direct snapshot fetch — so the box is always useful and
 // upgrades automatically the moment the key is set.
 const CORP_FALLBACK_ETFS = [
   { sym: 'LQD', name: 'IG Corp' },
@@ -253,23 +252,11 @@ function fmtBondYield(y) {
   return pct.toFixed(2) + '%';
 }
 
-function DpEtfBondRow({ sym, name }) {
-  const q = useTickerPrice(sym);
-  const chg = q?.changePct;
-  return (
-    <div className="dp-bond-row">
-      <span className="dp-bond-sym">{sym}</span>
-      <span className="dp-bond-name">{name}</span>
-      <span className="dp-bond-px">{q?.price != null ? Number(q.price).toFixed(2) : '\u2014'}</span>
-      <span className="dp-bond-chg" style={{ color: chg == null ? 'var(--text-faint)' : chg >= 0 ? 'var(--color-up)' : 'var(--color-down)' }}>
-        {chg != null ? `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%` : '\u2014'}
-      </span>
-    </div>
-  );
-}
-
 function DpBonds() {
-  const [corp, setCorp] = useState(null); // null=loading, []=none, [...]=rows
+  const [corp, setCorp] = useState(null);   // Eulerpool corp bonds (null=loading)
+  const [px, setPx] = useState({});          // ETF fallback live prices
+
+  // Corp bonds (Eulerpool) — populates only when the key is configured.
   useEffect(() => {
     let alive = true;
     apiFetch('/api/market/bonds/corporate?limit=6')
@@ -278,7 +265,32 @@ function DpBonds() {
       .catch(() => { if (alive) setCorp([]); });
     return () => { alive = false; };
   }, []);
+
   const hasCorp = Array.isArray(corp) && corp.length > 0;
+
+  // ETF fallback — direct snapshot fetch (self-contained, refreshes on cycle).
+  useEffect(() => {
+    if (hasCorp) return undefined;
+    let alive = true;
+    const syms = CORP_FALLBACK_ETFS.map(e => e.sym).join(',');
+    const load = () => apiFetch(`/api/snapshot/tickers?symbols=${syms}`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => {
+        if (!alive || !j) return;
+        const res = j.results || j;
+        const next = {};
+        for (const e of CORP_FALLBACK_ETFS) {
+          const t = res?.[e.sym]?.ticker || res?.[e.sym];
+          if (t) next[e.sym] = { price: t.min?.c ?? t.day?.c ?? t.lastTrade?.p ?? null, chg: t.todaysChangePerc ?? null };
+        }
+        setPx(next);
+      })
+      .catch(() => {});
+    load();
+    const id = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(id); };
+  }, [hasCorp]);
+
   return (
     <div className="dp-corp">
       <div className="dp-corp-head">
@@ -295,7 +307,20 @@ function DpBonds() {
                 <span className="dp-bond-chg" style={{ color: 'var(--text-secondary)' }}>{fmtBondYield(b.yield)}</span>
               </div>
             ))
-          : CORP_FALLBACK_ETFS.map(e => <DpEtfBondRow key={e.sym} sym={e.sym} name={e.name} />)}
+          : CORP_FALLBACK_ETFS.map(e => {
+              const q = px[e.sym];
+              const chg = q?.chg;
+              return (
+                <div className="dp-bond-row" key={e.sym}>
+                  <span className="dp-bond-sym">{e.sym}</span>
+                  <span className="dp-bond-name">{e.name}</span>
+                  <span className="dp-bond-px">{q?.price != null ? Number(q.price).toFixed(2) : '\u2014'}</span>
+                  <span className="dp-bond-chg" style={{ color: chg == null ? 'var(--text-faint)' : chg >= 0 ? 'var(--color-up)' : 'var(--color-down)' }}>
+                    {chg != null ? `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%` : '\u2014'}
+                  </span>
+                </div>
+              );
+            })}
       </div>
     </div>
   );
