@@ -76,15 +76,22 @@ export default function PanelConfigModal({
       setDraggedItem(null);
       return;
     }
-    const dragIdx = selected.indexOf(draggedItem);
-    const targetIdx = selected.indexOf(targetSym);
-    if (dragIdx !== -1 && targetIdx !== -1) {
-      const newSelected = [...selected];
-      [newSelected[dragIdx], newSelected[targetIdx]] = [newSelected[targetIdx], newSelected[dragIdx]];
-      setSelected(newSelected);
-    }
+    // MOVE the dragged item to the target slot (splice out + insert), shifting
+    // the rest — a true reorder. The old code SWAPPED the two rows, which made
+    // dragging feel broken (dropping row 1 on row 15 just traded the two,
+    // leaving everything between untouched).
+    setSelected(prev => {
+      const from = prev.indexOf(draggedItem);
+      const to = prev.indexOf(targetSym);
+      if (from === -1 || to === -1) return prev;
+      const next = [...prev];
+      next.splice(from, 1);
+      next.splice(to, 0, draggedItem);
+      return next;
+    });
     setDraggedItem(null);
   };
+  const handleDragEnd = () => setDraggedItem(null);
 
   const moveUp = (sym) => {
     const idx = selected.indexOf(sym);
@@ -212,6 +219,7 @@ export default function PanelConfigModal({
                   onDragStart={(e) => handleDragStart(e, sym)}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, sym)}
+                  onDragEnd={handleDragEnd}
                   className={`pcm-item pcm-item-selected pcm-item-dragging`}
                   style={{
                     opacity: draggedItem === sym ? 0.5 : 1,
