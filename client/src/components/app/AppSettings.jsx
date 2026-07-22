@@ -9,6 +9,7 @@ import UserAvatar from '../common/UserAvatar';
 // importing it statically here dragged it into the eager index chunk.
 import { VaultPanel } from '../../lazyPanels';
 import { FeedbackLink } from '../common/FeedbackButton';
+import FeedbackInbox from './FeedbackInbox';
 
 // ── Settings Drawer Constants ────────────────────────────────────────────────
 // Settings surfaces toggleable grid panels only — NOT sector screens.
@@ -188,6 +189,9 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
+
+      {/* Admin-only: user feedback inbox (self-hides for non-admins) */}
+      <FeedbackInbox />
 
       {/* ── Default Start Tab (mobile-only — desktop uses grid layout) ── */}
       {showStartTab && (

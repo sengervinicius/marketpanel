@@ -5,6 +5,7 @@
  */
 import { useState, useCallback, useEffect, useMemo, memo } from 'react';
 import { useAIInsight } from '../../hooks/useAIInsight';
+import { apiFetch } from '../../utils/api';
 import './MacroPanel.css';
 
 const shimmerStyle = `
@@ -48,7 +49,7 @@ function MacroPanel() {
 
   // Fetch available countries on mount
   useEffect(() => {
-    fetch('/api/macro/countries')
+    apiFetch('/api/macro/countries')
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (d?.ok && d.data?.countries) {
@@ -64,7 +65,7 @@ function MacroPanel() {
     setError(null);
     try {
       const indicators = INDICATORS.map(i => i.key).join(',');
-      const res = await fetch(`/api/macro/compare?countries=${selected.join(',')}&indicators=${indicators}`);
+      const res = await apiFetch(`/api/macro/compare?countries=${selected.join(',')}&indicators=${indicators}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = await res.json();
       if (d.ok) {
