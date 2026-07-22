@@ -32,7 +32,7 @@ const EXCHANGES = ['US', 'BR'];
 const REFRESH_MS = 60_000;
 const LIMIT = 20;
 
-function MoversPanel({ onTickerClick }) {
+function MoversPanel({ onTickerClick, embedded = false }) {
   const openDetail = useOpenDetail();
   const { getBadge } = useFeedStatus();
   const [tab, setTab]           = useState('gainers');
@@ -86,30 +86,40 @@ function MoversPanel({ onTickerClick }) {
 
   const badge = getBadge('stocks');
 
+  const exchToggle = (
+    <div className="mv-exch-toggle">
+      {EXCHANGES.map(ex => (
+        <button
+          key={ex}
+          type="button"
+          className={`mv-exch-btn${exchange === ex ? ' mv-exch-btn--active' : ''}`}
+          onClick={() => setExchange(ex)}
+        >{ex}</button>
+      ))}
+    </div>
+  );
+
   return (
     <div className="mv-panel">
-      <PanelChrome
-        title="MOVERS"
-        subtitle={exchange === 'US'
-          // Data-quality: server pre-filters the ranking universe; the
-          // tooltip documents it without cluttering the chrome.
-          ? <span title={"Filtered universe: \u2265$5 \u00b7 \u2265$50M traded ($100M actives)"}>POLYGON &middot; US EQUITIES</span>
-          : <span title={"Curated B3 universe \u00b7 price \u2265 R$1"}>YAHOO &middot; B3</span>}
-        badge={<span className="panel-chrome-badge" style={{ color: badge.color, background: badge.bg }}>{badge.text}</span>}
-        timestamp={loading ? 'LOADING…' : error ? 'ERR' : updatedAt}
-        actions={
-          <div className="mv-exch-toggle">
-            {EXCHANGES.map(ex => (
-              <button
-                key={ex}
-                type="button"
-                className={`mv-exch-btn${exchange === ex ? ' mv-exch-btn--active' : ''}`}
-                onClick={() => setExchange(ex)}
-              >{ex}</button>
-            ))}
-          </div>
-        }
-      />
+      {embedded ? (
+        <div className="mpp-subhead">
+          <span className="mpp-subhead-label">MOVERS</span>
+          <span className="mpp-subhead-meta">
+            <span className="mpp-subhead-src">{exchange === 'US' ? 'POLYGON \u00b7 US' : 'YAHOO \u00b7 B3'}</span>
+            {exchToggle}
+          </span>
+        </div>
+      ) : (
+        <PanelChrome
+          title="MOVERS"
+          subtitle={exchange === 'US'
+            ? <span title={"Filtered universe: \u2265$5 \u00b7 \u2265$50M traded ($100M actives)"}>POLYGON &middot; US EQUITIES</span>
+            : <span title={"Curated B3 universe \u00b7 price \u2265 R$1"}>YAHOO &middot; B3</span>}
+          badge={<span className="panel-chrome-badge" style={{ color: badge.color, background: badge.bg }}>{badge.text}</span>}
+          timestamp={loading ? 'LOADING\u2026' : error ? 'ERR' : updatedAt}
+          actions={exchToggle}
+        />
+      )}
 
       <PanelTabRow value={tab} onChange={setTab} items={TABS} equal />
 

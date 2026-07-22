@@ -347,4 +347,21 @@ export const INSTRUMENTS = [
   { symbolKey: 'US30Y', name: 'US 30Y Treasury',   assetClass: 'fixed_income', group: 'US Yields' },
   { symbolKey: 'BR10Y', name: 'Brazil 10Y',        assetClass: 'fixed_income', group: 'EM Yields' },
   { symbolKey: 'DE10Y', name: 'Germany 10Y Bund',  assetClass: 'fixed_income', group: 'EU Yields' },
+  // Bond & credit ETFs — priced via Polygon like any US ETF, so users can build
+  // a "Bonds" panel: rename an editable box and add these from the config modal.
+  { symbolKey: 'AGG',   name: 'iShares Core US Aggregate Bond',   assetClass: 'equity', group: 'Bond & Credit ETFs' },
+  { symbolKey: 'BND',   name: 'Vanguard Total Bond Market',       assetClass: 'equity', group: 'Bond & Credit ETFs' },
+  { symbolKey: 'BNDX',  name: 'Vanguard Total Intl Bond',         assetClass: 'equity', group: 'Bond & Credit ETFs' },
+  { symbolKey: 'TLT',   name: 'iShares 20+ Yr Treasury',          assetClass: 'equity', group: 'Bond & Credit ETFs' },
+  { symbolKey: 'IEF',   name: 'iShares 7-10 Yr Treasury',         assetClass: 'equity', group: 'Bond & Credit ETFs' },
+  { symbolKey: 'SHY',   name: 'iShares 1-3 Yr Treasury',          assetClass: 'equity', group: 'Bond & Credit ETFs' },
+  { symbolKey: 'TIP',   name: 'iShares TIPS (Inflation)',         assetClass: 'equity', group: 'Bond & Credit ETFs' },
+  { symbolKey: 'LQD',   name: 'iShares IG Corporate Bond',        assetClass: 'equity', group: 'Bond & Credit ETFs' },
+  { symbolKey: 'VCIT',  name: 'Vanguard Interm-Term Corp',        assetClass: 'equity', group: 'Bond & Credit ETFs' },
+  { symbolKey: 'HYG',   name: 'iShares High Yield Corp',          assetClass: 'equity', group: 'Bond & Credit ETFs' },
+  { symbolKey: 'JNK',   name: 'SPDR High Yield Bond',             assetClass: 'equity', group: 'Bond & Credit ETFs' },
+  { symbolKey: 'EMB',   name: 'iShares EM USD Sovereign Bond',    assetClass: 'equity', group: 'Bond & Credit ETFs' },
+  { symbolKey: 'MUB',   name: 'iShares National Muni Bond',       assetClass: 'equity', group: 'Bond & Credit ETFs' },
+  { symbolKey: 'MBB',   name: 'iShares MBS (Mortgage)',           assetClass: 'equity', group: 'Bond & Credit ETFs' },
+  { symbolKey: 'BKLN',  name: 'Invesco Senior Loan (Floating)',   assetClass: 'equity', group: 'Bond & Credit ETFs' },
 ];

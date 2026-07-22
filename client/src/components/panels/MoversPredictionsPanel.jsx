@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../../utils/api';
 import MoversPanel from './MoversPanel';
+import PanelChrome from '../common/PanelChrome';
 import './MoversPredictionsPanel.css';
 
 const SAFE_HOSTS = new Set(['polymarket.com', 'www.polymarket.com', 'kalshi.com', 'www.kalshi.com']);
@@ -55,9 +56,11 @@ function PredictionsMini() {
   }, []);
   return (
     <div className="mpp-pred">
-      <div className="mpp-pred-head">
-        <span>PREDICTIONS</span>
-        <span className="mpp-pred-sub">MARKET · POLYMARKET · KALSHI</span>
+      <div className="mpp-subhead">
+        <span className="mpp-subhead-label">PREDICTIONS</span>
+        <span className="mpp-subhead-meta">
+          <span className="mpp-subhead-src">POLYMARKET · KALSHI</span>
+        </span>
       </div>
       <div className="mpp-pred-list">
         {state === 'loading' && <div className="mpp-pred-empty">…</div>}
@@ -72,7 +75,8 @@ function PredictionsMini() {
 export default function MoversPredictionsPanel({ onTickerClick }) {
   return (
     <div className="mpp">
-      <div className="mpp-movers"><MoversPanel onTickerClick={onTickerClick} /></div>
+      <PanelChrome title="MOVERS & PREDICTIONS" subtitle="LIVE MOVERS + PREDICTION ODDS" />
+      <div className="mpp-movers"><MoversPanel embedded onTickerClick={onTickerClick} /></div>
       <PredictionsMini />
     </div>
   );

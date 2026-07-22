@@ -1,10 +1,11 @@
 .mpp { display:flex; flex-direction:column; height:100%; min-height:0; }
+.mpp-subhead { display:flex; align-items:center; justify-content:space-between; padding:5px 10px; flex:none; border-bottom:1px solid var(--line,#1e1e1e); background:var(--bg-elevated,#161616); }
+.mpp-subhead-label { font-size:10px; font-weight:700; letter-spacing:.14em; color:var(--text-secondary,#c9c9c9); text-transform:uppercase; }
+.mpp-subhead-meta { display:flex; align-items:center; gap:8px; }
+.mpp-subhead-src { font-size:8px; letter-spacing:.1em; color:var(--dim,#5c5c5c); text-transform:uppercase; white-space:nowrap; }
 .mpp-movers { flex:1.35; min-height:0; overflow:hidden; display:flex; flex-direction:column; border-bottom:1px solid var(--line,#262626); }
 .mpp-movers > * { flex:1; min-height:0; }
 .mpp-pred { flex:1; min-height:0; display:flex; flex-direction:column; background:var(--bg-elevated,#161616); }
-.mpp-pred-head { display:flex; align-items:baseline; justify-content:space-between; padding:6px 10px 4px; flex:none; }
-.mpp-pred-head > span:first-child { font-size:10px; font-weight:800; letter-spacing:.12em; color:var(--accent,#e55a00); }
-.mpp-pred-sub { font-size:8px; letter-spacing:.1em; color:var(--dim,#5c5c5c); }
 .mpp-pred-list { flex:1; min-height:0; overflow-y:auto; }
 .mpp-pred-list::-webkit-scrollbar { width:0; }
 .mpp-prow { display:grid; grid-template-columns:1fr 40px 44px; align-items:center; gap:8px; padding:5px 10px; border-bottom:1px solid var(--line,#1e1e1e); font-size:11px; }
