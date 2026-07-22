@@ -181,10 +181,16 @@ function BriefPanel({ onTickerClick }) {
     }
   }, [emailOptIn, emailBusy]);
 
-  // FEAT-5: open the popover with drafts seeded from persisted settings
-  // (email prefilled with the account email — username IS the email).
+  // FEAT-5: open the popover with drafts seeded from persisted settings.
+  // Only seed a REAL email — some accounts are username-only (username is
+  // NOT an email), so falling back to it produced an invalid address that
+  // silently failed validation on save. Blank forces a valid entry.
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   const openEmailSettings = useCallback(() => {
-    setDraftEmail(settings?.briefEmail || user?.username || '');
+    const seed = settings?.briefEmail
+      || (EMAIL_RE.test(user?.email || '') ? user.email : '')
+      || (EMAIL_RE.test(user?.username || '') ? user.username : '');
+    setDraftEmail(seed);
     setDraftTime(/^([01]?\d|2[0-3]):[0-5]\d$/.test(settings?.briefTime || '') ? settings.briefTime : '07:30');
     setDraftTz(settings?.briefTz || 'America/Sao_Paulo');
     setSaveState(null);
@@ -270,7 +276,7 @@ function BriefPanel({ onTickerClick }) {
               className="bp-email-input"
               value={draftEmail}
               onChange={(e) => { setDraftEmail(e.target.value); setSaveState(null); }}
-              placeholder={user?.username || 'you@example.com'}
+              placeholder={'you@example.com'}
               spellCheck={false}
             />
           </label>
