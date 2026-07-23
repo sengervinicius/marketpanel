@@ -130,7 +130,7 @@ export default function EditablePanelHeader({
           } else {
             onConfigOpen();
           }
-        }} title="Configure panel sections"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>)}
+        }} title="Edit this box — tickers, sections & title"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg><span className="eph-edit-label">EDIT</span></button>)}
         {feedBadge && (<span className="eph-badge" style={{ background: feedBadge.bg, color: feedBadge.color, border: `1px solid ${feedBadge.color}33` }}>{feedBadge.text}</span>)}
         {lastUpdated && (
           <FreshnessDot updatedAt={lastUpdated} source={source} />

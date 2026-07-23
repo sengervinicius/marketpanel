@@ -12,6 +12,8 @@ import { useSettings } from '../../context/SettingsContext';
 import { useOpenDetail } from '../../context/OpenDetailContext';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import PanelConfigModal from '../common/PanelConfigModal';
+import CountryOverview, { COUNTRY_OPTIONS } from './CountryOverview';
+import './CountryOverview.css';
 import EditablePanelHeader from '../common/EditablePanelHeader';
 import PanelShell from '../common/PanelShell';
 import { PriceRow } from '../common/PriceRow';
@@ -464,6 +466,7 @@ function BrazilPanel({ onTickerClick }) {
   };
   const panelTitle   = panelCfg.title   || 'Brazil B3';
   const panelSymbols = panelCfg.symbols || [];
+  const country = panelCfg.country || 'BR';
 
   // Snapshot from server — used to seed names and initial prices.
   // PriceRow handles live updates via PriceContext's ticker prop.
@@ -628,6 +631,23 @@ function BrazilPanel({ onTickerClick }) {
     ? <span style={{ color: 'var(--price-down)', fontSize: 'var(--font-xs)' }}>{error}</span>
     : lastUpdate && <span style={{ color: 'var(--text-faint)', fontSize: 'var(--font-xs)' }}>{lastUpdate.toLocaleTimeString()}</span>;
 
+  const countrySelect = (
+    <select
+      className="co-country-select"
+      value={country}
+      onChange={(e) => updatePanelConfig('brazilB3', { ...panelCfg, country: e.target.value })}
+      title="Choose the country shown in this box"
+    >
+      {COUNTRY_OPTIONS.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+    </select>
+  );
+
+  // In-Depth Country Box: Brazil keeps its bespoke rich panel; any other
+  // country renders the self-contained CountryOverview (Brazil path untouched).
+  if (country !== 'BR') {
+    return <CountryOverview country={country} countrySelect={countrySelect} onTickerClick={onTickerClick} />;
+  }
+
   return (
     <PanelShell onDropTicker={handleDropTicker}>
       {/* Header */}
@@ -642,6 +662,7 @@ function BrazilPanel({ onTickerClick }) {
         lastUpdated={lastUpdated}
         source="Yahoo/BCB"
       >
+        {countrySelect}
         {/* Phase S W1 item 3 — section visibility chips (persisted) */}
         <button className="btn" style={brChipStyle(brSections.b3)} onClick={() => toggleBrSection('b3')} title="Show/hide the B3 names section">B3</button>
         <button className="btn" style={brChipStyle(brSections.fii)} onClick={() => toggleBrSection('fii')} title="Show/hide the FIIs section">FIIs</button>

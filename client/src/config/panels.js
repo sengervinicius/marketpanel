@@ -47,7 +47,7 @@ export const PANEL_DEFINITIONS = {
   },
   brazilB3: {
     id:             'brazilB3',
-    label:          'Brazil B3',
+    label:          'In-Depth Country',
     defaultTitle:   'Brazil B3',
     defaultSymbols: ['VALE3.SA','PETR4.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','WEGE3.SA','RENT3.SA','B3SA3.SA','MGLU3.SA','BBAS3.SA','GGBR4.SA','SUZB3.SA'],
     allowedGroups:  ['Brazil B3'],

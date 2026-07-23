@@ -70,16 +70,22 @@
 }
 
 .eph-icon-btn {
-  background: none;
-  border: none;
-  color: var(--text-faint);
-  font-size: 9px;
-  padding: 0 2px;
+  background: var(--bg-surface, rgba(255,255,255,0.04));
+  border: 1px solid var(--border-strong, #3a3a3a);
+  color: var(--text-muted);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  padding: 1px 5px 1px 4px;
+  margin-left: 4px;
+  border-radius: 3px;
   line-height: 1;
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  gap: 3px;
   cursor: pointer;
 }
+.eph-icon-btn:hover { color: var(--accent); border-color: var(--accent); }
+.eph-edit-label { font-weight: 700; }
 
 .eph-badge {
   font-size: 8.5px;

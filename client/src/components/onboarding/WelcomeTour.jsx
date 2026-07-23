@@ -103,10 +103,10 @@ const SCENES = [
   },
   {
     id: 'panels',
-    duration: 8500,
+    duration: 9500,
     eyebrow: 'YOUR WORKSPACE',
-    title: 'Drag anywhere. Resize anything.',
-    caption: 'Every panel is yours. Drag tickers between panels, reshape the grid, click any name for a full instrument view.',
+    title: 'Make every box yours',
+    caption: 'Hit the EDIT button in any box header to rename it and pick your own tickers — the defaults are just suggestions. FX, Commodities and US Equities are fully editable, and the In-Depth Country box lets you choose which country you follow (Brazil by default). Drag, resize, and click any name for a full instrument view.',
   },
   {
     id: 'overlays',
