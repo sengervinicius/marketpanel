@@ -1,24 +1,24 @@
-# Senger Market — App Store Metadata
+# The Particle — App Store Metadata
 
 ## App Store Connect Fields
 
 ### App Name
-Senger Market
+The Particle
 
 ### Subtitle (30 chars max)
-Real-Time Financial Terminal
+Multi-asset market terminal
 
 ### Bundle ID
-com.senger.market
+com.the-particle.app
 
 ### SKU
-senger-market-001
+the-particle-001
 
 ### Primary Category
 Finance
 
 ### Secondary Category
-Business
+News
 
 ### Age Rating
 4+ (No objectionable content)
@@ -30,88 +30,51 @@ Free (with in-app purchases)
 
 ## Description (4000 chars max)
 
-Senger Market is a Bloomberg-style financial data terminal built for modern investors. Track real-time prices across global equities, forex, crypto, commodities, and fixed income — all in a single, fast, dark-themed interface.
-
-KEY FEATURES
-
-Real-Time Market Data
-Stream live prices from US equities, Brazil B3, global indexes, forex pairs, crypto, and commodities. All data updates in real time with color-coded price movements.
-
-Interactive Charts
-Full-featured chart panels with multiple timeframes, crosshair cursor, and support for any tradeable instrument. Compare multiple symbols side by side.
-
-Portfolio Tracking
-Build and monitor your portfolio with real-time P&L calculations, daily change tracking, allocation breakdowns, and customizable sort and filter options.
-
-Smart Price Alerts
-Set price alerts on any instrument. Get notified when your targets hit. Filter by active, triggered, or all alerts with quick badge indicators.
-
-Market News Feed
-Stay informed with real-time financial news aggregated from Bloomberg, Financial Times, and other major sources.
-
-Customizable Terminal Layout
-Choose from preset workspaces (Brazil Focus, Global Markets, Debt & Fixed Income, Crypto, Commodities) or build your own custom layout.
-
-Debt Market Analysis
-Yield curves, credit spreads, and rate-sensitive data with interactive curve visualization for US Treasuries and other sovereign debt.
-
-ETF Screener
-Search and filter Exchange Traded Funds by category, performance, and holdings.
-
-Senger Market is designed for professional traders, active investors, and anyone who needs fast access to comprehensive market data across all major asset classes.
+The Particle is a professional multi-asset terminal that puts institutional-grade markets in your pocket, streaming live equities, FX, commodities, and rates in a single fast, dark interface. Particle AI answers your research questions in natural language, surfacing the moves that matter and explaining the why behind the tape. A built-in document Vault lets you drop in filings, decks, and notes, then ask questions and get answers with inline citations back to the source. Every morning The Particle delivers a concise daily brief so you walk into the open already knowing what changed overnight and what to watch.
 
 ---
 
 ## Keywords (100 chars max, comma-separated)
 
-stocks,finance,market,trading,portfolio,crypto,forex,bloomberg,terminal,alerts
+markets,finance,terminal,stocks,forex,commodities,rates,CIO,research,portfolio,news,trading,AI
 
 ---
 
 ## Promotional Text (170 chars max)
 
-Track global markets in real time — equities, crypto, forex, commodities, and fixed income. Professional terminal experience on your phone.
+Live equities, FX, commodities, and rates — plus Particle AI research, a cited document Vault, and a daily brief. Your multi-asset terminal, anywhere.
 
 ---
 
 ## Support URL
-https://senger-client.onrender.com/privacy.html
+https://the-particle.com
 
 ## Marketing URL
-https://senger-client.onrender.com
+https://the-particle.com
 
 ## Privacy Policy URL
-https://senger-client.onrender.com/privacy.html
+https://the-particle.com/privacy
 
 ---
 
-## What's New (for first release)
+## Subscriptions
 
-Welcome to Senger Market! Your professional financial terminal is now available on iOS. Track real-time prices, manage your portfolio, set price alerts, and access market news — all in one app.
+Three subscription tiers are offered via Apple In-App Purchase (auto-renewing):
 
----
-
-## Screenshot Captions
-
-### iPhone 6.7" / 6.5"
-1. "Real-time market data across all asset classes"
-2. "Interactive charts with multiple timeframes"
-3. "Portfolio tracking with P&L analysis"
-4. "Smart price alerts keep you informed"
-5. "Customizable terminal workspaces"
-
-### iPad 12.9"
-1. "Full Bloomberg-style terminal experience on iPad"
-2. "Multi-panel layout with live data"
-3. "Debt market yield curves and spreads"
+| Tier | Product ID | Price |
+| --- | --- | --- |
+| New Particle (monthly) | com.the-particle.app.new.monthly | $29 |
+| New Particle (annual) | com.the-particle.app.new.annual | $290 |
+| Dark Particle (monthly) | com.the-particle.app.dark.monthly | $79 |
+| Dark Particle (annual) | com.the-particle.app.dark.annual | $790 |
+| Nuclear (monthly) | com.the-particle.app.nuclear.monthly | $199 |
+| Nuclear (annual) | com.the-particle.app.nuclear.annual | $1990 |
 
 ---
 
 ## App Store Review Notes
 
-This app displays real-time financial market data for informational purposes only. It is not investment advice. The app uses Stripe for web-based subscription billing. iOS users will be offered in-app purchase subscriptions through Apple's StoreKit.
-
-Test account credentials will be provided in the review notes field during submission.
+The Particle displays real-time financial market data for informational purposes only. It is not investment advice. Subscriptions are offered through Apple's StoreKit in-app purchases. Test account credentials will be provided in the review notes field during submission.
 
 ---
 

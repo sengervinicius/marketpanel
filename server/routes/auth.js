@@ -359,8 +359,9 @@ router.post('/apple', authLimiter, async (req, res) => {
 
     let payload;
     try {
+      const APPLE_AUDIENCES = APPLE_CLIENT_ID.split(',').map(s => s.trim()).filter(Boolean);
       payload = await appleSignin.verifyIdToken(identityToken, {
-        audience: APPLE_CLIENT_ID,
+        audience: APPLE_AUDIENCES.length > 1 ? APPLE_AUDIENCES : APPLE_AUDIENCES[0],
         ignoreExpiration: false,
       });
     } catch (verifyErr) {

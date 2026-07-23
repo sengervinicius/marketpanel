@@ -1,6 +1,6 @@
 {
-  "appId": "com.senger.market",
-  "appName": "Senger",
+  "appId": "com.the-particle.app",
+  "appName": "The Particle",
   "webDir": "dist",
   "backgroundColor": "#0a0a0f",
   "ios": {

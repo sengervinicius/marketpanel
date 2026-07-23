@@ -1,0 +1,37 @@
+workflows:
+  ios-release:
+    name: Particle iOS Release
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: "26"
+      node: "20"
+      vars:
+        BUNDLE_ID: "com.the-particle.app"
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: "com.the-particle.app"
+    integrations:
+      app_store_connect: CodemagicASCKey
+    scripts:
+      - name: Install deps & build web
+        script: |
+          cd client && npm ci && npm run build
+      - name: Capacitor sync iOS
+        script: |
+          cd client && npx cap sync ios
+      - name: Set build number
+        script: |
+          cd client/ios/App
+          agvtool new-version -all $(($BUILD_NUMBER))
+      - name: Build & sign IPA
+        script: |
+          cd client/ios/App
+          xcode-project use-profiles
+          xcode-project build-ipa --workspace App.xcworkspace --scheme App
+    artifacts:
+      - client/ios/App/build/ios/ipa/*.ipa
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
