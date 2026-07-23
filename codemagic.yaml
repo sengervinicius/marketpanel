@@ -21,7 +21,18 @@ workflows:
       - name: Set up code signing (fetch/create App Store cert + profile)
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "com.the-particle.app" --type IOS_APP_STORE --create
+          # App Store Connect needs a signing private key to create/save the distribution
+          # certificate. Use a persisted CERTIFICATE_PRIVATE_KEY if provided; otherwise
+          # generate an ephemeral RSA key for this build.
+          if [ -z "$CERTIFICATE_PRIVATE_KEY" ]; then
+            echo "No CERTIFICATE_PRIVATE_KEY set - generating an ephemeral RSA key for this build"
+            openssl genrsa -out /tmp/cm_cert_key.pem 2048
+            export CERTIFICATE_PRIVATE_KEY="$(cat /tmp/cm_cert_key.pem)"
+          fi
+          app-store-connect fetch-signing-files "com.the-particle.app" \
+            --type IOS_APP_STORE \
+            --certificate-key="$CERTIFICATE_PRIVATE_KEY" \
+            --create
           keychain add-certificates
           xcode-project use-profiles
       - name: Set build number
