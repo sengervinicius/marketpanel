@@ -30,15 +30,15 @@ const briefCalls = [];
 const sent = [];
 
 const USERS = [
-  { id: 1, email: 'optin@x.com',    settings: { dailyBriefEmail: true } },
+  { id: 1, email: 'optin@x.com',    settings: { dailyBriefEmail: true, briefTime: '07:30', briefTz: 'UTC' } },
   { id: 2, email: 'optout@x.com',   settings: { dailyBriefEmail: false } },
   { id: 3, email: 'nosetting@x.com', settings: {} },
   { id: 4, email: null,             settings: { dailyBriefEmail: true } },   // no address
-  { id: 5, email: 'boom@x.com',     settings: { dailyBriefEmail: true } },   // engine throws
-  { id: 6, email: 'empty@x.com',    settings: { dailyBriefEmail: true } },   // empty brief
+  { id: 5, email: 'boom@x.com',     settings: { dailyBriefEmail: true, briefTime: '07:30', briefTz: 'UTC' } },   // engine throws
+  { id: 6, email: 'empty@x.com',    settings: { dailyBriefEmail: true, briefTime: '07:30', briefTz: 'UTC' } },   // empty brief
 ];
 
-stubModule('authStore', { listAllUsers: () => USERS });
+stubModule('authStore', { listAllUsers: () => USERS, mergeSettings: async () => {} });
 
 stubModule('services/briefEngine', {
   getBrief: async (userId) => {
@@ -61,12 +61,13 @@ stubModule('services/emailService', {
 });
 
 const { runOnce, dateLabelBRT } = require('../dailyBriefEmail');
+const NOW = new Date('2026-01-05T07:35:00Z'); // Monday, inside the 07:30 UTC send window
 
 test('only opted-in users with an email address are processed', async () => {
   briefCalls.length = 0;
   sent.length = 0;
 
-  const result = await runOnce();
+  const result = await runOnce(NOW);
 
   // Users 2 (opt-out), 3 (no setting), 4 (no email) never reach the engine.
   assert.deepEqual(briefCalls.sort(), [1, 5, 6],
@@ -77,13 +78,13 @@ test('only opted-in users with an email address are processed', async () => {
   assert.match(sent[0].subject, /3 of 12 names active/);
 
   // 5 errored, 6 skipped (empty brief), 1 sent — and the sweep survived.
-  assert.deepEqual(result, { sent: 1, skipped: 1, errored: 1 });
+  assert.deepEqual(result, { sent: 1, skipped: 1, errored: 1, notDue: 0 });
 });
 
 test('a throwing engine on one user does not block later users', async () => {
   briefCalls.length = 0;
   sent.length = 0;
-  await runOnce();
+  await runOnce(NOW);
   assert.ok(briefCalls.includes(6), 'user 6 still processed after user 5 threw');
 });
 

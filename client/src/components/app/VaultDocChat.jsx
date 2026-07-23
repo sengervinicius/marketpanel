@@ -113,12 +113,12 @@ export default function VaultDocChat({ documentId, filename, onClose }) {
     } catch (err) {
       // Unmount/abort: stop quietly — no error bubble, no setState churn.
       if (err?.name === 'AbortError') return;
-      setError(err.message);
+      setError('Something went wrong answering that — please try again in a moment.');
       setMessages(prev => [
         ...prev,
         {
           role: 'assistant',
-          content: `Error: ${err.message}`,
+          content: 'Something went wrong answering that — please try again in a moment.',
           isError: true,
         },
       ]);

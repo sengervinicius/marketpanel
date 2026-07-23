@@ -17,14 +17,31 @@ const US_OPEN = 570;             // 9:30 AM
 const US_CLOSE = 960;            // 4:00 PM
 const US_AFTERHOURS_END = 1200;  // 8:00 PM
 
+// Exchange holidays by timezone (full closes). Major US (NYSE) + Brazil (B3)
+// 2026 — prevents showing "OPEN" on a market holiday. Other venues fall back
+// to weekend-only; extend as needed.
+const HOLIDAYS = {
+  'America/New_York': new Set([
+    '2026-01-01','2026-01-19','2026-02-16','2026-04-03','2026-05-25',
+    '2026-06-19','2026-07-03','2026-09-07','2026-11-26','2026-12-25',
+  ]),
+  'America/Sao_Paulo': new Set([
+    '2026-01-01','2026-02-16','2026-02-17','2026-04-03','2026-04-21',
+    '2026-05-01','2026-06-04','2026-09-07','2026-10-12','2026-11-02',
+    '2026-11-20','2026-12-25','2026-12-31',
+  ]),
+};
+function isHoliday(tz, date) { const s = HOLIDAYS[tz]; return !!(s && date && s.has(date)); }
+
 function getExchangeMinutes(tz) {
   try {
     const now = new Date();
     const h = parseInt(now.toLocaleString('en-US', { timeZone: tz, hour: 'numeric', hour12: false }), 10);
     const m = parseInt(now.toLocaleString('en-US', { timeZone: tz, minute: 'numeric' }), 10);
     const dayStr = now.toLocaleDateString('en-US', { timeZone: tz, weekday: 'short' });
+    const date = now.toLocaleDateString('en-CA', { timeZone: tz }); // YYYY-MM-DD in tz
     if (isNaN(h) || isNaN(m)) return null;
-    return { mins: h * 60 + m, isWeekday: dayStr !== 'Sat' && dayStr !== 'Sun' };
+    return { mins: h * 60 + m, isWeekday: dayStr !== 'Sat' && dayStr !== 'Sun', date };
   } catch {
     return null;
   }
@@ -32,7 +49,7 @@ function getExchangeMinutes(tz) {
 
 function isExchangeOpen(tz, openMin, closeMin) {
   const t = getExchangeMinutes(tz);
-  if (!t || !t.isWeekday) return false;
+  if (!t || !t.isWeekday || isHoliday(tz, t.date)) return false;
   return t.mins >= openMin && t.mins < closeMin;
 }
 
@@ -49,7 +66,7 @@ function getSmartMarketState() {
     const t = getExchangeMinutes(ex.tz);
     if (!t) return { ...ex, isOpen: false, minsToOpen: Infinity, minsToClose: 0, tzDiff: Infinity };
 
-    const isOpen = t.isWeekday && t.mins >= ex.open && t.mins < ex.close;
+    const isOpen = t.isWeekday && !isHoliday(ex.tz, t.date) && t.mins >= ex.open && t.mins < ex.close;
     const minsToClose = isOpen ? ex.close - t.mins : 0;
     const minsToOpen = (!isOpen && t.isWeekday && t.mins < ex.open) ? ex.open - t.mins : Infinity;
 

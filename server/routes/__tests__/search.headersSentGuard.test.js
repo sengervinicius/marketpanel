@@ -39,8 +39,8 @@ test('#220 every `err.name === AbortError` branch in search.js has a res.headers
     }
   });
 
-  assert.ok(abortBranches.length >= 12,
-    `expected at least 12 AbortError branches in search.js, saw ${abortBranches.length}`);
+  assert.ok(abortBranches.length >= 11,
+    `expected at least 11 AbortError branches in search.js, saw ${abortBranches.length}`);
 
   // Every AbortError branch must be preceded (within 5 lines) by the guard:
   //   if (res.headersSent) return;

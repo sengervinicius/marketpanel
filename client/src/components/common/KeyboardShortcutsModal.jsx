@@ -5,7 +5,6 @@ const SHORTCUTS = [
   { key: 'Cmd/Ctrl + K', description: 'Open AI Chat' },
   { key: '/', description: 'Focus Search' },
   { key: 'Esc', description: 'Close panel / Go back' },
-  { key: 'Cmd/Ctrl + 1-9', description: 'Switch sector screens' },
   { key: '?', description: 'Show keyboard shortcuts' },
 ];
 
