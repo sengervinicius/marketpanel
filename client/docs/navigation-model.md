@@ -1,6 +1,6 @@
 # Navigation Model — Phase S3.A
 
-This document defines how users reach different surfaces and data in the Senger Market Terminal after Phase S3.A (Search & Navigation as First-Class Citizens).
+This document defines how users reach different surfaces and data in the The Particle Terminal after Phase S3.A (Search & Navigation as First-Class Citizens).
 
 ## Desktop Surfaces
 

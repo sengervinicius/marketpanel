@@ -1,6 +1,6 @@
 # AI Components & Hooks
 
-Unified AI integration layer for the Senger Market Terminal.
+Unified AI integration layer for the The Particle Terminal.
 
 ## Quick Start
 
