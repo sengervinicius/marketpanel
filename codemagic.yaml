@@ -8,9 +8,6 @@ workflows:
       node: "20"
       vars:
         BUNDLE_ID: "com.the-particle.app"
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: "com.the-particle.app"
     integrations:
       app_store_connect: CodemagicASCKey
     scripts:
