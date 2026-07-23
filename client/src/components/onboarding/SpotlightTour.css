@@ -1,0 +1,36 @@
+.st-root { position: fixed; inset: 0; z-index: 100000; pointer-events: auto; font-family: var(--font-ui, system-ui); }
+.st-hole {
+  position: fixed;
+  border-radius: 6px;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.74);
+  border: 1.6px solid var(--accent, #e55a00);
+  pointer-events: none;
+  transition: top .28s ease, left .28s ease, width .28s ease, height .28s ease;
+}
+.st-dim-full { position: fixed; inset: 0; background: rgba(0,0,0,0.74); pointer-events: none; }
+
+.st-card {
+  position: fixed;
+  z-index: 2;
+  background: var(--bg-panel, #121212);
+  border: 1px solid var(--border-strong, #3a3a3a);
+  border-radius: 9px;
+  padding: 15px 16px 11px;
+  box-shadow: 0 14px 48px rgba(0,0,0,0.65);
+  transition: top .28s ease, left .28s ease;
+}
+.st-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; color: var(--accent, #e55a00); margin-bottom: 5px; }
+.st-title { font-size: 16px; font-weight: 600; color: var(--text-primary, #f2f2f2); line-height: 1.2; margin-bottom: 7px; }
+.st-body { font-size: 12px; line-height: 1.5; color: var(--text-secondary, #c4c4c4); }
+.st-progress { display: flex; gap: 4px; margin: 12px 0 10px; flex-wrap: wrap; }
+.st-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--border-strong, #3a3a3a); transition: background .2s, width .2s; }
+.st-dot--on { background: var(--accent, #e55a00); width: 14px; border-radius: 3px; }
+.st-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.st-nav { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.st-skip { background: none; border: none; color: var(--text-faint, #6a6a6a); font-size: 11px; cursor: pointer; padding: 4px 2px; }
+.st-skip:hover { color: var(--text-muted, #999); }
+.st-back { background: none; border: 1px solid var(--border-strong, #3a3a3a); color: var(--text-muted, #aaa); font-size: 11px; padding: 4px 12px; border-radius: 5px; cursor: pointer; }
+.st-back:hover { border-color: var(--text-muted, #888); }
+.st-next { background: var(--accent, #e55a00); border: 1px solid var(--accent, #e55a00); color: #fff; font-size: 11px; font-weight: 600; padding: 4px 14px; border-radius: 5px; cursor: pointer; }
+.st-next:hover { filter: brightness(1.08); }
+.st-count { position: absolute; top: 14px; right: 16px; font-size: 9px; color: var(--text-faint, #6a6a6a); font-variant-numeric: tabular-nums; }

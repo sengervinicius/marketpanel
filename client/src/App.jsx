@@ -1,3 +1,4 @@
+import SpotlightTour from './components/onboarding/SpotlightTour';
 import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 
 import { apiFetch } from './utils/api';
@@ -786,7 +787,7 @@ export default function App() {
         {showTermsModal && <TermsAcceptanceModal onAccept={handleAcceptTerms} />}
 
         {/* Unified welcome tour (first login only — handles desktop + mobile via portal) */}
-        <WelcomeTour />
+        <SpotlightTour />
 
         {/* Welcome subscription modal removed — was showing on every login */}
 
@@ -1195,6 +1196,7 @@ export default function App() {
                           return (
                             <div
                               key={panelId}
+                              data-panel-id={panelId}
                               draggable={canDragPanel}
                               onDragStart={canDragPanel ? (e) => {
                                 // Only start panel drag if not dragging a ticker
