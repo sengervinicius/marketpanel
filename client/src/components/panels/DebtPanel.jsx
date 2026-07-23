@@ -37,6 +37,9 @@ import IntegrityBadge from '../shared/IntegrityBadge';
 import PanelChrome from '../common/PanelChrome';
 import Tape from '../common/Tape';
 import BoardRow, { BoardSectionLabel } from '../common/BoardRow';
+import { PriceRow } from '../common/PriceRow';
+import { COLS_STANDARD } from '../../utils/panelColumns';
+import { openDetailWindow } from '../../utils/detailWindow';
 import ViewChips from '../common/ViewChips';
 import { useOverlay } from '../overlay/OverlayContext';
 import './DebtPanel.css';
@@ -295,30 +298,34 @@ function DpBonds() {
     <div className="dp-corp">
       <div className="dp-corp-head">
         <span>CORPORATE BONDS</span>
-        <span className="dp-corp-src">{hasCorp ? 'EULERPOOL' : 'ETF PROXY'}</span>
+        <span className="dp-corp-src">{hasCorp ? 'EULERPOOL' : 'ETF PROXY \u00b7 double-click for detail'}</span>
       </div>
       <div className="dp-corp-list">
         {hasCorp
           ? corp.map((b, i) => (
-              <div className="dp-bond-row" key={b.isin || b.ticker || i} title={b.issuer || ''}>
-                <span className="dp-bond-name dp-bond-issuer">{(b.issuer || '\u2014').slice(0, 22)}</span>
-                <span className="dp-bond-sub">{b.maturity || ''}</span>
-                <span className="dp-bond-px">{b.coupon != null ? fmtBondYield(b.coupon) : '\u2014'}</span>
-                <span className="dp-bond-chg" style={{ color: 'var(--text-secondary)' }}>{fmtBondYield(b.yield)}</span>
-              </div>
+              <PriceRow
+                key={b.isin || b.ticker || i}
+                symbol={b.ticker || (b.isin || '\u2014').slice(0, 6)}
+                name={`${(b.issuer || '\u2014').slice(0, 28)}${b.maturity ? ' \u00b7 ' + b.maturity : ''}`}
+                price={b.yield != null ? Number(Math.abs(b.yield) < 1 ? b.yield * 100 : b.yield) : null}
+                changePct={null}
+                decimals={2}
+                columns={COLS_STANDARD}
+              />
             ))
           : CORP_FALLBACK_ETFS.map(e => {
               const q = px[e.sym];
-              const chg = q?.chg;
               return (
-                <div className="dp-bond-row" key={e.sym}>
-                  <span className="dp-bond-sym">{e.sym}</span>
-                  <span className="dp-bond-name">{e.name}</span>
-                  <span className="dp-bond-px">{q?.price != null ? Number(q.price).toFixed(2) : '\u2014'}</span>
-                  <span className="dp-bond-chg" style={{ color: chg == null ? 'var(--text-faint)' : chg >= 0 ? 'var(--color-up)' : 'var(--color-down)' }}>
-                    {chg != null ? `${chg >= 0 ? '+' : ''}${chg.toFixed(2)}%` : '\u2014'}
-                  </span>
-                </div>
+                <PriceRow
+                  key={e.sym}
+                  symbol={e.sym}
+                  name={e.name}
+                  price={q?.price != null ? Number(q.price) : null}
+                  changePct={q?.chg ?? null}
+                  decimals={2}
+                  columns={COLS_STANDARD}
+                  onDoubleClick={() => openDetailWindow(e.sym, 'Rates & Credit')}
+                />
               );
             })}
       </div>
@@ -691,7 +698,6 @@ function DebtPanel() {
               </ResponsiveContainer>
             </div>
           )}
-          <DpBonds />
         </div>
 
         {/* ── Right: global 10Y + credit & inflation board ── */}
@@ -744,6 +750,7 @@ function DebtPanel() {
           ))}
         </div>
       </div>
+      <DpBonds />
     </div>
   );
 }
