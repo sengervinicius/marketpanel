@@ -1,57 +1,116 @@
 /**
- * SpotlightTour.jsx — a guided, box-by-box walkthrough of the real terminal.
+ * SpotlightTour.jsx — branded onboarding.
  *
- * Replaces the old high-level cinematic slideshow. It dims the terminal and
- * spotlights each ACTUAL box (anchored via [data-panel-id]), explaining what it
- * is and what you can do with it. Research-backed: embedded/spotlight coach
- * marks beat modals for complex dashboards, and user-paced beats auto-advance.
- * If a box is hidden/not found, that step degrades to a centered card.
- *
- * Visibility gating mirrors the old tour: shows once, re-triggerable via
- * settings.tourResetAt (the "Restart Onboarding Tour" button).
+ * Flow: (1) a soft animated "Particle" splash → (2) the three verticals
+ * (Particle AI · Terminal · Vault) → (3) a box-by-box spotlight walk of the
+ * REAL terminal (anchored via [data-panel-id] and the header search).
+ * User-paced (Back/Next/Skip, arrows/ESC), progress dots, degrades to a
+ * centered card if a target is hidden. Re-triggerable via settings.tourResetAt.
  */
-import { useState, useEffect, useCallback, useLayoutEffect } from 'react';
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { swallow } from '../../utils/swallow';
 import './SpotlightTour.css';
 
-// Ordered walkthrough. panel === null → centered card (intro/outro).
-const STEPS = [
-  { panel: null, eyebrow: 'WELCOME', title: 'This is your terminal',
-    body: 'A 60-second tour of what each box does. Everything here is live, and the whole grid is yours to rearrange.' },
-  { panel: 'charts', eyebrow: 'CHARTS', title: 'Live charts, every asset class',
-    body: 'Indices, FX, gold, crypto — side by side. Click any chart for the full instrument view; adjust how many you see.' },
-  { panel: 'watchlist', eyebrow: 'WATCHLIST', title: 'Your names, live',
-    body: 'Your tracked tickers with real-time prices. Add names from the search bar up top; click a row for the deep view.' },
-  { panel: 'globalIndices', eyebrow: 'GLOBAL INDEXES', title: 'The world at a glance',
-    body: 'Major indices worldwide — and it folds in futures automatically when cash markets are closed. Hit EDIT to pick your indices.' },
-  { panel: 'forex', eyebrow: 'FX / CRYPTO', title: 'Currencies & crypto',
-    body: 'Majors, BRL crosses and the main cryptos, with DXY pinned. Fully editable — hit EDIT to choose your pairs.' },
-  { panel: 'commodities', eyebrow: 'COMMODITIES', title: 'Metals, energy, ags',
-    body: 'Front-month futures across the complex. Fully editable via the EDIT button, like FX and US Equities.' },
-  { panel: 'usEquities', eyebrow: 'US EQUITIES', title: 'Make it yours',
-    body: 'Large-cap US names by default. This box, FX and Commodities are fully editable — hit EDIT to rename the box and pick your own tickers.' },
-  { panel: 'brazilB3', eyebrow: 'IN-DEPTH COUNTRY', title: 'Any country you want',
-    body: 'Use the selector to switch country. Brazil loads rich — rates, FIIs, ADRs; other countries show their market at a glance. Set your home country here.' },
-  { panel: 'debt', eyebrow: 'YIELDS & RATES', title: 'Rates & credit, deep',
-    body: 'Sovereign curves, 2s10s, credit spreads and a corporate-bond list. Country chips switch the curve; the "+ CURVES" toggle overlays several.' },
-  { panel: 'movers', eyebrow: 'MOVERS & PREDICTIONS', title: "What's moving — and what's priced",
-    body: 'Biggest gainers, losers and most-active names, plus live prediction-market odds beneath them.' },
-  { panel: 'news', eyebrow: 'NEWS', title: 'The wire',
-    body: 'Market headlines as they break. Scope it to just your watchlist when you want signal over noise.' },
-  { panel: 'calendar', eyebrow: 'CALENDAR', title: 'What to watch, when',
-    body: 'Economic prints and earnings by date and impact — so nothing catches you off guard.' },
-  { panel: 'sectorPulse', eyebrow: 'MARKET MAP', title: 'Where leadership is',
-    body: 'All 11 sectors ranked best-to-worst on the day, so you read rotation in a glance.' },
-  { panel: 'brief', eyebrow: 'DAILY BRIEF', title: 'The open, before the open',
-    body: 'A personalized brief built from your book — positioning, overnight moves, what matters today. It also lands in your inbox each morning.' },
-  { panel: null, eyebrow: "YOU'RE SET", title: 'Go build your view',
-    body: 'Drag any box to rearrange. Hit EDIT on a box to make it yours. And press ⌘K anytime to jump to any ticker, panel or screen.' },
+const VERTICALS = [
+  { key: 'ai',       tag: 'ASK', label: 'Particle AI', color: 'var(--accent, #e55a00)',
+    body: 'Ask anything — research a name, get a thesis, generate your brief. It reads your Vault and the live market.' },
+  { key: 'terminal', tag: 'WATCH', label: 'The Terminal', color: '#4a9eff',
+    body: 'Your live workspace: equities, FX, commodities, rates, movers, news — every asset class in one grid you control.' },
+  { key: 'vault',    tag: 'REMEMBER', label: 'The Vault', color: '#c08bf0',
+    body: 'Drop in your PDFs and research. Particle cites them back to you inside every answer.' },
 ];
 
-function getRect(panelId) {
-  if (!panelId) return null;
-  const el = document.querySelector(`[data-panel-id="${panelId}"]`);
+// type: splash | verticals | target | center
+const STEPS = [
+  { type: 'splash' },
+  { type: 'verticals', eyebrow: 'THREE WAYS IN', title: 'Particle, in three parts',
+    body: 'Everything lives under three verticals. Here they are — then we jump into the terminal.' },
+  { type: 'target', sel: '.hsb-trigger, .hsb-container', eyebrow: 'SEARCH', title: 'Your command bar',
+    body: 'Type any ticker, company or macro theme — or ask Particle AI a question. Press ⌘K from anywhere in the app.' },
+  { type: 'target', sel: '[data-panel-id="charts"]', eyebrow: 'CHARTS', title: 'Live charts, every asset class',
+    body: 'Indices, FX, gold, crypto — side by side. Click any chart for the full instrument view. And a workspace tip: drag any box by its header to move it, or drag an edge to resize.' },
+  { type: 'target', sel: '[data-panel-id="watchlist"]', eyebrow: 'WATCHLIST', title: 'Your names, live',
+    body: 'Your tracked tickers in real time. Add names from the search bar; click a row for the deep view.' },
+  { type: 'target', sel: '[data-panel-id="globalIndices"]', eyebrow: 'GLOBAL INDEXES', title: 'The world at a glance',
+    body: 'Major indices worldwide — folds in futures automatically when cash markets are closed. Hit EDIT to pick your indices.' },
+  { type: 'target', sel: '[data-panel-id="forex"]', eyebrow: 'FX / CRYPTO', title: 'Currencies & crypto',
+    body: 'Majors, BRL crosses and the main cryptos, DXY pinned. Fully editable — EDIT to choose your pairs.' },
+  { type: 'target', sel: '[data-panel-id="commodities"]', eyebrow: 'COMMODITIES', title: 'Metals, energy, ags',
+    body: 'Front-month futures across the complex. Fully editable, like FX and US Equities.' },
+  { type: 'target', sel: '[data-panel-id="usEquities"]', eyebrow: 'US EQUITIES', title: 'Make it yours',
+    body: 'Large-cap US names by default. This box, FX and Commodities are fully editable — EDIT to rename the box and pick your own tickers.' },
+  { type: 'target', sel: '[data-panel-id="brazilB3"]', eyebrow: 'IN-DEPTH COUNTRY', title: 'Any country you want',
+    body: 'Use the selector to switch country. Brazil loads rich; other countries show their market at a glance. Set your home country here.' },
+  { type: 'target', sel: '[data-panel-id="debt"]', eyebrow: 'YIELDS & RATES', title: 'Rates & credit, deep',
+    body: 'Sovereign curves, 2s10s, credit spreads and a corporate-bond list. Country chips switch the curve; "+ CURVES" overlays several.' },
+  { type: 'target', sel: '[data-panel-id="bloombergTV"]', eyebrow: 'BLOOMBERG TV', title: 'Live TV, in your terminal',
+    body: 'Bloomberg business television streams right here — audio and video, always on, no second screen needed.' },
+  { type: 'target', sel: '[data-panel-id="movers"]', eyebrow: 'MOVERS & PREDICTIONS', title: "What's moving — and what's priced",
+    body: 'Biggest gainers, losers and most-active names, plus live prediction-market odds beneath them.' },
+  { type: 'target', sel: '[data-panel-id="news"]', eyebrow: 'NEWS', title: 'The wire',
+    body: 'Market headlines as they break. Scope it to just your watchlist when you want signal over noise.' },
+  { type: 'target', sel: '[data-panel-id="calendar"]', eyebrow: 'CALENDAR', title: 'What to watch, when',
+    body: 'Economic prints and earnings by date and impact — so nothing catches you off guard.' },
+  { type: 'target', sel: '[data-panel-id="sectorPulse"]', eyebrow: 'MARKET MAP', title: 'Where leadership is',
+    body: 'All 11 sectors ranked best-to-worst on the day, so you read rotation in a glance.' },
+  { type: 'target', sel: '[data-panel-id="brief"]', eyebrow: 'DAILY BRIEF', title: 'The open, before the open',
+    body: 'A pre-open brief built from your book — positioning, overnight moves, what matters today. Add your email in Settings and it lands in your inbox every morning: bespoke news and the info relevant to you.' },
+  { type: 'center', eyebrow: "YOU'RE SET", title: 'Go build your view',
+    body: 'Drag any box to rearrange, drag an edge to resize, and hit EDIT on a box to make it yours. Press ⌘K anytime to jump to any ticker, panel or screen.' },
+];
+
+function SplashCanvas() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const cv = ref.current; if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    let raf, t0 = performance.now();
+    const W = () => cv.clientWidth, H = () => cv.clientHeight;
+    const resize = () => { cv.width = cv.clientWidth * DPR; cv.height = cv.clientHeight * DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); };
+    resize(); window.addEventListener('resize', resize);
+    const orbits = Array.from({ length: 8 }, (_, i) => ({ a: 0.20 + i * 0.05, b: 0.09 + i * 0.028, rot: ((i * 41) % 180) * Math.PI / 180, speed: 0.15 + Math.random() * 0.5, phase: Math.random() * 7, n: 1 + (i % 3) }));
+    const streams = Array.from({ length: 180 }, () => ({ y: Math.random(), x: Math.random(), sp: 0.6 + Math.random() * 1.4, r: Math.random() * 1.4 + 0.3, w: 0.4 + Math.random() * 0.5 }));
+    const frame = (now) => {
+      const t = (now - t0) / 1000;
+      ctx.clearRect(0, 0, W(), H());
+      const cx = W() * 0.6, cy = H() * 0.5, R = Math.min(W(), H());
+      for (const s of streams) {
+        s.x += s.sp * 0.0016; if (s.x > 1.15) s.x = -0.12;
+        const px = s.x * W() * 0.72;
+        const py = (s.y * s.w + (1 - s.w) / 2) * H() + Math.sin(s.x * 6 + s.y * 12) * 22;
+        const d = Math.hypot(px - cx, py - cy);
+        const al = Math.max(0, 0.55 - d / (W() * 0.9));
+        ctx.fillStyle = `rgba(232,140,32,${0.12 + al})`;
+        ctx.beginPath(); ctx.arc(px, py, s.r, 0, 7); ctx.fill();
+      }
+      for (const o of orbits) {
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(o.rot);
+        ctx.strokeStyle = 'rgba(222,120,22,0.16)'; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.ellipse(0, 0, o.a * R, o.b * R, 0, 0, 7); ctx.stroke();
+        for (let k = 0; k < o.n; k++) {
+          const ang = t * o.speed + o.phase + k * 2.1;
+          const x = Math.cos(ang) * o.a * R, y = Math.sin(ang) * o.b * R;
+          ctx.fillStyle = 'rgba(255,172,52,0.95)'; ctx.shadowColor = 'rgba(255,150,30,0.9)'; ctx.shadowBlur = 9;
+          ctx.beginPath(); ctx.arc(x, y, 1.9, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
+        }
+        ctx.restore();
+      }
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.09);
+      g.addColorStop(0, 'rgba(255,210,110,1)'); g.addColorStop(0.35, 'rgba(240,140,22,0.85)'); g.addColorStop(1, 'rgba(240,140,22,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(cx, cy, R * 0.09, 0, 7); ctx.fill();
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
+  }, []);
+  return <canvas ref={ref} className="st-splash-canvas" />;
+}
+
+function getRect(sel) {
+  if (!sel) return null;
+  const el = document.querySelector(sel);
   if (!el) return null;
   const r = el.getBoundingClientRect();
   if (r.width < 8 || r.height < 8) return null;
@@ -64,7 +123,6 @@ export default function SpotlightTour() {
   const [i, setI] = useState(0);
   const [rect, setRect] = useState(null);
 
-  // ── should we show it? (mirrors the old gating) ──
   useEffect(() => {
     if (!settings) return;
     const resetAt = Number(settings.tourResetAt || 0);
@@ -75,24 +133,24 @@ export default function SpotlightTour() {
       || localStorage.getItem('particle_onboarding_done') === '1';
     if (!clearedByReset && done) return;
     if (active) return;
-    const t = setTimeout(() => { setI(0); setActive(true); }, 650);
+    const t = setTimeout(() => { setI(0); setActive(true); }, 500);
     return () => clearTimeout(t);
   }, [settings, active]);
 
   const step = STEPS[i];
+  const isTarget = step && step.type === 'target';
 
-  // ── measure/scroll the current target ──
   useLayoutEffect(() => {
-    if (!active) return;
-    const el = step.panel ? document.querySelector(`[data-panel-id="${step.panel}"]`) : null;
+    if (!active || !isTarget) { setRect(null); return; }
+    const el = document.querySelector(step.sel);
     if (el) { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* ok */ } }
-    const measure = () => setRect(getRect(step.panel));
+    const measure = () => setRect(getRect(step.sel));
     measure();
-    const t = setTimeout(measure, 260); // after scroll settles
+    const t = setTimeout(measure, 280);
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
     return () => { clearTimeout(t); window.removeEventListener('resize', measure); window.removeEventListener('scroll', measure, true); };
-  }, [active, i, step.panel]);
+  }, [active, i, isTarget, step]);
 
   const markDone = useCallback(async () => {
     localStorage.setItem('particle_tour_completed', '1');
@@ -102,8 +160,8 @@ export default function SpotlightTour() {
   }, [markTourCompleted]);
 
   const close = useCallback(() => { setActive(false); markDone(); }, [markDone]);
-  const next = useCallback(() => { if (i < STEPS.length - 1) setI(i + 1); else close(); }, [i, close]);
-  const back = useCallback(() => { if (i > 0) setI(i - 1); }, [i]);
+  const next = useCallback(() => { setI(v => (v < STEPS.length - 1 ? v + 1 : v)); if (i >= STEPS.length - 1) close(); }, [i, close]);
+  const back = useCallback(() => setI(v => (v > 0 ? v - 1 : v)), []);
 
   useEffect(() => {
     if (!active) return;
@@ -116,22 +174,65 @@ export default function SpotlightTour() {
     return () => window.removeEventListener('keydown', onKey);
   }, [active, next, back, close]);
 
-  if (!active) return null;
+  if (!active || !step) return null;
+  const isLast = i === STEPS.length - 1;
 
+  // ── Splash ──
+  if (step.type === 'splash') {
+    return (
+      <div className="st-root st-splash">
+        <SplashCanvas />
+        <div className="st-splash-content">
+          <div className="st-splash-word">PARTICLE</div>
+          <div className="st-splash-tag">Your market, resolved into signal.</div>
+          <button className="st-next st-splash-btn" onClick={next}>Take the tour →</button>
+          <button className="st-skip st-splash-skip" onClick={close}>Skip</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Verticals ──
+  if (step.type === 'verticals') {
+    return (
+      <div className="st-root">
+        <div className="st-dim-full" />
+        <div className="st-card st-card--wide">
+          <div className="st-eyebrow">{step.eyebrow}</div>
+          <div className="st-title">{step.title}</div>
+          <div className="st-body">{step.body}</div>
+          <div className="st-verticals">
+            {VERTICALS.map(v => (
+              <div key={v.key} className="st-vert" style={{ borderTopColor: v.color }}>
+                <div className="st-vert-tag" style={{ color: v.color }}>{v.tag}</div>
+                <div className="st-vert-label">{v.label}</div>
+                <div className="st-vert-body">{v.body}</div>
+              </div>
+            ))}
+          </div>
+          <div className="st-progress">{STEPS.map((_, k) => <span key={k} className={`st-dot${k === i ? ' st-dot--on' : ''}`} />)}</div>
+          <div className="st-actions">
+            <button className="st-skip" onClick={close}>Skip tour</button>
+            <div className="st-nav">
+              <button className="st-back" onClick={back}>Back</button>
+              <button className="st-next" onClick={next}>Enter the terminal →</button>
+            </div>
+          </div>
+          <div className="st-count">{i + 1} / {STEPS.length}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Target spotlight / centered ──
   const pad = 6;
-  const hole = rect ? {
-    top: Math.max(4, rect.top - pad), left: Math.max(4, rect.left - pad),
-    width: rect.width + pad * 2, height: rect.height + pad * 2,
-  } : null;
-
-  // card placement: below the box if room, else above; centered when no target
-  const vh = window.innerHeight, vw = window.innerWidth;
-  const CARD_W = 340;
+  const hole = rect ? { top: Math.max(4, rect.top - pad), left: Math.max(4, rect.left - pad), width: rect.width + pad * 2, height: rect.height + pad * 2 } : null;
+  const vh = window.innerHeight, vw = window.innerWidth, CARD_W = 344;
   let cardStyle;
   if (hole) {
     const below = hole.top + hole.height + 12;
-    const placeBelow = below + 210 < vh;
-    const top = placeBelow ? below : Math.max(12, hole.top - 12 - 200);
+    const placeBelow = below + 220 < vh;
+    const top = placeBelow ? below : Math.max(12, hole.top - 12 - 210);
     let left = hole.left + hole.width / 2 - CARD_W / 2;
     left = Math.min(Math.max(12, left), vw - CARD_W - 12);
     cardStyle = { top, left, width: CARD_W };
@@ -139,26 +240,14 @@ export default function SpotlightTour() {
     cardStyle = { top: vh / 2 - 120, left: vw / 2 - CARD_W / 2, width: CARD_W };
   }
 
-  const isLast = i === STEPS.length - 1;
-  const progress = STEPS.filter(s => true).length;
-
   return (
     <div className="st-root" role="dialog" aria-modal="true">
-      {hole ? (
-        <div className="st-hole" style={hole} />
-      ) : (
-        <div className="st-dim-full" />
-      )}
-
+      {hole ? <div className="st-hole" style={hole} /> : <div className="st-dim-full" />}
       <div className="st-card" style={cardStyle}>
         <div className="st-eyebrow">{step.eyebrow}</div>
         <div className="st-title">{step.title}</div>
         <div className="st-body">{step.body}</div>
-
-        <div className="st-progress">
-          {STEPS.map((_, k) => <span key={k} className={`st-dot${k === i ? ' st-dot--on' : ''}`} />)}
-        </div>
-
+        <div className="st-progress">{STEPS.map((_, k) => <span key={k} className={`st-dot${k === i ? ' st-dot--on' : ''}`} />)}</div>
         <div className="st-actions">
           <button className="st-skip" onClick={close}>{isLast ? '' : 'Skip tour'}</button>
           <div className="st-nav">
