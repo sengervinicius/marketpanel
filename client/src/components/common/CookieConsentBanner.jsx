@@ -22,6 +22,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 
+import { apiFetch } from '../../utils/api';
 const STORAGE_KEY = 'lgpd_consent_v1';
 const BANNER_VERSION = 1;
 
@@ -52,7 +53,7 @@ function writeConsent(c) {
 async function syncWithServer(consent) {
   // Best-effort. Requires auth; silently noops for anon users.
   try {
-    await fetch('/api/privacy/object', {
+    await apiFetch('/api/privacy/object', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',

@@ -51,7 +51,7 @@ export default function InsightFeed({ onAskAI, maxCards = 3 }) {
     setDismissed(prev => new Set([...prev, id]));
     // Fire-and-forget dismiss to server
     try {
-      fetch('/api/insights/dismiss', {
+      apiFetch('/api/insights/dismiss', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ insightId: id }),

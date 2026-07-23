@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
+import { apiFetch } from '../../utils/api';
 import { useSettings } from '../../context/SettingsContext';
 import { useAlerts } from '../../context/AlertsContext';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
@@ -372,7 +373,7 @@ export function DiscordLinkRow() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) { setLoading(false); return; }
-    fetch('/api/discord/status', { headers: { Authorization: `Bearer ${token}` } })
+    apiFetch('/api/discord/status', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => { setStatus(d); setLoading(false); })
       .catch(() => setLoading(false));
@@ -383,14 +384,14 @@ export function DiscordLinkRow() {
 
   const handleLink = async () => {
     const token = localStorage.getItem('token');
-    const res = await fetch('/api/discord/link', { headers: { Authorization: `Bearer ${token}` } });
+    const res = await apiFetch('/api/discord/link', { headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     if (data.url) window.open(data.url, '_blank');
   };
 
   const handleUnlink = async () => {
     const token = localStorage.getItem('token');
-    await fetch('/api/discord/unlink', {
+    await apiFetch('/api/discord/unlink', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     });
@@ -532,7 +533,7 @@ export function InboundEmailRow() {
     setState(s => ({ ...s, loading: true, error: null }));
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/settings/vault-inbound', {
+      const res = await apiFetch('/api/settings/vault-inbound', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -547,7 +548,7 @@ export function InboundEmailRow() {
 
   const post = async (path) => {
     const token = localStorage.getItem('token');
-    const res = await fetch(`/api/settings/vault-inbound${path}`, {
+    const res = await apiFetch(`/api/settings/vault-inbound${path}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     });
@@ -717,7 +718,7 @@ export function ParticleMemoryPanel() {
     setState(s => ({ ...s, loading: true, error: null }));
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/memory', {
+      const res = await apiFetch('/api/memory', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -751,7 +752,7 @@ export function ParticleMemoryPanel() {
     setBusy(id);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/memory/${id}`, {
+      const res = await apiFetch(`/api/memory/${id}`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: trimmed }),
@@ -775,7 +776,7 @@ export function ParticleMemoryPanel() {
     setBusy(id);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/memory/${id}`, {
+      const res = await apiFetch(`/api/memory/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -796,7 +797,7 @@ export function ParticleMemoryPanel() {
     setBusy('forget-all');
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/memory', {
+      const res = await apiFetch('/api/memory', {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

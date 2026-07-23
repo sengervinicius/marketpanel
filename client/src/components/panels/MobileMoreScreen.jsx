@@ -1,4 +1,5 @@
 import React, { memo, useState, useCallback, useMemo, useEffect } from 'react';
+import { apiFetch } from '../../utils/api';
 import { useSettings } from '../../context/SettingsContext';
 import { getTemplatesGrouped, getTemplate } from '../../config/templates';
 import UserAvatar from '../common/UserAvatar';
@@ -35,7 +36,7 @@ const MobileMoreScreen = memo(({
     setDeleteError(null);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/auth/account', {
+      const res = await apiFetch('/api/auth/account', {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -357,7 +358,7 @@ function MobileDiscordSection() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) { setLoading(false); return; }
-    fetch('/api/discord/status', { headers: { Authorization: `Bearer ${token}` } })
+    apiFetch('/api/discord/status', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => { setStatus(d); setLoading(false); })
       .catch(() => setLoading(false));
@@ -367,7 +368,7 @@ function MobileDiscordSection() {
 
   const handleLink = async () => {
     const token = localStorage.getItem('token');
-    const res = await fetch('/api/discord/link', { headers: { Authorization: `Bearer ${token}` } });
+    const res = await apiFetch('/api/discord/link', { headers: { Authorization: `Bearer ${token}` } });
     const data = await res.json();
     if (data.url) window.open(data.url, '_blank');
   };

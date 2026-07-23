@@ -11,6 +11,7 @@
  */
 import { useState, useEffect, useRef, useMemo } from 'react';
 
+import { apiFetch } from '../utils/api';
 // Module-level cache shared across all hook instances
 const sparklineCache = new Map();
 const pendingFetches = new Set();
@@ -33,7 +34,7 @@ async function fetchSparkline(ticker) {
   pendingFetches.add(ticker);
 
   try {
-    const resp = await fetch(`/api/history/${encodeURIComponent(ticker)}?period=1M&interval=1d`);
+    const resp = await apiFetch(`/api/history/${encodeURIComponent(ticker)}?period=1M&interval=1d`);
     if (!resp.ok) {
       pendingFetches.delete(ticker);
       return null;

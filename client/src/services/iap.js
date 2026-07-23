@@ -15,6 +15,7 @@
 
 import { isIOS, isWeb } from './platform';
 
+import { apiFetch } from '../utils/api';
 // IAP product identifiers (must match App Store Connect)
 export const IAP_PRODUCTS = {
   MONTHLY: 'com.particle.market.pro.monthly',
@@ -39,7 +40,7 @@ export async function getProducts() {
 
   try {
     const token = localStorage.getItem('token');
-    const res = await fetch('/api/billing/iap/products', {
+    const res = await apiFetch('/api/billing/iap/products', {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new Error('Failed to fetch products');
@@ -69,7 +70,7 @@ export async function purchase(productId) {
     // The native plugin will present the Apple payment sheet
     // After purchase, the receipt is sent to our server for validation
     const token = localStorage.getItem('token');
-    const res = await fetch('/api/billing/iap/purchase', {
+    const res = await apiFetch('/api/billing/iap/purchase', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -99,7 +100,7 @@ export async function purchase(productId) {
 export async function restorePurchases() {
   try {
     const token = localStorage.getItem('token');
-    const res = await fetch('/api/billing/iap/restore', {
+    const res = await apiFetch('/api/billing/iap/restore', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     });
