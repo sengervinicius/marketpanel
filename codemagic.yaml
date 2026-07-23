@@ -31,6 +31,11 @@ workflows:
       - name: Build IPA
         script: |
           cd client/ios/App
+          echo "--- resolving SPM packages ---"
+          xcodebuild -resolvePackageDependencies -project App.xcodeproj -scheme App || true
+          echo "--- raw showBuildSettings (for diagnosis) ---"
+          xcodebuild -showBuildSettings -project App.xcodeproj -scheme App 2>&1 | head -30 || true
+          echo "--- building IPA ---"
           xcode-project build-ipa --project App.xcodeproj --scheme App
     artifacts:
       - client/ios/App/build/ios/ipa/*.ipa
