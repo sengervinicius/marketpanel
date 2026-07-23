@@ -13,9 +13,12 @@ workflows:
     scripts:
       - name: Install deps & build web
         script: |
+          nvm install 20 && nvm use 20
+          node -v
           cd client && npm ci && npm run build
       - name: Capacitor sync iOS
         script: |
+          nvm install 20 && nvm use 20
           cd client && npx cap sync ios
       - name: Set up code signing (fetch/create App Store cert + profile)
         script: |
