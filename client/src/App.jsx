@@ -862,6 +862,7 @@ export default function App() {
             <button
               className="btn desktop-mode-btn"
               data-active={mobileMode === 'particle'}
+              data-tour="mode-particle"
               onClick={() => { setMobileModePersist('particle'); }}
               style={{
                 padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
@@ -874,6 +875,7 @@ export default function App() {
             <button
               className="btn desktop-mode-btn"
               data-active={mobileMode === 'terminal'}
+              data-tour="mode-terminal"
               onClick={() => { setMobileModePersist('terminal'); }}
               style={{
                 padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
@@ -886,6 +888,7 @@ export default function App() {
             <button
               className="btn desktop-mode-btn"
               data-active={mobileMode === 'vault'}
+              data-tour="mode-vault"
               onClick={() => { setMobileModePersist('vault'); }}
               style={{
                 padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',

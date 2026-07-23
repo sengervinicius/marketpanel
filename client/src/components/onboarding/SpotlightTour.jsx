@@ -12,20 +12,15 @@ import { useSettings } from '../../context/SettingsContext';
 import { swallow } from '../../utils/swallow';
 import './SpotlightTour.css';
 
-const VERTICALS = [
-  { key: 'ai',       tag: 'ASK', label: 'Particle AI', color: 'var(--accent, #e55a00)',
-    body: 'Ask anything — research a name, get a thesis, generate your brief. It reads your Vault and the live market.' },
-  { key: 'terminal', tag: 'WATCH', label: 'The Terminal', color: '#4a9eff',
-    body: 'Your live workspace: equities, FX, commodities, rates, movers, news — every asset class in one grid you control.' },
-  { key: 'vault',    tag: 'REMEMBER', label: 'The Vault', color: '#c08bf0',
-    body: 'Drop in your PDFs and research. Particle cites them back to you inside every answer.' },
-];
-
 // type: splash | verticals | target | center
 const STEPS = [
   { type: 'splash' },
-  { type: 'verticals', eyebrow: 'THREE WAYS IN', title: 'Particle, in three parts',
-    body: 'Everything lives under three verticals. Here they are — then we jump into the terminal.' },
+  { type: 'target', nav: 'particle', sel: '[data-tour="mode-particle"]', eyebrow: 'PARTICLE AI', title: 'Ask anything',
+    body: 'This is Particle AI — your analyst. Ask about any name, get a thesis, draft research, or generate your morning brief. It reads the live market and your Vault, and cites its sources. This PARTICLE button opens it anytime.' },
+  { type: 'target', nav: 'vault', sel: '[data-tour="mode-vault"]', eyebrow: 'THE VAULT', title: 'Your research, remembered',
+    body: 'The Vault is your private research library — drop in PDFs, notes and broker research. Particle reads them and cites them back inside every answer. Open it with this VAULT button.' },
+  { type: 'target', nav: 'terminal', sel: '[data-tour="mode-terminal"]', eyebrow: 'THE TERMINAL', title: 'Your live workspace',
+    body: 'And this is the Terminal — every asset class in one grid you control. Let me walk you through the boxes.' },
   { type: 'target', sel: '.hsb-trigger, .hsb-container', eyebrow: 'SEARCH', title: 'Your command bar',
     body: 'Type any ticker, company or macro theme — or ask Particle AI a question. Press ⌘K from anywhere in the app.' },
   { type: 'target', sel: '[data-panel-id="charts"]', eyebrow: 'CHARTS', title: 'Live charts, every asset class',
@@ -142,6 +137,7 @@ export default function SpotlightTour() {
 
   useLayoutEffect(() => {
     if (!active || !isTarget) { setRect(null); return; }
+    if (step.nav) { try { document.querySelector(`[data-tour="mode-${step.nav}"]`)?.click(); } catch { /* ok */ } }
     const el = document.querySelector(step.sel);
     if (el) { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* ok */ } }
     const measure = () => setRect(getRect(step.sel));
@@ -187,38 +183,6 @@ export default function SpotlightTour() {
           <div className="st-splash-tag">Your market, resolved into signal.</div>
           <button className="st-next st-splash-btn" onClick={next}>Take the tour →</button>
           <button className="st-skip st-splash-skip" onClick={close}>Skip</button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Verticals ──
-  if (step.type === 'verticals') {
-    return (
-      <div className="st-root">
-        <div className="st-dim-full" />
-        <div className="st-card st-card--wide">
-          <div className="st-eyebrow">{step.eyebrow}</div>
-          <div className="st-title">{step.title}</div>
-          <div className="st-body">{step.body}</div>
-          <div className="st-verticals">
-            {VERTICALS.map(v => (
-              <div key={v.key} className="st-vert" style={{ borderTopColor: v.color }}>
-                <div className="st-vert-tag" style={{ color: v.color }}>{v.tag}</div>
-                <div className="st-vert-label">{v.label}</div>
-                <div className="st-vert-body">{v.body}</div>
-              </div>
-            ))}
-          </div>
-          <div className="st-progress">{STEPS.map((_, k) => <span key={k} className={`st-dot${k === i ? ' st-dot--on' : ''}`} />)}</div>
-          <div className="st-actions">
-            <button className="st-skip" onClick={close}>Skip tour</button>
-            <div className="st-nav">
-              <button className="st-back" onClick={back}>Back</button>
-              <button className="st-next" onClick={next}>Enter the terminal →</button>
-            </div>
-          </div>
-          <div className="st-count">{i + 1} / {STEPS.length}</div>
         </div>
       </div>
     );
