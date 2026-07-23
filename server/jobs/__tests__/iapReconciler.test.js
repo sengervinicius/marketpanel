@@ -195,9 +195,9 @@ test('runOnce: active row still active → no mutation', async () => {
   const future = Date.now() + 30 * 86400_000;
   const pg = makeFakePg([{
     original_transaction_id: 'T1', user_id: 1, store: 'apple',
-    product_id: 'com.x.pro.monthly',
+    product_id: 'com.the-particle.app.new.monthly',
     expires_at: null, auto_renew: true,
-    latest_receipt: 'AAA', tier: 'particle_pro', status: 'active',
+    latest_receipt: 'AAA', tier: 'new_particle', status: 'active',
   }]);
   const updateCalls = [], auditCalls = [];
   const res = await runOnce({
@@ -205,8 +205,8 @@ test('runOnce: active row still active → no mutation', async () => {
       pg, updateCalls, auditCalls,
       appleResponse: {
         status: 0,
-        latest_receipt_info: [{ product_id: 'com.x.pro.monthly', expires_date_ms: String(future) }],
-        pending_renewal_info: [{ product_id: 'com.x.pro.monthly', auto_renew_status: '1' }],
+        latest_receipt_info: [{ product_id: 'com.the-particle.app.new.monthly', expires_date_ms: String(future) }],
+        pending_renewal_info: [{ product_id: 'com.the-particle.app.new.monthly', auto_renew_status: '1' }],
       },
     }),
   });
@@ -221,9 +221,9 @@ test('runOnce: active row still active → no mutation', async () => {
 test('runOnce: active → expired downgrades user + writes audit', async () => {
   const pg = makeFakePg([{
     original_transaction_id: 'T2', user_id: 42, store: 'apple',
-    product_id: 'com.x.pro.monthly',
+    product_id: 'com.the-particle.app.new.monthly',
     expires_at: new Date(Date.now() + 86400_000), auto_renew: true,
-    latest_receipt: 'BBB', tier: 'particle_pro', status: 'active',
+    latest_receipt: 'BBB', tier: 'new_particle', status: 'active',
   }]);
   const updateCalls = [], auditCalls = [];
   const res = await runOnce({
@@ -249,9 +249,9 @@ test('runOnce: active → grace keeps user paid (softOnly)', async () => {
   const past = Date.now() - 3600_000;
   const pg = makeFakePg([{
     original_transaction_id: 'T3', user_id: 7, store: 'apple',
-    product_id: 'com.x.pro.monthly',
+    product_id: 'com.the-particle.app.new.monthly',
     expires_at: new Date(past), auto_renew: true,
-    latest_receipt: 'CCC', tier: 'particle_pro', status: 'active',
+    latest_receipt: 'CCC', tier: 'new_particle', status: 'active',
   }]);
   const updateCalls = [], auditCalls = [];
   await runOnce({
@@ -259,8 +259,8 @@ test('runOnce: active → grace keeps user paid (softOnly)', async () => {
       pg, updateCalls, auditCalls,
       appleResponse: {
         status: 0,
-        latest_receipt_info: [{ product_id: 'com.x.pro.monthly', expires_date_ms: String(past) }],
-        pending_renewal_info: [{ product_id: 'com.x.pro.monthly', auto_renew_status: '1' }],
+        latest_receipt_info: [{ product_id: 'com.the-particle.app.new.monthly', expires_date_ms: String(past) }],
+        pending_renewal_info: [{ product_id: 'com.the-particle.app.new.monthly', auto_renew_status: '1' }],
       },
     }),
   });
@@ -274,9 +274,9 @@ test('runOnce: expired → active resurrects user (rare billing retry)', async (
   const future = Date.now() + 14 * 86400_000;
   const pg = makeFakePg([{
     original_transaction_id: 'T4', user_id: 99, store: 'apple',
-    product_id: 'com.x.pro.monthly',
+    product_id: 'com.the-particle.app.new.monthly',
     expires_at: new Date(Date.now() - 86400_000), auto_renew: false,
-    latest_receipt: 'DDD', tier: 'particle_pro', status: 'expired',
+    latest_receipt: 'DDD', tier: 'new_particle', status: 'expired',
   }]);
   const updateCalls = [], auditCalls = [];
   await runOnce({
@@ -284,14 +284,14 @@ test('runOnce: expired → active resurrects user (rare billing retry)', async (
       pg, updateCalls, auditCalls,
       appleResponse: {
         status: 0,
-        latest_receipt_info: [{ product_id: 'com.x.pro.monthly', expires_date_ms: String(future) }],
-        pending_renewal_info: [{ product_id: 'com.x.pro.monthly', auto_renew_status: '1' }],
+        latest_receipt_info: [{ product_id: 'com.the-particle.app.new.monthly', expires_date_ms: String(future) }],
+        pending_renewal_info: [{ product_id: 'com.the-particle.app.new.monthly', auto_renew_status: '1' }],
       },
     }),
   });
   assert.equal(updateCalls.length, 1);
   assert.equal(updateCalls[0].patch.isPaid, true);
-  assert.equal(updateCalls[0].patch.planTier, 'particle_pro');
+  assert.equal(updateCalls[0].patch.planTier, 'new_particle');
   assert.equal(auditCalls[0].action, 'activate');
 });
 

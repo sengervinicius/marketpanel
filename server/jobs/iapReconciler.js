@@ -33,6 +33,7 @@
 
 const _pg = require('../db/postgres');
 const _logger = require('../utils/logger');
+const { tierFromAppleProductId } = require('../config/tiers');
 
 // Apple verifyReceipt endpoints. Prod first, sandbox on status 21007.
 const APPLE_PROD_URL = 'https://buy.itunes.apple.com/verifyReceipt';
@@ -136,12 +137,11 @@ function interpretAppleResponse(data, { productId } = {}) {
 }
 
 function _tierForProduct(productId) {
-  // Minimal mapping — production catalogue is in app_store_connect but
-  // every active Apple SKU resolves to particle_pro in the current price
-  // card. When we add an Elite SKU for iOS, extend this table.
-  if (!productId) return 'particle_pro';
-  if (/elite/i.test(productId)) return 'particle_elite';
-  return 'particle_pro';
+  // Resolve the Apple product id to one of the canonical 3-tier keys
+  // (new_particle / dark_particle / nuclear_particle) via the single source
+  // of truth in config/tiers.js. Unknown / unmapped ids fall back to 'trial'
+  // so we never grant an entitlement we can't account for.
+  return tierFromAppleProductId(productId) || 'trial';
 }
 
 /**

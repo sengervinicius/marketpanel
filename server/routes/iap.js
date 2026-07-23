@@ -17,6 +17,7 @@ const express = require('express');
 const router  = express.Router();
 const { requireAuth } = require('../authMiddleware');
 const { getUserById, updateSubscription } = require('../authStore');
+const { TIERS, tierFromAppleProductId } = require('../config/tiers');
 const logger = require('../utils/logger');
 
 // Fail-closed toggle: in production, IAP MUST have a shared secret or we
@@ -25,24 +26,33 @@ const logger = require('../utils/logger');
 // anyone who hit /purchase with a valid product ID — a critical auth gap.
 const IS_PROD = process.env.NODE_ENV === 'production';
 
-// Product catalog — must match App Store Connect
-const PRODUCTS = [
-  {
-    id: 'com.senger.market.pro.monthly',
-    title: 'Senger Pro Monthly',
-    description: 'Full access to all market data, alerts, and portfolio tools.',
-    period: 'monthly',
-    // Price is set in App Store Connect; this is informational only
-    priceDisplay: '$9.99/month',
-  },
-  {
-    id: 'com.senger.market.pro.yearly',
-    title: 'Senger Pro Yearly',
-    description: 'Full access — save 40% with annual billing.',
-    period: 'yearly',
-    priceDisplay: '$69.99/year',
-  },
-];
+// Product catalog — derived from the canonical 3-tier model in
+// config/tiers.js so the Apple SKUs can never drift from the real tiers.
+// Six auto-renewable subscriptions: {new,dark,nuclear} x {monthly,annual}.
+// These productId strings MUST match App Store Connect exactly.
+const PAID_TIER_KEYS = ['new_particle', 'dark_particle', 'nuclear_particle'];
+
+function buildProducts() {
+  const out = [];
+  for (const tierKey of PAID_TIER_KEYS) {
+    const tier = TIERS[tierKey];
+    if (!tier || !tier.appleProductId) continue;
+    for (const period of ['monthly', 'annual']) {
+      const productId = tier.appleProductId[period];
+      if (!productId) continue;
+      out.push({
+        productId,
+        tierKey,
+        label: tier.label,
+        period, // 'monthly' | 'annual'
+        price: tier.price ? tier.price[period] : null,
+      });
+    }
+  }
+  return out;
+}
+
+const PRODUCTS = buildProducts();
 
 /**
  * GET /api/billing/iap/products
@@ -74,8 +84,11 @@ router.post('/purchase', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'productId is required', code: 'missing_product' });
     }
 
-    const product = PRODUCTS.find(p => p.id === productId);
-    if (!product) {
+    // Validate against the canonical tier catalogue. Unknown ids (e.g. the
+    // retired "pro" SKUs) resolve to null and are rejected.
+    const tierKey = tierFromAppleProductId(productId);
+    const product = PRODUCTS.find(p => p.productId === productId);
+    if (!tierKey || !product) {
       return res.status(400).json({ error: 'Unknown product ID', code: 'invalid_product' });
     }
 
@@ -171,7 +184,7 @@ router.post('/purchase', requireAuth, async (req, res) => {
                    last_validated_at = EXCLUDED.last_validated_at,
                    latest_receipt    = EXCLUDED.latest_receipt,
                    status            = EXCLUDED.status`,
-            [otx, userId, productId, expiresAtIso, storedReceipt, 'particle_pro'],
+            [otx, userId, productId, expiresAtIso, storedReceipt, tierKey],
           );
         }
       } catch (ledgerErr) {
@@ -184,7 +197,7 @@ router.post('/purchase', requireAuth, async (req, res) => {
 
     // Activate subscription
     const now = Date.now();
-    const duration = product.period === 'yearly'
+    const duration = product.period === 'annual'
       ? 365 * 24 * 60 * 60 * 1000
       : 30 * 24 * 60 * 60 * 1000;
     const expiresAt = verifiedExpiry || (now + duration);
@@ -201,6 +214,7 @@ router.post('/purchase', requireAuth, async (req, res) => {
     await updateSubscription(userId, {
       isPaid: true,
       subscriptionActive: expiresAt > now,
+      planTier: tierKey,
       trialEndsAt: expiresAt,
       appleProductId: productId,
       appleTransactionId: transactionId || null,

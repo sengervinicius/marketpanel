@@ -40,6 +40,10 @@ const TIERS = {
     predictionMarkets: 'view',
     centralVaultAccess: 'read',
     price: { monthly: 29, annual: 290 },
+    appleProductId: {
+      monthly: 'com.the-particle.app.new.monthly',
+      annual:  'com.the-particle.app.new.annual',
+    },
     stripePriceEnv: {
       monthly: 'STRIPE_NEW_PARTICLE_MONTHLY',
       annual:  'STRIPE_NEW_PARTICLE_ANNUAL',
@@ -58,6 +62,10 @@ const TIERS = {
     predictionMarkets: 'alerts',
     centralVaultAccess: 'read',
     price: { monthly: 79, annual: 790 },
+    appleProductId: {
+      monthly: 'com.the-particle.app.dark.monthly',
+      annual:  'com.the-particle.app.dark.annual',
+    },
     stripePriceEnv: {
       monthly: 'STRIPE_DARK_PARTICLE_MONTHLY',
       annual:  'STRIPE_DARK_PARTICLE_ANNUAL',
@@ -76,6 +84,10 @@ const TIERS = {
     predictionMarkets: 'full',  // + custom tracking
     centralVaultAccess: 'suggest', // can suggest additions
     price: { monthly: 199, annual: 1990 },
+    appleProductId: {
+      monthly: 'com.the-particle.app.nuclear.monthly',
+      annual:  'com.the-particle.app.nuclear.annual',
+    },
     stripePriceEnv: {
       monthly: 'STRIPE_NUCLEAR_PARTICLE_MONTHLY',
       annual:  'STRIPE_NUCLEAR_PARTICLE_ANNUAL',
@@ -136,6 +148,34 @@ function tierFromStripePriceId(priceId) {
   return DEFAULT_PAID_TIER;
 }
 
+/**
+ * Resolve the Apple IAP product id for a tier + billing cycle.
+ * @param {string} tierKey — one of the paid tier keys
+ * @param {string} cycle   — 'monthly' | 'annual'
+ * @returns {string|null} the Apple product id, or null if unknown.
+ */
+function appleProductIdFor(tierKey, cycle = 'monthly') {
+  const tier = TIERS[tierKey];
+  if (!tier || !tier.appleProductId) return null;
+  return tier.appleProductId[cycle] || null;
+}
+
+/**
+ * Map an Apple IAP product id back to its tier key.
+ * @param {string} productId
+ * @returns {('new_particle'|'dark_particle'|'nuclear_particle'|null)}
+ */
+function tierFromAppleProductId(productId) {
+  if (!productId) return null;
+  for (const [key, tier] of Object.entries(TIERS)) {
+    if (!tier.appleProductId) continue;
+    for (const id of Object.values(tier.appleProductId)) {
+      if (id === productId) return key;
+    }
+  }
+  return null;
+}
+
 module.exports = {
   TIERS,
   DEFAULT_PAID_TIER,
@@ -144,4 +184,6 @@ module.exports = {
   isUnlimited,
   getStripePriceId,
   tierFromStripePriceId,
+  appleProductIdFor,
+  tierFromAppleProductId,
 };

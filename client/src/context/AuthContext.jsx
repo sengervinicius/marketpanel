@@ -20,7 +20,7 @@ import * as Sentry from '@sentry/react';
 import { API_BASE, setAuthToken, clearAuthToken } from '../utils/api';
 import { swallow } from '../utils/swallow';
 import { isIOS } from '../services/platform';
-import { purchase, restorePurchases, IAP_PRODUCTS } from '../services/iap';
+import { purchase, restorePurchases, productIdFor } from '../services/iap';
 
 // W0.3 — Tag Sentry scope with (non-PII) user id + tier whenever the
 // auth state changes. Never sets username or email.
@@ -454,9 +454,15 @@ export function AuthProvider({ children }) {
   // startCheckout(tier?, plan?) — tier: 'new_particle'|'dark_particle'|'nuclear_particle'
   //                                plan: 'monthly'|'annual'
   const startCheckout = useCallback(async (tier, plan) => {
-    // iOS native → Apple IAP
+    // iOS native → Apple IAP. Map the selected tier + billing cycle to the
+    // matching Apple product id. Default to new_particle if no tier passed.
     if (isIOS()) {
-      const productId = plan === 'annual' ? IAP_PRODUCTS.YEARLY : IAP_PRODUCTS.MONTHLY;
+      const cycle = plan === 'annual' ? 'annual' : 'monthly';
+      const productId = productIdFor(tier || 'new_particle', cycle);
+      if (!productId) {
+        alert('This plan is not available on iOS.');
+        return;
+      }
       const result = await purchase(productId);
       if (result.ok) {
         await refreshSubscription();

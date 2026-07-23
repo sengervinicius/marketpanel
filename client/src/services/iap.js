@@ -8,19 +8,44 @@
  *   - On iOS: uses Apple IAP via registerPlugin
  *   - On web/Android: falls back to Stripe checkout (existing flow)
  *
- * Product IDs must match App Store Connect configuration:
- *   - com.particle.market.pro.monthly
- *   - com.particle.market.pro.yearly
+ * Product IDs must match App Store Connect configuration (six auto-renewable
+ * subscriptions — one monthly + one annual per paid tier):
+ *   new_particle:     com.the-particle.app.new.monthly     / com.the-particle.app.new.annual
+ *   dark_particle:    com.the-particle.app.dark.monthly    / com.the-particle.app.dark.annual
+ *   nuclear_particle: com.the-particle.app.nuclear.monthly / com.the-particle.app.nuclear.annual
  */
 
 import { isIOS, isWeb } from './platform';
 
 import { apiFetch } from '../utils/api';
-// IAP product identifiers (must match App Store Connect)
+// IAP product identifiers (must match App Store Connect + server config/tiers.js)
 export const IAP_PRODUCTS = {
-  MONTHLY: 'com.particle.market.pro.monthly',
-  YEARLY:  'com.particle.market.pro.yearly',
+  NEW_MONTHLY:     'com.the-particle.app.new.monthly',
+  NEW_ANNUAL:      'com.the-particle.app.new.annual',
+  DARK_MONTHLY:    'com.the-particle.app.dark.monthly',
+  DARK_ANNUAL:     'com.the-particle.app.dark.annual',
+  NUCLEAR_MONTHLY: 'com.the-particle.app.nuclear.monthly',
+  NUCLEAR_ANNUAL:  'com.the-particle.app.nuclear.annual',
 };
+
+// tierKey → { monthly, annual } → product id
+const PRODUCT_BY_TIER = {
+  new_particle:     { monthly: IAP_PRODUCTS.NEW_MONTHLY,     annual: IAP_PRODUCTS.NEW_ANNUAL },
+  dark_particle:    { monthly: IAP_PRODUCTS.DARK_MONTHLY,    annual: IAP_PRODUCTS.DARK_ANNUAL },
+  nuclear_particle: { monthly: IAP_PRODUCTS.NUCLEAR_MONTHLY, annual: IAP_PRODUCTS.NUCLEAR_ANNUAL },
+};
+
+/**
+ * Resolve the Apple IAP product id for a tier + billing cycle.
+ * @param {('new_particle'|'dark_particle'|'nuclear_particle')} tierKey
+ * @param {('monthly'|'annual')} cycle
+ * @returns {string|null}
+ */
+export function productIdFor(tierKey, cycle = 'monthly') {
+  const t = PRODUCT_BY_TIER[tierKey];
+  if (!t) return null;
+  return t[cycle] || null;
+}
 
 /**
  * Check if IAP is available (iOS native only).
@@ -129,7 +154,7 @@ export function getBillingAction(stripeCheckout) {
   if (isIOS()) {
     return {
       isAppleIAP: true,
-      startPurchase: (productId) => purchase(productId || IAP_PRODUCTS.MONTHLY),
+      startPurchase: (productId) => purchase(productId || IAP_PRODUCTS.NEW_MONTHLY),
     };
   }
 
