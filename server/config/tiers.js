@@ -41,8 +41,8 @@ const TIERS = {
     centralVaultAccess: 'read',
     price: { monthly: 29, annual: 290 },
     appleProductId: {
-      monthly: 'com.the-particle.app.new.monthly',
-      annual:  'com.the-particle.app.new.annual',
+      monthly: 'com.theparticle.app.new.monthly',
+      annual:  'com.theparticle.app.new.annual',
     },
     stripePriceEnv: {
       monthly: 'STRIPE_NEW_PARTICLE_MONTHLY',
@@ -63,8 +63,8 @@ const TIERS = {
     centralVaultAccess: 'read',
     price: { monthly: 79, annual: 790 },
     appleProductId: {
-      monthly: 'com.the-particle.app.dark.monthly',
-      annual:  'com.the-particle.app.dark.annual',
+      monthly: 'com.theparticle.app.dark.monthly',
+      annual:  'com.theparticle.app.dark.annual',
     },
     stripePriceEnv: {
       monthly: 'STRIPE_DARK_PARTICLE_MONTHLY',
@@ -85,8 +85,8 @@ const TIERS = {
     centralVaultAccess: 'suggest', // can suggest additions
     price: { monthly: 199, annual: 1990 },
     appleProductId: {
-      monthly: 'com.the-particle.app.nuclear.monthly',
-      annual:  'com.the-particle.app.nuclear.annual',
+      monthly: 'com.theparticle.app.nuclear.monthly',
+      annual:  'com.theparticle.app.nuclear.annual',
     },
     stripePriceEnv: {
       monthly: 'STRIPE_NUCLEAR_PARTICLE_MONTHLY',

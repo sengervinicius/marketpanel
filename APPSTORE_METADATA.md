@@ -63,12 +63,12 @@ Three subscription tiers are offered via Apple In-App Purchase (auto-renewing):
 
 | Tier | Product ID | Price |
 | --- | --- | --- |
-| New Particle (monthly) | com.the-particle.app.new.monthly | $29 |
-| New Particle (annual) | com.the-particle.app.new.annual | $290 |
-| Dark Particle (monthly) | com.the-particle.app.dark.monthly | $79 |
-| Dark Particle (annual) | com.the-particle.app.dark.annual | $790 |
-| Nuclear (monthly) | com.the-particle.app.nuclear.monthly | $199 |
-| Nuclear (annual) | com.the-particle.app.nuclear.annual | $1990 |
+| New Particle (monthly) | com.theparticle.app.new.monthly | $29 |
+| New Particle (annual) | com.theparticle.app.new.annual | $290 |
+| Dark Particle (monthly) | com.theparticle.app.dark.monthly | $79 |
+| Dark Particle (annual) | com.theparticle.app.dark.annual | $790 |
+| Nuclear (monthly) | com.theparticle.app.nuclear.monthly | $199 |
+| Nuclear (annual) | com.theparticle.app.nuclear.annual | $1990 |
 
 ---
 

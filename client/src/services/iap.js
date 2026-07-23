@@ -10,9 +10,9 @@
  *
  * Product IDs must match App Store Connect configuration (six auto-renewable
  * subscriptions — one monthly + one annual per paid tier):
- *   new_particle:     com.the-particle.app.new.monthly     / com.the-particle.app.new.annual
- *   dark_particle:    com.the-particle.app.dark.monthly    / com.the-particle.app.dark.annual
- *   nuclear_particle: com.the-particle.app.nuclear.monthly / com.the-particle.app.nuclear.annual
+ *   new_particle:     com.theparticle.app.new.monthly     / com.theparticle.app.new.annual
+ *   dark_particle:    com.theparticle.app.dark.monthly    / com.theparticle.app.dark.annual
+ *   nuclear_particle: com.theparticle.app.nuclear.monthly / com.theparticle.app.nuclear.annual
  */
 
 import { isIOS, isWeb } from './platform';
@@ -20,12 +20,12 @@ import { isIOS, isWeb } from './platform';
 import { apiFetch } from '../utils/api';
 // IAP product identifiers (must match App Store Connect + server config/tiers.js)
 export const IAP_PRODUCTS = {
-  NEW_MONTHLY:     'com.the-particle.app.new.monthly',
-  NEW_ANNUAL:      'com.the-particle.app.new.annual',
-  DARK_MONTHLY:    'com.the-particle.app.dark.monthly',
-  DARK_ANNUAL:     'com.the-particle.app.dark.annual',
-  NUCLEAR_MONTHLY: 'com.the-particle.app.nuclear.monthly',
-  NUCLEAR_ANNUAL:  'com.the-particle.app.nuclear.annual',
+  NEW_MONTHLY:     'com.theparticle.app.new.monthly',
+  NEW_ANNUAL:      'com.theparticle.app.new.annual',
+  DARK_MONTHLY:    'com.theparticle.app.dark.monthly',
+  DARK_ANNUAL:     'com.theparticle.app.dark.annual',
+  NUCLEAR_MONTHLY: 'com.theparticle.app.nuclear.monthly',
+  NUCLEAR_ANNUAL:  'com.theparticle.app.nuclear.annual',
 };
 
 // tierKey → { monthly, annual } → product id
