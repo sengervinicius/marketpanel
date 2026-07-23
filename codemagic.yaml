@@ -20,14 +20,19 @@ workflows:
       - name: Capacitor sync iOS
         script: |
           cd client && npx cap sync ios
+      - name: Set up code signing (fetch/create App Store cert + profile)
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "com.the-particle.app" --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
       - name: Set build number
         script: |
           cd client/ios/App
           agvtool new-version -all $(($BUILD_NUMBER))
-      - name: Build & sign IPA
+      - name: Build IPA
         script: |
           cd client/ios/App
-          xcode-project use-profiles
           xcode-project build-ipa --workspace App.xcworkspace --scheme App
     artifacts:
       - client/ios/App/build/ios/ipa/*.ipa
