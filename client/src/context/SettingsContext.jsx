@@ -475,7 +475,11 @@ export function SettingsProvider({ children, isAuthenticated }) {
   }, [persistSettings]);
 
   const resetTour = useCallback(async () => {
-    await updateSettings({ onboardingCompleted: false });
+    // tourResetAt is the flag WelcomeTour actually watches (it must exceed the
+    // localStorage completion timestamp to re-trigger). Setting only
+    // onboardingCompleted:false did nothing because the local 'completed'
+    // flags still suppressed the tour.
+    await updateSettings({ tourResetAt: Date.now(), onboardingCompleted: false });
   }, [updateSettings]);
 
   /**

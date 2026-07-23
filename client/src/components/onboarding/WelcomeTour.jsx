@@ -554,10 +554,15 @@ export default function WelcomeTour() {
     const localDone  = localStorage.getItem('particle_tour_completed') === '1';
     const legacyDone = localStorage.getItem('particle_onboarding_done') === '1';
     if (!clearedByReset && (serverDone || localDone || legacyDone)) return;
+    if (active) return; // already showing — don't restart a tour in progress
 
-    const t = setTimeout(() => setActive(true), 700);
+    const t = setTimeout(() => {
+      // Start from the top every time (covers same-session "Restart tour").
+      setPhase('splash'); setSceneIdx(0); setElapsed(0);
+      setActive(true);
+    }, 700);
     return () => clearTimeout(t);
-  }, [settings]);
+  }, [settings, active]);
 
   // ── Auto-advance timer for SCENES ────────────────────────────────────
   useEffect(() => {
