@@ -652,10 +652,8 @@ function BrazilPanel({ onTickerClick }) {
     <PanelShell onDropTicker={handleDropTicker}>
       {/* Header */}
       <EditablePanelHeader
-        title={panelTitle}
+        title="🇧🇷 Brazil"
         onTitleClick={() => openOverlay('brazil')}
-        onTitleChange={(t) => updatePanelConfig('brazilB3', { title: t, symbols: panelSymbols })}
-        onConfigOpen={() => setConfigOpen(true)}
         onDropTicker={handleDropTicker}
         onSearchChange={setSearchFilter}
         feedBadge={badge}
