@@ -78,23 +78,29 @@ function ChartV2({bars}){
 
 /* ---------- intro ---------- */
 function Intro({onDone}){
-  const cvRef=useRef(null); const rootRef=useRef(null);
+  const cvRef=useRef(null); const rootRef=useRef(null); const doneRef=useRef(onDone);
+  doneRef.current=onDone;
   useEffect(()=>{
-    const root=rootRef.current, cv=cvRef.current; if(!cv)return;
-    const ctx=cv.getContext('2d'); const dpr=Math.min(window.devicePixelRatio||1,2);
-    const r=root.getBoundingClientRect(); cv.width=r.width*dpr; cv.height=r.height*dpr; ctx.scale(dpr,dpr);
-    const cx=r.width/2, cy=r.height/2; let parts=[]; let burst=false; const t0=performance.now(); let raf;
-    root.querySelector('.m2-iorb').classList.add('go');root.querySelector('.m2-iword').classList.add('go');root.querySelector('.m2-isub').classList.add('go');
-    const loop=(now)=>{const t=(now-t0)/1000; ctx.clearRect(0,0,r.width,r.height);
-      if(t<0.6){const p=t/0.6;const rr=2+p*14;const g=ctx.createRadialGradient(cx,cy,0,cx,cy,rr*4);g.addColorStop(0,'rgba(255,180,90,'+(0.9*p)+')');g.addColorStop(.4,'rgba(255,106,0,'+(0.5*p)+')');g.addColorStop(1,'rgba(255,106,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,rr*4,0,7);ctx.fill();}
-      if(!burst&&t>=0.55){burst=true;for(let i=0;i<110;i++){const a=Math.random()*7;const sp=1.4+Math.random()*4.6;parts.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,rr:1+Math.random()*2.4,life:1});}}
-      parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vx*=0.965;p.vy*=0.965;p.life-=0.016;if(p.life>0){ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=Math.random()>.4?'#ff9243':'#ffd8a8';ctx.beginPath();ctx.arc(p.x,p.y,p.rr,0,7);ctx.fill();}});
-      ctx.globalAlpha=1;
-      if(t<3.0){raf=requestAnimationFrame(loop);} else {root.classList.add('gone');setTimeout(onDone,700);}
-    };
-    raf=requestAnimationFrame(loop);
-    return ()=>cancelAnimationFrame(raf);
-  },[onDone]);
+    const root=rootRef.current; let raf; let t1,t2;
+    try{
+      root.querySelector('.m2-iorb').classList.add('go');root.querySelector('.m2-iword').classList.add('go');root.querySelector('.m2-isub').classList.add('go');
+      const cv=cvRef.current; const ctx=cv&&cv.getContext('2d');
+      if(ctx){const dpr=Math.min(window.devicePixelRatio||1,2);const r=root.getBoundingClientRect();cv.width=r.width*dpr;cv.height=r.height*dpr;ctx.scale(dpr,dpr);
+        const cx=r.width/2,cy=r.height/2;let parts=[];let burst=false;const t0=performance.now();
+        const loop=(now)=>{const t=(now-t0)/1000;ctx.clearRect(0,0,r.width,r.height);
+          if(t<0.6){const p=t/0.6;const rr=2+p*14;const g=ctx.createRadialGradient(cx,cy,0,cx,cy,rr*4);g.addColorStop(0,'rgba(255,180,90,'+(0.9*p)+')');g.addColorStop(.4,'rgba(255,106,0,'+(0.5*p)+')');g.addColorStop(1,'rgba(255,106,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,rr*4,0,7);ctx.fill();}
+          if(!burst&&t>=0.55){burst=true;for(let i=0;i<110;i++){const a=Math.random()*7;const sp=1.4+Math.random()*4.6;parts.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,rr:1+Math.random()*2.4,life:1});}}
+          parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vx*=0.965;p.vy*=0.965;p.life-=0.016;if(p.life>0){ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=Math.random()>.4?'#ff9243':'#ffd8a8';ctx.beginPath();ctx.arc(p.x,p.y,p.rr,0,7);ctx.fill();}});
+          ctx.globalAlpha=1; if(t<3.0)raf=requestAnimationFrame(loop);
+        };
+        raf=requestAnimationFrame(loop);
+      }
+    }catch(e){}
+    // Dismissal is driven by fixed timers so a re-render or a canvas error can never leave it stuck.
+    t1=setTimeout(()=>{try{root.classList.add('gone');}catch(e){}},2700);
+    t2=setTimeout(()=>{const fn=doneRef.current;if(fn)fn();},3400);
+    return ()=>{if(raf)cancelAnimationFrame(raf);clearTimeout(t1);clearTimeout(t2);};
+  },[]);
   return (<div className="m2-intro" ref={rootRef}><canvas ref={cvRef}></canvas><div className="m2-iorb"></div><div className="m2-iword">PARTICLE</div><div className="m2-isub">MARKET INTELLIGENCE</div></div>);
 }
 
