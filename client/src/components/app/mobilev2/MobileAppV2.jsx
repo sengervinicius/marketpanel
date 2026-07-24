@@ -25,30 +25,33 @@ const icons = {
 /* ---- interactive chart (line default, candles/area, scrub crosshair) ---- */
 function renderRich(text){
   if(text==null) return null;
-  const str=String(text);
-  // Split into blocks on blank lines so paragraphs breathe on mobile.
-  const blocks=str.split(/\n{2,}/);
-  return blocks.map((blk,bi)=>{
-    // Tokenise inline: **bold**, $TICKER(.SA), [sentiment:x], [N] cites,
-    // [action:...] tags. Everything else is plain text. Markers that are
-    // control-only ([action], [sentiment]) are dropped/relabelled so the
-    // reply reads like prose, not raw markup.
-    const parts=blk.split(/(\*\*[^*]+\*\*|\$[A-Z]{1,5}(?:\.[A-Z]{1,2})?|\[sentiment:(?:bull|bear|neutral)\]|\[action:[a-z_]+(?::[^\]]+)?\]|\[\d{1,2}\])/gi);
-    const nodes=parts.map((pt,i)=>{
-      if(!pt) return null;
-      let m;
-      if((m=pt.match(/^\*\*([^*]+)\*\*$/))) return <b key={i}>{m[1]}</b>;
-      if((m=pt.match(/^\$([A-Z]{1,5}(?:\.[A-Z]{1,2})?)$/))) return <span key={i} style={{color:'#ff8a2a',fontWeight:600}}>{'$'+m[1]}</span>;
-      if((m=pt.match(/^\[sentiment:(bull|bear|neutral)\]$/i))){
-        const c=m[1].toLowerCase()==='bull'?'#37d67a':m[1].toLowerCase()==='bear'?'#ff5d5d':'#9aa0aa';
-        return <span key={i} style={{display:'inline-block',width:7,height:7,borderRadius:4,background:c,marginRight:6,verticalAlign:'middle'}}/>;
-      }
-      if(/^\[action:/.test(pt)) return null; // terminal action tag — not user-facing on mobile
-      if((m=pt.match(/^\[(\d{1,2})\]$/))) return <sup key={i} style={{color:'var(--mut)',fontSize:'0.7em',fontWeight:600}}>{m[1]}</sup>;
-      return <span key={i}>{pt}</span>;
+  const str=String(text).replace(/\r/g,'');
+  // Inline tokeniser: **bold**, $TICKER, [sentiment:x], [action:...], [N] cites.
+  const inline=(txt,keybase)=>{
+    const parts=txt.split(/(\*\*[^*]+\*\*|\$[A-Z]{1,5}(?:\.[A-Z]{1,2})?|\[sentiment:(?:bull|bear|neutral)\]|\[action:[a-z_]+(?::[^\]]+)?\]|\[\d{1,2}\])/gi);
+    return parts.map((pt,i)=>{
+      if(!pt) return null; let m;
+      if((m=pt.match(/^\*\*([^*]+)\*\*$/))) return <b key={keybase+'-'+i}>{m[1]}</b>;
+      if((m=pt.match(/^\$([A-Z]{1,5}(?:\.[A-Z]{1,2})?)$/))) return <span key={keybase+'-'+i} style={{color:'#ff8a2a',fontWeight:600}}>{'$'+m[1]}</span>;
+      if((m=pt.match(/^\[sentiment:(bull|bear|neutral)\]$/i))){const c=m[1].toLowerCase()==='bull'?'#37d67a':m[1].toLowerCase()==='bear'?'#ff5d5d':'#9aa0aa';return <span key={keybase+'-'+i} style={{display:'inline-block',width:7,height:7,borderRadius:4,background:c,marginRight:6,verticalAlign:'middle'}}/>;}
+      if(/^\[action:/.test(pt)) return null;
+      if((m=pt.match(/^\[(\d{1,2})\]$/))) return <sup key={keybase+'-'+i} style={{color:'var(--mut)',fontSize:'0.7em',fontWeight:600}}>{m[1]}</sup>;
+      return <span key={keybase+'-'+i}>{pt}</span>;
     });
-    return <p key={bi} style={{margin:bi?'8px 0 0':0}}>{nodes}</p>;
+  };
+  const lines=str.split(/\n/);
+  const out=[]; let bullets=null; let k=0;
+  const flush=()=>{ if(bullets){ out.push(<ul key={'u'+(k++)} style={{margin:'6px 0 6px 2px',paddingLeft:16}}>{bullets}</ul>); bullets=null; } };
+  lines.forEach((ln,idx)=>{
+    const t=ln.trim();
+    if(!t){ flush(); return; }
+    let m;
+    if((m=t.match(/^(#{1,6})\s+(.*)$/))){ flush(); out.push(<div key={'h'+(k++)} style={{fontSize:12.5,fontWeight:700,letterSpacing:'.5px',textTransform:'uppercase',color:'var(--orange2)',margin:(out.length?'16px':'2px')+' 0 7px'}}>{inline(m[2],'h'+idx)}</div>); return; }
+    if((m=t.match(/^[-*•]\s+(.*)$/))){ if(!bullets)bullets=[]; bullets.push(<li key={'li'+(k++)} style={{fontSize:13.5,lineHeight:1.5,color:'rgba(255,255,255,.86)',marginBottom:5}}>{inline(m[1],'li'+idx)}</li>); return; }
+    flush(); out.push(<p key={'p'+(k++)} style={{margin:(out.length?'8px':0)+' 0 0',fontSize:13.5,lineHeight:1.55,color:'rgba(255,255,255,.86)'}}>{inline(t,'p'+idx)}</p>);
   });
+  flush();
+  return out;
 }
 
 function saToText(sa){
@@ -74,15 +77,15 @@ function ChartV2({bars,onScrub}){
   const G={W:352,pT:20,pH:206,vT:236,vH:30,rPad:38,x0:6};
   const build=useCallback(()=>{
     if(bars&&bars.length){return bars.map(b=>({o:b.o??b.open,c:b.c??b.close,hi:b.h??b.high,lo:b.l??b.low,vol:(b.v??b.volume)||1,dt:new Date(b.t)}));}
-    let seed=42; const rnd=()=>{seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;};
-    const N=44; let px=150; const cs=[]; const today=new Date(2026,6,24);
-    for(let i=0;i<N;i++){const o=px;const drift=0.7+(i/N);const ch=(rnd()-0.42)*3.6*drift;const c=o+ch;const hi=Math.max(o,c)+rnd()*2;const lo=Math.min(o,c)-rnd()*2;const vol=0.4+rnd();const dt=new Date(today);dt.setDate(dt.getDate()-(N-1-i));cs.push({o,c,hi,lo,vol,dt});px=c;}
-    return cs;
+    return []; // no synthetic data — real bars or an honest empty state
   },[bars]);
   const fmtD=(d)=>d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
   const render=useCallback((k)=>{
     const host=hostRef.current; if(!host) return;
-    const cs=build(); const N=cs.length; const {W,pT,pH,vT,vH,rPad,x0}=G; const x1=W-rPad; const H=vT+vH+18;
+    const cs=build(); const N=cs.length;
+    host.querySelectorAll('.m2-noc').forEach(e=>e.remove());
+    if(!N){ host.querySelectorAll('svg').forEach(e=>e.remove()); const ohh=host.querySelector('.m2-ohlc'); if(ohh)ohh.innerHTML=''; const msg=(bars==null)?'Loading chart…':'Chart data unavailable for this instrument.'; host.insertAdjacentHTML('beforeend','<div class="m2-noc">'+msg+'</div>'); return; }
+    const {W,pT,pH,vT,vH,rPad,x0}=G; const x1=W-rPad; const H=vT+vH+18;
     const his=Math.max(...cs.map(d=>d.hi)),los=Math.min(...cs.map(d=>d.lo)); const pd=(his-los)*0.08,mx=his+pd,mn=los-pd;
     const Y=v=>pT+(1-(v-mn)/(mx-mn))*pH; const step=(x1-x0)/N,bw=step*0.6;
     cs.forEach((d,i)=>{d.cx=x0+step*i+step/2;d.yc=Y(d.c);});
@@ -103,7 +106,7 @@ function ChartV2({bars,onScrub}){
     host.insertAdjacentHTML('beforeend',s);
     setLegend(cs[N-1]);
     attach();
-  },[build]);
+  },[build,bars]);
   const setLegend=(d)=>{const host=hostRef.current;if(!host)return;const el=host.querySelector('.m2-ohlc');if(!el)return;const up=d.c>=d.o;const col=up?'#25d0a0':'#ff5a6a';el.innerHTML=`<b>${fmtD(d.dt)}</b>O <s>${d.o.toFixed(2)}</s> H <s style="color:#25d0a0">${d.hi.toFixed(2)}</s> L <s style="color:#ff5a6a">${d.lo.toFixed(2)}</s> C <s style="color:${col}">${d.c.toFixed(2)}</s>`;};
   const attach=()=>{const host=hostRef.current;if(!host)return;const svg=host.querySelector('#m2csvg');if(!svg)return;const xh=svg.querySelector('#m2xh');
     const at=(cx)=>{const dd=dataRef.current;if(!dd)return;const r=svg.getBoundingClientRect();let vb=(cx-r.left)/r.width*G.W;let i=Math.round((vb-dd.x0)/dd.step-0.5);i=Math.max(0,Math.min(dd.N-1,i));const d=dd.cs[i];xh.style.display='';svg.querySelector('#m2xv').setAttribute('x1',d.cx);svg.querySelector('#m2xv').setAttribute('x2',d.cx);svg.querySelector('#m2xd').setAttribute('cx',d.cx);svg.querySelector('#m2xd').setAttribute('cy',d.yc);setLegend(d);if(onScrub)onScrub({c:d.c,o:d.o,hi:d.hi,lo:d.lo,dt:d.dt});};
@@ -171,7 +174,7 @@ function Tour({tabRefs,onEnd}){
   </div>);
 }
 
-function DetailView({sym,quote,name,fmtP,fmtC,cls,onClose,onAsk}){
+function DetailView({sym,quote,name,fmtP,fmtC,cls,onClose,onAsk,watching,onToggleWatch}){
   const [bars,setBars]=useState(null);
   const [funds,setFunds]=useState(null);
   const [logo,setLogo]=useState(null);
@@ -183,14 +186,17 @@ function DetailView({sym,quote,name,fmtP,fmtC,cls,onClose,onAsk}){
   const DESC={SPY:'SPDR S&P 500 ETF — tracks the 500 largest US companies.',QQQ:'Invesco QQQ — tracks the tech-heavy Nasdaq-100.',DIA:'SPDR Dow Jones ETF — 30 US blue-chip industrials.',IWM:'iShares Russell 2000 — US small-cap equities.',EWZ:'iShares MSCI Brazil ETF — Brazilian large caps (Ibovespa proxy).',EFA:'iShares MSCI EAFE — developed markets ex-US & Canada.',EWJ:'iShares MSCI Japan — Japanese equities.',EEM:'iShares MSCI Emerging Markets.',FXI:'iShares China Large-Cap.',GLD:'SPDR Gold Shares — tracks spot gold bullion.',SLV:'iShares Silver Trust — tracks spot silver.',USO:'United States Oil Fund — tracks WTI crude futures.',UNG:'US Natural Gas Fund — tracks Henry Hub gas futures.',CORN:'Teucrium Corn Fund — corn futures.',CPER:'US Copper Index Fund.',BTCUSD:'Bitcoin — the largest cryptocurrency by market value.',ETHUSD:'Ethereum — smart-contract blockchain, 2nd-largest crypto.',SOLUSD:'Solana — high-throughput layer-1 crypto.',EURUSD:'Euro vs US Dollar — the world\'s most-traded FX pair.',USDBRL:'US Dollar vs Brazilian Real.',USDJPY:'US Dollar vs Japanese Yen.',GBPUSD:'British Pound vs US Dollar.'};
   useEffect(()=>{let m=true;const ds=d=>d.toISOString().slice(0,10);const to=new Date();const from=new Date(Date.now()-120*864e5);
     setBars(null);setFunds(null);setLogo(null);setProf(null);setScrub(null);
-    apiFetch(`/api/chart/${encodeURIComponent(sym)}?multiplier=1&timespan=day&from=${ds(from)}&to=${ds(to)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&Array.isArray(d.results))setBars(d.results);}).catch(()=>{});
+    apiFetch(`/api/chart/${encodeURIComponent(sym)}?multiplier=1&timespan=day&from=${ds(from)}&to=${ds(to)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m)setBars(d&&Array.isArray(d.results)?d.results:[]);}).catch(()=>{if(m)setBars([]);});
     apiFetch(`/api/fundamentals/${encodeURIComponent(sym)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m)setFunds(d);}).catch(()=>{});
     if(equityish){
       apiFetch(`/api/market/td/logo/${encodeURIComponent(sym)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&d.url)setLogo(d.url);}).catch(()=>{});
       apiFetch(`/api/market/td/profile/${encodeURIComponent(sym)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&d.data)setProf(d.data);}).catch(()=>{});
     }
     return()=>{m=false;};},[sym]);
-  const price=quote&&quote.price; const chg=quote&&quote.changePct;
+  const _lb=bars&&bars.length?bars[bars.length-1]:null, _pb=bars&&bars.length>1?bars[bars.length-2]:null;
+  const _lbc=_lb?(_lb.c??_lb.close):null, _pbc=_pb?(_pb.c??_pb.close):null;
+  const price=(quote&&quote.price!=null)?quote.price:_lbc;
+  const chg=(quote&&quote.changePct!=null)?quote.changePct:((_lbc!=null&&_pbc)?((_lbc-_pbc)/_pbc*100):null);
   const fmtBig=(v)=>{if(v==null)return '—';const a=Math.abs(v);if(a>=1e12)return (v/1e12).toFixed(2)+'T';if(a>=1e9)return (v/1e9).toFixed(2)+'B';if(a>=1e6)return (v/1e6).toFixed(1)+'M';return v.toLocaleString();};
   const gv=(...ks)=>{if(!funds)return null;for(const k of ks){if(funds[k]!=null)return funds[k];}return null;};
   const mc=gv('market_cap','marketCap'),pe=gv('pe_ratio','peRatio','pe'),eps=gv('eps'),beta=gv('beta'),dvd=gv('dividend_yield','dividend','dividendYield'),rev=gv('revenue','total_revenue');
@@ -208,7 +214,7 @@ function DetailView({sym,quote,name,fmtP,fmtC,cls,onClose,onAsk}){
         <button className="m2-back" onClick={onClose}><I d={icons.back} w={18}/></button>
         <div className="m2-dlogo">{logo? <img src={logo} alt="" onError={e=>{e.target.style.display='none';}}/> : <span>{initials}</span>}</div>
         <div className="m2-dtitle"><b>{name}</b><br/><span>{sym} · {equityish?'live':(CRYSET.has(sym)?'crypto · live':(FXSET.has(sym)?'FX · live':'live'))}</span></div>
-        <div className="m2-star"><I d={icons.star} w={18}/></div>
+        <button className={"m2-star"+(watching?" on":"")} onClick={(e)=>{e.stopPropagation();onToggleWatch&&onToggleWatch(sym);}}><I d={icons.star} w={18}/></button>
       </div>
       <div className="m2-dprice">
         <div className="v">{scrub? fmtP(scrub.c) : (price!=null?fmtP(price):'—')}</div>
@@ -237,7 +243,7 @@ export default function MobileAppV2(){
   const endTour=()=>{setTour(false);try{localStorage.setItem('m2tour','1');}catch(e){}};
 
   const { data } = useMarketData();
-  const { watchlist } = useWatchlist();
+  const { watchlist, addTicker, removeTicker, isWatching } = useWatchlist();
   const look=(sym)=>data?.stocks?.[sym]||data?.forex?.[sym]||data?.crypto?.[sym]||data?.indices?.[sym]||null;
   const NAMES={SPY:'S&P 500',QQQ:'Nasdaq 100',DIA:'Dow Jones',IWM:'Russell 2000',EWZ:'Ibovespa',EFA:'EAFE',EWJ:'Japan',EEM:'Emerging Mkts',FXI:'China',AAPL:'Apple',NVDA:'Nvidia',MSFT:'Microsoft',TSLA:'Tesla',AMZN:'Amazon',GOOGL:'Alphabet',META:'Meta',GLD:'Gold',SLV:'Silver',USO:'WTI crude',UNG:'Nat gas',CORN:'Corn',CPER:'Copper',EURUSD:'EUR / USD',USDBRL:'USD / BRL',USDJPY:'USD / JPY',GBPUSD:'GBP / USD',BTCUSD:'Bitcoin',ETHUSD:'Ethereum',SOLUSD:'Solana',VALE:'Vale',PBR:'Petrobras'};
   const fmtP=(v)=>{if(v==null)return '—';const a=Math.abs(v);if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:0});if(a>=10)return v.toFixed(2);return v.toFixed(4);};
@@ -268,6 +274,53 @@ export default function MobileAppV2(){
   const y10=(cc)=>{const c=curves&&curves[cc]&&curves[cc].curve;const p=c&&c.find(x=>x.tenor==='10Y');return p?(p.rate!=null?p.rate:(p.yield!=null?p.yield:null)):null;};
   const CTRY=[{name:'United States',risk:'lo',eq:'SPY',cc:'US',fx:null},{name:'Brazil',risk:'md',eq:'EWZ',cc:'BR',fx:'USDBRL'},{name:'Eurozone',risk:'lo',eq:'EFA',cc:'EU',fx:'EURUSD'}];
 
+  // ── Navigation: open in-depth for any symbol (search results carry C:/X:/I: prefixes) ──
+  const normSym=(x)=>String(x||'').replace(/^[A-Z]:/,'').replace(/[\s]/g,'').toUpperCase();
+  const openDetail=(x)=>{const sym=normSym(x);if(!sym)return;setDetail(sym);setTab('term');setShowSearch(false);const sc=document.querySelector('.m2-screen');if(sc)sc.scrollTop=0;};
+
+  // ── Universal search (same registry the desktop uses) ──
+  const [showSearch,setShowSearch]=useState(false);
+  const [sq,setSq]=useState('');
+  const [sres,setSres]=useState([]);
+  const [sloading,setSloading]=useState(false);
+  const searchAbort=useRef(null);
+  useEffect(()=>{
+    if(!showSearch)return;
+    const t=setTimeout(()=>{
+      const qq=sq.trim();
+      if(qq.length<1){setSres([]);setSloading(false);return;}
+      setSloading(true);
+      if(searchAbort.current)searchAbort.current.abort();
+      const ac=new AbortController();searchAbort.current=ac;
+      apiFetch(`/api/instruments/search?q=${encodeURIComponent(qq)}&limit=25&noPolygon=1`,{signal:ac.signal})
+        .then(r=>r&&r.ok?r.json():null).then(d=>{if(!ac.signal.aborted)setSres((d&&d.results)||[]);}).catch(()=>{}).finally(()=>{if(!ac.signal.aborted)setSloading(false);});
+    },220);
+    return ()=>clearTimeout(t);
+  },[sq,showSearch]);
+
+  // ── Morning brief (full content) ──
+  const [showBrief,setShowBrief]=useState(false);
+  const [brief,setBrief]=useState(null);
+  const [briefLoading,setBriefLoading]=useState(false);
+  const openBrief=()=>{setShowBrief(true);if(brief||briefLoading)return;setBriefLoading(true);
+    apiFetch('/api/brief/').then(r=>r&&r.ok?r.json():null).then(d=>{if(d&&d.data)setBrief(d.data);else if(d&&d.ok===false)setBrief({__pending:d.message||'Your brief is being prepared.'});else setBrief({__pending:'Brief unavailable right now.'});}).catch(()=>setBrief({__pending:'Brief unavailable right now.'})).finally(()=>setBriefLoading(false));};
+
+  // ── Watchlist classification + grouping (mirrors desktop's asset-class order) ──
+  const classify=(x)=>{const u=(x||'').toUpperCase();
+    const IDX=new Set(['SPY','QQQ','DIA','IWM','EWZ','EFA','EWJ','EEM','FXI','VTI','VOO','IVV','ACWI','AGG','TLT']);
+    const COMMS=new Set(['GLD','SLV','USO','UNG','CORN','CPER','WEAT','SOYB','PALL','PPLT','DBA','DBC','USG','UGA']);
+    if(/^(BTC|ETH|SOL|BNB|XRP|ADA|DOGE|AVAX|DOT|MATIC|LTC|LINK|TRX)USD$/.test(u))return 'Crypto';
+    if(u.length===6&&/^[A-Z]{6}$/.test(u)&&/(USD|BRL|JPY|EUR|GBP|CHF|CAD|AUD|CNY|MXN|SEK|NOK)$/.test(u))return 'FX';
+    if(COMMS.has(u))return 'Commodities';
+    if(IDX.has(u))return 'Indices & ETFs';
+    return 'Equities';
+  };
+  const WL_ORDER=['Indices & ETFs','Equities','FX','Commodities','Crypto'];
+  const wlFull=(watchlist&&watchlist.length)?watchlist:['SPY','QQQ','AAPL','NVDA','GLD','BTCUSD','EWZ'];
+  const wlGroups=(()=>{const g={};wlFull.forEach(s=>{const k=classify(s);(g[k]=g[k]||[]).push(s);});return WL_ORDER.filter(k=>g[k]&&g[k].length).map(k=>[k,g[k]]);})();
+  const briefText=brief?(brief.content||brief.text||brief.body||brief.__pending||''):'';
+
+
   return (
     <div className="m2-root">
       <div className="m2-aura"><b className="a1"></b><b className="a2"></b></div>
@@ -277,53 +330,57 @@ export default function MobileAppV2(){
       {tab==='term' && !detail && (
         <div className="m2-screen">
           <div className="m2-top"><div className="m2-av"></div>
-            <div className="m2-search"><I d={icons.search} w={15}/>Search any market or ticker…</div>
-            <div className="m2-icbtn"><I d={icons.bell} w={17}/></div></div>
-          <div className="m2-h1">Terminal</div>
-          <div className="m2-sub"><span className="m2-dot"></span>Live · markets open · 24 Jul</div>
-          <div className="m2-brief">
-            <div className="bh"><span className="tag">MORNING BRIEF</span><span className="tm">06:30 BST</span></div>
-            <h2>{greeting||'Your market brief is being prepared…'}</h2>
-            <div className="cta">Read full brief · listen 3 min <I d={icons.arrow} w={14}/></div>
+            <button className="m2-search" onClick={()=>{setShowSearch(true);setSq('');setSres([]);}}><I d={icons.search} w={15}/>Search any market or ticker…</button>
           </div>
-          <div className="m2-sec"><h3>Global pulse</h3><a>Indices</a></div>
+          <div className="m2-h1">Terminal</div>
+          <div className="m2-sub"><span className="m2-dot"></span>Live · {new Date().toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'})}</div>
+          <button className="m2-brief" onClick={openBrief} style={{width:'100%',textAlign:'left',border:'none',fontFamily:'inherit',cursor:'pointer'}}>
+            <div className="bh"><span className="tag">MORNING BRIEF</span><span className="tm">Tap to read</span></div>
+            <h2>{greeting||'Your market brief is being prepared…'}</h2>
+            <div className="cta">Read full brief <I d={icons.arrow} w={14}/></div>
+          </button>
+          <div className="m2-sec"><h3>Global pulse</h3></div>
           <div className="m2-strip">
             {PULSE.map(([sym,label])=>{const q=look(sym);return (
-              <div className="m2-chip" key={sym}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></div>);})}
+              <button className="m2-chip" key={sym} onClick={()=>openDetail(sym)}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></button>);})}
           </div>
-          <div className="m2-sec"><h3>Watchlist</h3><a>tap a name → in-depth</a></div>
-          <div className="m2-card">
-            {wl.map(sym=>{const q=look(sym);const nm=NAMES[sym]||sym;return (
-              <div className="m2-row" key={sym} onClick={()=>setDetail(sym)}>
-                <div className="m2-tk">{sym.replace(/USD$/,'').slice(0,3)}</div><div className="nm"><b>{nm}</b>{nm!==sym&&(<span>{sym}</span>)}</div>
-                <div className="pr"><b>{fmtP(q&&q.price)}</b><small className={cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</small></div><span className="m2-chev"><I d={icons.chev} w={15}/></span>
-              </div>);})}
-          </div>
-          <div className="m2-sec"><h3>FX</h3><a>All pairs</a></div>
+          <div className="m2-sec"><h3>Watchlist</h3></div>
+          {wlGroups.map(([grp,syms])=>(
+            <div key={grp}>
+              <div className="m2-wlgrp">{grp}</div>
+              <div className="m2-card">
+                {syms.map(sym=>{const q=look(sym);const nm=NAMES[sym]||sym;return (
+                  <div className="m2-row" key={sym} onClick={()=>openDetail(sym)}>
+                    <div className="m2-tk">{sym.replace(/USD$/,'').slice(0,3)}</div><div className="nm"><b>{nm}</b>{nm!==sym&&(<span>{sym}</span>)}</div>
+                    <div className="pr"><b>{fmtP(q&&q.price)}</b><small className={cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</small></div><span className="m2-chev"><I d={icons.chev} w={15}/></span>
+                  </div>);})}
+              </div>
+            </div>))}
+          <div className="m2-sec"><h3>FX</h3></div>
           <div className="m2-g2">
             {FX.map(([sym,label])=>{const q=data&&data.forex&&data.forex[sym];return (
-              <div className="m2-cell" key={sym}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></div>);})}
+              <button className="m2-cell" key={sym} onClick={()=>openDetail(sym)}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></button>);})}
           </div>
-          <div className="m2-sec"><h3>Commodities</h3><a>All</a></div>
+          <div className="m2-sec"><h3>Commodities</h3></div>
           <div className="m2-strip">
             {COMM.map(([sym,label])=>{const q=data&&data.stocks&&data.stocks[sym];return (
-              <div className="m2-chip" key={sym}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></div>);})}
+              <button className="m2-chip" key={sym} onClick={()=>openDetail(sym)}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></button>);})}
           </div>
-          <div className="m2-sec"><h3>Countries</h3><a>Explore</a></div>
+          <div className="m2-sec"><h3>Countries</h3></div>
           <div className="m2-strip">
             {CTRY.map(c=>{const eq=look(c.eq);const yy=y10(c.cc);const fx=c.fx?(data&&data.forex&&data.forex[c.fx]):null;return (
-              <div className="m2-cty" key={c.name}>
+              <button className="m2-cty" key={c.name} onClick={()=>openDetail(c.eq)}>
                 <div className="ch"><span className="cn">{c.name}</span><span className={'risk '+c.risk}>{c.risk==='lo'?'RISK LOW':'RISK MED'}</span></div>
                 <div className="kv"><span>Equity</span><b className={cls(eq&&eq.changePct)}>{fmtC(eq&&eq.changePct)}</b></div>
                 <div className="kv"><span>10Y</span><b>{yy!=null?yy.toFixed(2)+'%':'—'}</b></div>
                 {c.fx&&(<div className="kv"><span>{c.fx.slice(0,3)}/{c.fx.slice(3)}</span><b className={cls(fx&&fx.changePct)}>{fmtP(fx&&fx.price)}</b></div>)}
-              </div>);})}
+              </button>);})}
           </div>
         </div>
       )}
 
       {/* DETAIL */}
-      {detail && (<DetailView sym={detail} quote={look(detail)} name={NAMES[detail]||detail} fmtP={fmtP} fmtC={fmtC} cls={cls} onClose={()=>setDetail(null)} onAsk={askAI}/>)}
+      {detail && (<DetailView sym={detail} quote={look(detail)} name={NAMES[detail]||detail} fmtP={fmtP} fmtC={fmtC} cls={cls} onClose={()=>setDetail(null)} onAsk={askAI} watching={isWatching&&isWatching(detail)} onToggleWatch={(sy)=>{if(!isWatching)return; isWatching(sy)?removeTicker(sy):addTicker(sy);}}/>)}
 
       {/* PARTICLE AI */}
       {tab==='ai' && !detail && (<>
@@ -366,12 +423,49 @@ export default function MobileAppV2(){
         <div className="m2-screen">
           <div className="m2-h1" style={{paddingTop:'6px'}}>Vault</div>
           <div className="m2-sub">Your private research · {vaultDocs?vaultDocs.length:0} document{(vaultDocs&&vaultDocs.length===1)?'':'s'}</div>
-          <div className="m2-askvault"><b>Ask your vault</b><p>"What did our last Nvidia note conclude on margins?" — Particle searches every document you've saved and answers with citations.</p></div>
+          <button className="m2-askvault" onClick={()=>go('ai')} style={{width:'100%',textAlign:'left',fontFamily:'inherit',cursor:'pointer'}}><b>Ask your vault <I d={icons.arrow} w={13}/></b><p>Particle searches every document you’ve saved and answers with citations. Tap to ask.</p></button>
           <div className="m2-sec"><h3>Recent</h3><a>All</a></div>
           {(vaultDocs&&vaultDocs.length?vaultDocs.slice(0,10):[]).map(doc=>(
             <div className="m2-vcard" key={doc.id}><div className="m2-vico"><I d={icons.doc} w={19}/></div><div className="nm"><b>{docTitle(doc.filename)}</b><span>{docType(doc.filename)}{doc.chunk_count?(' · '+doc.chunk_count+' chunks'):''} · {relTime(doc.created_at)}</span></div></div>))}
           {vaultDocs&&!vaultDocs.length && (<div className="m2-vcard"><div className="nm"><b>No documents yet</b><span>Email or upload research to build your vault</span></div></div>)}
           {!vaultDocs && (<div className="m2-vcard"><div className="nm"><span>Loading your vault…</span></div></div>)}
+        </div>
+      )}
+
+      {/* SEARCH OVERLAY */}
+      {showSearch && (
+        <div className="m2-searchov">
+          <div className="m2-searchbar">
+            <I d={icons.search} w={16}/>
+            <input autoFocus value={sq} onChange={e=>setSq(e.target.value)} placeholder="Ticker, company, FX, crypto…" onKeyDown={e=>{if(e.key==='Enter'&&sres[0])openDetail(sres[0].symbol||sres[0].symbolKey);}}/>
+            <button className="m2-scancel" onClick={()=>setShowSearch(false)}>Cancel</button>
+          </div>
+          <div className="m2-sresults">
+            {sloading && sres.length===0 && <div className="m2-sempty">Searching…</div>}
+            {!sloading && sq.trim().length>0 && sres.length===0 && <div className="m2-sempty">No matches for “{sq.trim()}”.</div>}
+            {sq.trim().length===0 && <div className="m2-sempty">Search stocks, ETFs, FX, crypto and indices across every market we cover.</div>}
+            {sres.map((r,i)=>{const sym=normSym(r.symbol||r.symbolKey);const ac=(r.assetClass||r.type||'').toString().replace(/_/g,' ');return (
+              <button className="m2-sitem" key={(r.symbolKey||r.symbol||'')+i} onClick={()=>openDetail(r.symbol||r.symbolKey)}>
+                <div className="m2-stk">{sym.slice(0,3)}</div>
+                <div className="m2-sinfo"><b>{r.name||sym}</b><span>{sym}{ac?(' · '+ac):''}</span></div>
+                <span className="m2-chev"><I d={icons.chev} w={15}/></span>
+              </button>);})}
+          </div>
+        </div>
+      )}
+
+      {/* BRIEF OVERLAY */}
+      {showBrief && (
+        <div className="m2-briefov">
+          <div className="m2-dhead" style={{paddingTop:'max(12px,env(safe-area-inset-top))'}}>
+            <button className="m2-back" onClick={()=>setShowBrief(false)}><I d={icons.back} w={18}/></button>
+            <div className="m2-dtitle"><b>Morning Brief</b><br/><span>{brief&&brief.__pending?'Preparing…':'Today · grounded in live data'}</span></div>
+          </div>
+          <div className="m2-bovbody">
+            {briefLoading && <div className="m2-sempty">Loading your brief…</div>}
+            {!briefLoading && briefText && renderRich(briefText)}
+            {!briefLoading && !briefText && <div className="m2-sempty">Brief unavailable right now — try again shortly.</div>}
+          </div>
         </div>
       )}
 
