@@ -23,16 +23,17 @@ const icons = {
 };
 
 /* ---- interactive chart (line default, candles/area, scrub crosshair) ---- */
-function ChartV2(){
+function ChartV2({bars}){
   const [kind,setKind]=useState('line');
   const hostRef=useRef(null); const dataRef=useRef(null);
   const G={W:352,pT:20,pH:206,vT:236,vH:30,rPad:38,x0:6};
   const build=useCallback(()=>{
+    if(bars&&bars.length){return bars.map(b=>({o:b.o??b.open,c:b.c??b.close,hi:b.h??b.high,lo:b.l??b.low,vol:(b.v??b.volume)||1,dt:new Date(b.t)}));}
     let seed=42; const rnd=()=>{seed=(seed*1103515245+12345)&0x7fffffff;return seed/0x7fffffff;};
     const N=44; let px=150; const cs=[]; const today=new Date(2026,6,24);
     for(let i=0;i<N;i++){const o=px;const drift=0.7+(i/N);const ch=(rnd()-0.42)*3.6*drift;const c=o+ch;const hi=Math.max(o,c)+rnd()*2;const lo=Math.min(o,c)-rnd()*2;const vol=0.4+rnd();const dt=new Date(today);dt.setDate(dt.getDate()-(N-1-i));cs.push({o,c,hi,lo,vol,dt});px=c;}
     return cs;
-  },[]);
+  },[bars]);
   const fmtD=(d)=>d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
   const render=useCallback((k)=>{
     const host=hostRef.current; if(!host) return;
@@ -119,13 +120,40 @@ function Tour({tabRefs,onEnd}){
   </div>);
 }
 
+function DetailView({sym,quote,name,fmtP,fmtC,cls,onClose,onAsk}){
+  const [bars,setBars]=useState(null);
+  const [funds,setFunds]=useState(null);
+  useEffect(()=>{let m=true;const ds=d=>d.toISOString().slice(0,10);const to=new Date();const from=new Date(Date.now()-120*864e5);
+    apiFetch(`/api/chart/${encodeURIComponent(sym)}?multiplier=1&timespan=day&from=${ds(from)}&to=${ds(to)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&Array.isArray(d.results))setBars(d.results);}).catch(()=>{});
+    apiFetch(`/api/fundamentals/${encodeURIComponent(sym)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m)setFunds(d);}).catch(()=>{});
+    return()=>{m=false;};},[sym]);
+  const price=quote&&quote.price; const chg=quote&&quote.changePct;
+  const fmtBig=(v)=>{if(v==null)return '—';const a=Math.abs(v);if(a>=1e12)return (v/1e12).toFixed(2)+'T';if(a>=1e9)return (v/1e9).toFixed(2)+'B';if(a>=1e6)return (v/1e6).toFixed(1)+'M';return v.toLocaleString();};
+  const gv=(...ks)=>{if(!funds)return null;for(const k of ks){if(funds[k]!=null)return funds[k];}return null;};
+  const mc=gv('market_cap','marketCap'),pe=gv('pe_ratio','peRatio','pe'),eps=gv('eps'),beta=gv('beta'),dvd=gv('dividend_yield','dividend','dividendYield'),rev=gv('revenue','total_revenue');
+  const lows=bars&&bars.length?Math.min(...bars.map(b=>b.l??b.low)):null,highs=bars&&bars.length?Math.max(...bars.map(b=>b.h??b.high)):null;
+  const pos=(price!=null&&lows!=null&&highs!=null&&highs>lows)?Math.max(0,Math.min(100,((price-lows)/(highs-lows))*100)):50;
+  const F=[['Mkt cap',fmtBig(mc)],['P/E',pe!=null?(+pe).toFixed(1):'—'],['EPS',eps!=null?(+eps).toFixed(2):'—'],['Div yield',dvd!=null?(+dvd).toFixed(2)+'%':'—'],['Beta',beta!=null?(+beta).toFixed(2):'—'],['Revenue',fmtBig(rev)]];
+  return (
+    <div className="m2-screen">
+      <div className="m2-dhead"><button className="m2-back" onClick={onClose}><I d={icons.back} w={18}/></button><div className="m2-dtitle"><b>{name} · {sym}</b><br/><span>Instrument · live</span></div><div className="m2-star"><I d={icons.star} w={18}/></div></div>
+      <div className="m2-dprice"><div className="v">{price!=null?fmtP(price):'—'}</div>{chg!=null&&(<div className="c" style={{color:chg<0?'#ff5a6a':'#25d0a0',background:chg<0?'rgba(255,90,106,.12)':'rgba(37,208,160,.12)',borderColor:'transparent'}}><I d={icons.up} w={12}/>{fmtC(chg)}</div>)}</div>
+      <ChartV2 bars={bars}/>
+      {lows!=null&&(<div className="m2-range"><div className="rt">Range (120 days)</div><div className="rl"><span>{fmtP(lows)}</span><span>{fmtP(highs)}</span></div><div className="m2-bar"><i style={{left:pos+'%'}}></i></div></div>)}
+      <div className="m2-sec"><h3>Fundamentals</h3><a>{funds?'live':(bars?'—':'loading…')}</a></div>
+      <div className="m2-fgrid">{F.map(x=>(<div className="m2-fg" key={x[0]}><span>{x[0]}</span><b>{x[1]}</b></div>))}</div>
+      <div className="m2-aitake" onClick={()=>onAsk(sym,name)} style={{cursor:'pointer'}}><div className="h"><span className="o2"></span>Particle AI take</div><p style={{display:'flex',alignItems:'center',gap:6}}>Ask Particle for a full view on {name} — valuation, momentum and risks <I d={icons.chev} w={14}/></p></div>
+    </div>
+  );
+}
+
 export default function MobileAppV2(){
   const [tab,setTab]=useState('term');
-  const [detail,setDetail]=useState(false);
+  const [detail,setDetail]=useState(null);
   const [intro,setIntro]=useState(true);
   const [tour,setTour]=useState(false);
   const tabRefs=useRef({});
-  const go=(t)=>{setDetail(false);setTab(t);const sc=document.querySelector('.m2-screen');if(sc)sc.scrollTop=0;};
+  const go=(t)=>{setDetail(null);setTab(t);const sc=document.querySelector('.m2-screen');if(sc)sc.scrollTop=0;};
   const endIntro=()=>{setIntro(false);let seen=false;try{seen=localStorage.getItem('m2tour')==='1';}catch(e){}if(!seen)setTimeout(()=>setTour(true),250);};
   const endTour=()=>{setTour(false);try{localStorage.setItem('m2tour','1');}catch(e){}};
 
@@ -149,6 +177,7 @@ export default function MobileAppV2(){
   const [q,setQ]=useState('');
   const chatEndRef=useRef(null);
   const submitAI=()=>{const t=q.trim();if(!t||chat.isStreaming)return;chat.send(t);setQ('');};
+  const askAI=(sym,name)=>{setDetail(null);setTab('ai');chat.send('Give me your full view on '+(name||sym)+' ('+sym+') — valuation, momentum and key risks.');};
   useEffect(()=>{if(tab==='ai'&&chatEndRef.current)chatEndRef.current.scrollIntoView({block:'end'});},[chat.messages,tab]);
   const SUGG=["What's moving my watchlist today?","Summarise the macro picture","Any risks I should watch?"];
 
@@ -179,7 +208,7 @@ export default function MobileAppV2(){
           <div className="m2-sec"><h3>Watchlist</h3><a>tap a name → in-depth</a></div>
           <div className="m2-card">
             {wl.map(sym=>{const q=look(sym);const nm=NAMES[sym]||sym;return (
-              <div className="m2-row" key={sym} onClick={()=>setDetail(true)}>
+              <div className="m2-row" key={sym} onClick={()=>setDetail(sym)}>
                 <div className="m2-tk">{sym.replace(/USD$/,'').slice(0,3)}</div><div className="nm"><b>{nm}</b><span>{sym}</span></div>
                 <div className="pr"><b>{fmtP(q&&q.price)}</b><small className={cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</small></div><span className="m2-chev"><I d={icons.chev} w={15}/></span>
               </div>);})}
@@ -209,25 +238,7 @@ export default function MobileAppV2(){
       )}
 
       {/* DETAIL */}
-      {detail && (
-        <div className="m2-screen">
-          <div className="m2-dhead"><button className="m2-back" onClick={()=>setDetail(false)}><I d={icons.back} w={18}/></button><div className="m2-dtitle"><b>Apple · AAPL</b><br/><span>Nasdaq · US equity · technology</span></div><div className="m2-star"><I d={icons.star} w={18}/></div></div>
-          <div className="m2-dprice"><div className="v">$228.42</div><div className="c"><I d={icons.up} w={12}/>+$2.71 · +1.20%</div></div>
-          <ChartV2/>
-          <div className="m2-range"><div className="rt">Day range</div><div className="rl"><span>224.90</span><span>229.10</span></div><div className="m2-bar"><i style={{left:'78%'}}></i></div></div>
-          <div className="m2-range"><div className="rt">52-week range</div><div className="rl"><span>164.08</span><span>237.23</span></div><div className="m2-bar"><i style={{left:'88%'}}></i></div></div>
-          <div className="m2-sec"><h3>Fundamentals</h3><a>Full model</a></div>
-          <div className="m2-fgrid">
-            {[['Mkt cap','3.47T'],['Enterprise val','3.51T'],['P/E (ttm)','34.2'],['Fwd P/E','29.8'],['EV/EBITDA','25.1'],['P/B','48.6'],['EPS (ttm)','6.68'],['Div yield','0.44%'],['Rev growth','+6.1%'],['Net margin','25.3%'],['ROE','147%'],['Beta','1.24']].map(x=>(
-              <div className="m2-fg" key={x[0]}><span>{x[0]}</span><b>{x[1]}</b></div>))}
-          </div>
-          <div className="m2-sec"><h3>Street consensus</h3><a>12 analysts</a></div>
-          <div className="m2-cons"><div className="m2-con"><div className="n">Rating</div><div className="v m2-u">Buy</div></div><div className="m2-con"><div className="n">Target</div><div className="v">$245</div></div><div className="m2-con"><div className="n">Upside</div><div className="v m2-u">+7.3%</div></div></div>
-          <div className="m2-aitake"><div className="h"><span className="o2"></span>Particle AI take</div><p>Trading with the tape (+1.2%); relative strength vs the S&amp;P is neutral and valuation sits ~1σ above its 5-yr average on fwd P/E. Your vault's Q3 teardown flagged services margin as the swing factor — next catalyst is earnings in 18 days.</p></div>
-          <div className="m2-sec"><h3>News</h3><a>All</a></div>
-          <div className="m2-card"><div className="m2-row"><div className="nm"><b>Apple suppliers signal stronger Q1 orders</b><span>Bloomberg · 2h ago</span></div></div><div className="m2-row"><div className="nm"><b>Services revenue seen as margin driver into FY26</b><span>Reuters · 5h ago</span></div></div></div>
-        </div>
-      )}
+      {detail && (<DetailView sym={detail} quote={look(detail)} name={NAMES[detail]||detail} fmtP={fmtP} fmtC={fmtC} cls={cls} onClose={()=>setDetail(null)} onAsk={askAI}/>)}
 
       {/* PARTICLE AI */}
       {tab==='ai' && !detail && (<>
