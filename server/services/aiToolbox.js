@@ -1715,23 +1715,33 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
       messages,
       max_tokens: 2048,
       // The transcript contains tool_use/tool_result blocks from the loop;
-      // Anthropic 400s if `tools` is absent when those blocks are present.
-      // Include the schema (the exhaustionNote tells the model NOT to call
-      // them) so this closing synthesis is a VALID request and can actually
-      // turn the gathered tool results into a user-facing answer, instead of
-      // 400ing and dropping to the canned fallback.
+      // Anthropic 400s if `tools` is absent when those blocks are present,
+      // so we MUST include the schema. But we also force tool_choice:'none'
+      // so the model CANNOT emit another tool_use block on this closing turn
+      // — it is compelled to synthesise a user-facing TEXT answer from the
+      // results already gathered. Without this, the model frequently just
+      // called more tools, returned zero text blocks, and we fell through to
+      // the canned "couldn't assemble an answer" fallback even though the
+      // data was sitting right there.
       tools: TOOLS,
+      tool_choice: { type: 'none' },
     };
-    try {
-      const resp = await callClaudeJson(provider, closeBody);
-      if (resp.usage) {
-        totalIn  += Number(resp.usage.input_tokens)  || 0;
-        totalOut += Number(resp.usage.output_tokens) || 0;
+    // One retry with a short backoff absorbs a transient overload (529) or
+    // rate-limit (429) on this single closing call, which is the difference
+    // between a real answer and the canned fallback.
+    for (let closeAttempt = 0; closeAttempt < 2 && (!finalText || !finalText.trim()); closeAttempt++) {
+      try {
+        if (closeAttempt > 0) await new Promise(r => setTimeout(r, 600));
+        const resp = await callClaudeJson(provider, closeBody);
+        if (resp.usage) {
+          totalIn  += Number(resp.usage.input_tokens)  || 0;
+          totalOut += Number(resp.usage.output_tokens) || 0;
+        }
+        const content = Array.isArray(resp.content) ? resp.content : [];
+        finalText = content.filter(b => b.type === 'text').map(b => b.text || '').join('');
+      } catch (e) {
+        logger.warn('aiToolbox', 'closing synthesis failed', { attempt: closeAttempt, error: e.message });
       }
-      const content = Array.isArray(resp.content) ? resp.content : [];
-      finalText = content.filter(b => b.type === 'text').map(b => b.text || '').join('');
-    } catch (e) {
-      logger.warn('aiToolbox', 'closing synthesis failed', { error: e.message });
     }
   }
 
