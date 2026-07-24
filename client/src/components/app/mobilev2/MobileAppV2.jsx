@@ -235,6 +235,7 @@ function DetailView({sym,quote,name,fmtP,fmtC,cls,onClose,onAsk,watching,onToggl
 export default function MobileAppV2(){
   const [tab,setTab]=useState('term');
   const [detail,setDetail]=useState(null);
+  const [detailName,setDetailName]=useState(null);
   const [intro,setIntro]=useState(true);
   const [tour,setTour]=useState(false);
   const tabRefs=useRef({});
@@ -276,7 +277,7 @@ export default function MobileAppV2(){
 
   // ── Navigation: open in-depth for any symbol (search results carry C:/X:/I: prefixes) ──
   const normSym=(x)=>String(x||'').replace(/^[A-Z]:/,'').replace(/[\s]/g,'').toUpperCase();
-  const openDetail=(x)=>{const sym=normSym(x);if(!sym)return;setDetail(sym);setTab('term');setShowSearch(false);const sc=document.querySelector('.m2-screen');if(sc)sc.scrollTop=0;};
+  const openDetail=(x,nm)=>{const sym=normSym(x);if(!sym)return;setDetailName(nm||null);setDetail(sym);setTab('term');setShowSearch(false);const sc=document.querySelector('.m2-screen');if(sc)sc.scrollTop=0;};
 
   // ── Universal search (same registry the desktop uses) ──
   const [showSearch,setShowSearch]=useState(false);
@@ -318,7 +319,6 @@ export default function MobileAppV2(){
   const WL_ORDER=['Indices & ETFs','Equities','FX','Commodities','Crypto'];
   const wlFull=(watchlist&&watchlist.length)?watchlist:['SPY','QQQ','AAPL','NVDA','GLD','BTCUSD','EWZ'];
   const wlGroups=(()=>{const g={};wlFull.forEach(s=>{const k=classify(s);(g[k]=g[k]||[]).push(s);});return WL_ORDER.filter(k=>g[k]&&g[k].length).map(k=>[k,g[k]]);})();
-  const briefText=brief?(brief.content||brief.text||brief.body||brief.__pending||''):'';
 
 
   return (
@@ -342,7 +342,7 @@ export default function MobileAppV2(){
           <div className="m2-sec"><h3>Global pulse</h3></div>
           <div className="m2-strip">
             {PULSE.map(([sym,label])=>{const q=look(sym);return (
-              <button className="m2-chip" key={sym} onClick={()=>openDetail(sym)}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></button>);})}
+              <button className="m2-chip" key={sym} onClick={()=>openDetail(sym,label)}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></button>);})}
           </div>
           <div className="m2-sec"><h3>Watchlist</h3></div>
           {wlGroups.map(([grp,syms])=>(
@@ -350,7 +350,7 @@ export default function MobileAppV2(){
               <div className="m2-wlgrp">{grp}</div>
               <div className="m2-card">
                 {syms.map(sym=>{const q=look(sym);const nm=NAMES[sym]||sym;return (
-                  <div className="m2-row" key={sym} onClick={()=>openDetail(sym)}>
+                  <div className="m2-row" key={sym} onClick={()=>openDetail(sym,nm)}>
                     <div className="m2-tk">{sym.replace(/USD$/,'').slice(0,3)}</div><div className="nm"><b>{nm}</b>{nm!==sym&&(<span>{sym}</span>)}</div>
                     <div className="pr"><b>{fmtP(q&&q.price)}</b><small className={cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</small></div><span className="m2-chev"><I d={icons.chev} w={15}/></span>
                   </div>);})}
@@ -359,17 +359,17 @@ export default function MobileAppV2(){
           <div className="m2-sec"><h3>FX</h3></div>
           <div className="m2-g2">
             {FX.map(([sym,label])=>{const q=data&&data.forex&&data.forex[sym];return (
-              <button className="m2-cell" key={sym} onClick={()=>openDetail(sym)}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></button>);})}
+              <button className="m2-cell" key={sym} onClick={()=>openDetail(sym,label)}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></button>);})}
           </div>
           <div className="m2-sec"><h3>Commodities</h3></div>
           <div className="m2-strip">
             {COMM.map(([sym,label])=>{const q=data&&data.stocks&&data.stocks[sym];return (
-              <button className="m2-chip" key={sym} onClick={()=>openDetail(sym)}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></button>);})}
+              <button className="m2-chip" key={sym} onClick={()=>openDetail(sym,label)}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></button>);})}
           </div>
           <div className="m2-sec"><h3>Countries</h3></div>
           <div className="m2-strip">
             {CTRY.map(c=>{const eq=look(c.eq);const yy=y10(c.cc);const fx=c.fx?(data&&data.forex&&data.forex[c.fx]):null;return (
-              <button className="m2-cty" key={c.name} onClick={()=>openDetail(c.eq)}>
+              <button className="m2-cty" key={c.name} onClick={()=>openDetail(c.eq,c.name)}>
                 <div className="ch"><span className="cn">{c.name}</span><span className={'risk '+c.risk}>{c.risk==='lo'?'RISK LOW':'RISK MED'}</span></div>
                 <div className="kv"><span>Equity</span><b className={cls(eq&&eq.changePct)}>{fmtC(eq&&eq.changePct)}</b></div>
                 <div className="kv"><span>10Y</span><b>{yy!=null?yy.toFixed(2)+'%':'—'}</b></div>
@@ -380,7 +380,7 @@ export default function MobileAppV2(){
       )}
 
       {/* DETAIL */}
-      {detail && (<DetailView sym={detail} quote={look(detail)} name={NAMES[detail]||detail} fmtP={fmtP} fmtC={fmtC} cls={cls} onClose={()=>setDetail(null)} onAsk={askAI} watching={isWatching&&isWatching(detail)} onToggleWatch={(sy)=>{if(!isWatching)return; isWatching(sy)?removeTicker(sy):addTicker(sy);}}/>)}
+      {detail && (<DetailView sym={detail} quote={look(detail)} name={detailName||NAMES[detail]||detail} fmtP={fmtP} fmtC={fmtC} cls={cls} onClose={()=>setDetail(null)} onAsk={askAI} watching={isWatching&&isWatching(detail)} onToggleWatch={(sy)=>{if(!isWatching)return; isWatching(sy)?removeTicker(sy):addTicker(sy);}}/>)}
 
       {/* PARTICLE AI */}
       {tab==='ai' && !detail && (<>
@@ -437,7 +437,7 @@ export default function MobileAppV2(){
         <div className="m2-searchov">
           <div className="m2-searchbar">
             <I d={icons.search} w={16}/>
-            <input autoFocus value={sq} onChange={e=>setSq(e.target.value)} placeholder="Ticker, company, FX, crypto…" onKeyDown={e=>{if(e.key==='Enter'&&sres[0])openDetail(sres[0].symbol||sres[0].symbolKey);}}/>
+            <input autoFocus value={sq} onChange={e=>setSq(e.target.value)} placeholder="Ticker, company, FX, crypto…" onKeyDown={e=>{if(e.key==='Enter'&&sres[0])openDetail(sres[0].symbol||sres[0].symbolKey,sres[0].name);}}/>
             <button className="m2-scancel" onClick={()=>setShowSearch(false)}>Cancel</button>
           </div>
           <div className="m2-sresults">
@@ -445,7 +445,7 @@ export default function MobileAppV2(){
             {!sloading && sq.trim().length>0 && sres.length===0 && <div className="m2-sempty">No matches for “{sq.trim()}”.</div>}
             {sq.trim().length===0 && <div className="m2-sempty">Search stocks, ETFs, FX, crypto and indices across every market we cover.</div>}
             {sres.map((r,i)=>{const sym=normSym(r.symbol||r.symbolKey);const ac=(r.assetClass||r.type||'').toString().replace(/_/g,' ');return (
-              <button className="m2-sitem" key={(r.symbolKey||r.symbol||'')+i} onClick={()=>openDetail(r.symbol||r.symbolKey)}>
+              <button className="m2-sitem" key={(r.symbolKey||r.symbol||'')+i} onClick={()=>openDetail(r.symbol||r.symbolKey,r.name)}>
                 <div className="m2-stk">{sym.slice(0,3)}</div>
                 <div className="m2-sinfo"><b>{r.name||sym}</b><span>{sym}{ac?(' · '+ac):''}</span></div>
                 <span className="m2-chev"><I d={icons.chev} w={15}/></span>
@@ -463,8 +463,20 @@ export default function MobileAppV2(){
           </div>
           <div className="m2-bovbody">
             {briefLoading && <div className="m2-sempty">Loading your brief…</div>}
-            {!briefLoading && briefText && renderRich(briefText)}
-            {!briefLoading && !briefText && <div className="m2-sempty">Brief unavailable right now — try again shortly.</div>}
+            {!briefLoading && brief && brief.__pending && <div className="m2-sempty">{brief.__pending}</div>}
+            {!briefLoading && brief && !brief.__pending && (<>
+              {brief.oneThing && (<div className="m2-bone"><span className="lbl">The one thing</span><p>{brief.oneThing}</p></div>)}
+              {Array.isArray(brief.buckets)&&brief.buckets.map((bk,bi)=>(
+                <div key={bi} className="m2-bsec"><h3>{bk.name}</h3>
+                  {(bk.items||[]).map((it,ii)=>(
+                    <div key={ii} className="m2-bitem" onClick={()=>it.symbol&&openDetail(it.symbol,it.symbol)} style={it.symbol?{cursor:'pointer'}:undefined}>
+                      {it.symbol&&<b>{it.symbol}</b>}<span>{it.line||it.text||''}</span>
+                    </div>))}
+                </div>))}
+              {Array.isArray(brief.macro)&&brief.macro.length>0&&(<div className="m2-bsec"><h3>Macro</h3>{brief.macro.map((m,mi)=>(<div key={mi} className="m2-bitem"><b>{m.label}</b><span>{m.line||''}</span></div>))}</div>)}
+              {Array.isArray(brief.vaultCheck)&&brief.vaultCheck.length>0&&(<div className="m2-bsec"><h3>From your vault</h3>{brief.vaultCheck.map((v,vi)=>(<div key={vi} className="m2-bitem"><b className="doc">{v.docName}</b><span>{v.line||''}</span></div>))}</div>)}
+            </>)}
+            {!briefLoading && !brief && <div className="m2-sempty">Brief unavailable right now — try again shortly.</div>}
           </div>
         </div>
       )}
