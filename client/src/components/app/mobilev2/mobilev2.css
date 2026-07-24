@@ -118,6 +118,7 @@
 
 /* ── Overflow safety: nothing may spill past the screen edge ── */
 .m2-root, .m2-screen { overflow-x: hidden; max-width: 100vw; }
+.m2-screen > * { flex-shrink: 0; }  /* stop flex-column from compressing sections when content overflows */
 .m2-screen > *, .m2-brief, .m2-card, .m2-g2, .m2-g3, .m2-fgrid { max-width: 100%; }
 .m2-vcard { min-width: 0; }
 .m2-vcard .nm { min-width: 0; flex: 1; overflow: hidden; }
