@@ -3,6 +3,7 @@ import './mobilev2.css';
 import { useMarketData } from '../../../hooks/useMarketData';
 import { useWatchlist } from '../../../context/WatchlistContext';
 import { apiFetch } from '../../../utils/api';
+import { useParticleChat } from '../../../context/ParticleChatContext';
 
 const I = ({d, w=22}) => (<svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>);
 const icons = {
@@ -144,6 +145,12 @@ export default function MobileAppV2(){
   const relTime=(iso)=>{if(!iso)return '';const t=(Date.now()-new Date(iso).getTime())/1000;if(t<3600)return Math.max(1,Math.round(t/60))+'m ago';if(t<86400)return Math.round(t/3600)+'h ago';return Math.round(t/86400)+'d ago';};
   const docTitle=(f)=>f?f.replace(/\.[^.]+$/,''):'Untitled';
   const docType=(f)=>{const m=/\.([^.]+)$/.exec(f||'');return m?m[1].toUpperCase():'DOC';};
+  const chat=useParticleChat();
+  const [q,setQ]=useState('');
+  const chatEndRef=useRef(null);
+  const submitAI=()=>{const t=q.trim();if(!t||chat.isStreaming)return;chat.send(t);setQ('');};
+  useEffect(()=>{if(tab==='ai'&&chatEndRef.current)chatEndRef.current.scrollIntoView({block:'end'});},[chat.messages,tab]);
+  const SUGG=["What's moving my watchlist today?","Summarise the macro picture","Any risks I should watch?"];
 
   return (
     <div className="m2-root">
@@ -227,14 +234,27 @@ export default function MobileAppV2(){
         <div className="m2-screen">
           <div style={{height:'8px'}}></div>
           <div className="m2-aihead"><div className="m2-orb"></div><div><b>Particle AI</b><br/><span><span className="m2-dot"></span>Grounded in markets + your vault</span></div></div>
-          <div className="m2-chat">
-            <div className="m2-msg me">What's driving Nvidia today and how exposed is my watchlist?</div>
-            <div className="m2-msg ai">Nvidia is +2.8% pre-market on a cooler CPI print and supplier demand commentary. Across your watchlist, semis (NVDA, AAPL) are the main beta; Petrobras and BTC are muted. Net watchlist delta ≈ +1.1%.<div className="m2-cite"><I d={icons.cite} w={12}/>3 sources · CPI release + 2 vault notes</div></div>
-            <div className="m2-msg me">One-line take on the CPI print.</div>
-            <div className="m2-msg ai">Headline CPI +0.1% m/m (vs +0.2% exp), core steady at 3.2% y/y — a dovish surprise that supports the cut path.</div>
-          </div>
+          {chat.messages.length===0 ? (
+            <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'0 32px',gap:14}}>
+              <div className="m2-orb" style={{width:58,height:58}}></div>
+              <div style={{fontSize:18,fontWeight:600}}>Ask Particle anything</div>
+              <div style={{fontSize:13,color:'var(--mut)',lineHeight:1.5}}>Grounded in live markets and your research vault — always with sources.</div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:8,justifyContent:'center',marginTop:4}}>
+                {SUGG.map(p=>(<button key={p} onClick={()=>chat.send(p)} style={{background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.09)',borderRadius:14,padding:'9px 13px',fontSize:12.5,color:'#fff',fontFamily:'inherit'}}>{p}</button>))}
+              </div>
+            </div>
+          ) : (
+            <div className="m2-chat">
+              {chat.messages.map((m,i)=>(
+                <div key={i} className={'m2-msg '+(m.role==='user'?'me':'ai')}>
+                  {m.role==='assistant'&&m.streaming&&!m.content ? <span style={{color:'var(--mut)'}}>Particle is thinking…</span> : m.content}
+                  {m.role==='assistant'&&!m.streaming&&m.vaultSources&&m.vaultSources.length>0 && (<div className="m2-cite"><I d={icons.cite} w={12}/>{m.vaultSources.length} vault source{m.vaultSources.length>1?'s':''}</div>)}
+                </div>))}
+              <div ref={chatEndRef}></div>
+            </div>
+          )}
         </div>
-        <div className="m2-composer"><div className="m2-cbox"><input placeholder="Ask Particle anything…"/><button className="m2-send"><I d={icons.send} w={18}/></button></div></div>
+        <div className="m2-composer"><div className="m2-cbox"><input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')submitAI();}} placeholder="Ask Particle anything…"/><button className="m2-send" onClick={submitAI}><I d={icons.send} w={18}/></button></div></div>
       </>)}
 
       {/* VAULT */}
