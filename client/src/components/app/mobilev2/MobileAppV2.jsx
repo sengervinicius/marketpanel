@@ -180,6 +180,14 @@ export default function MobileAppV2(){
   const askAI=(sym,name)=>{setDetail(null);setTab('ai');chat.send('Give me your full view on '+(name||sym)+' ('+sym+') — valuation, momentum and key risks.');};
   useEffect(()=>{if(tab==='ai'&&chatEndRef.current)chatEndRef.current.scrollIntoView({block:'end'});},[chat.messages,tab]);
   const SUGG=["What's moving my watchlist today?","Summarise the macro picture","Any risks I should watch?"];
+  const [curves,setCurves]=useState(null);
+  const [greeting,setGreeting]=useState(null);
+  useEffect(()=>{let m=true;
+    apiFetch('/api/yield-curves').then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&!d.error)setCurves(d);}).catch(()=>{});
+    apiFetch('/api/brief/greeting').then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&d.ok&&d.greeting&&!/loading/i.test(d.greeting))setGreeting(d.greeting);}).catch(()=>{});
+    return()=>{m=false;};},[]);
+  const y10=(cc)=>{const c=curves&&curves[cc]&&curves[cc].curve;const p=c&&c.find(x=>x.tenor==='10Y');return p&&p.yield!=null?p.yield:null;};
+  const CTRY=[{name:'United States',risk:'lo',eq:'SPY',cc:'US',fx:null},{name:'Brazil',risk:'md',eq:'EWZ',cc:'BR',fx:'USDBRL'},{name:'Eurozone',risk:'lo',eq:'EFA',cc:'EU',fx:'EURUSD'}];
 
   return (
     <div className="m2-root">
@@ -196,8 +204,7 @@ export default function MobileAppV2(){
           <div className="m2-sub"><span className="m2-dot"></span>Live · markets open · 24 Jul</div>
           <div className="m2-brief">
             <div className="bh"><span className="tag">MORNING BRIEF</span><span className="tm">06:30 BST</span></div>
-            <h2>Futures firm as CPI cools; semis lead the tape</h2>
-            <ul><li><i></i>Core CPI steady at 3.2% y/y — a dovish surprise, cut odds rise</li><li><i></i>Your watchlist +1.1%, led by NVDA +2.8%; Petrobras lags</li><li><i></i>2 names you follow report after the close</li></ul>
+            <h2>{greeting||'Your market brief is being prepared…'}</h2>
             <div className="cta">Read full brief · listen 3 min <I d={icons.arrow} w={14}/></div>
           </div>
           <div className="m2-sec"><h3>Global pulse</h3><a>Indices</a></div>
@@ -225,14 +232,13 @@ export default function MobileAppV2(){
           </div>
           <div className="m2-sec"><h3>Countries</h3><a>Explore</a></div>
           <div className="m2-strip">
-            <div className="m2-cty"><div className="ch"><span className="cn">United States</span><span className="risk lo">RISK LOW</span></div><div className="kv"><span>Equity</span><b className="m2-u">S&P +0.7%</b></div><div className="kv"><span>10Y</span><b>4.21%</b></div><div className="kv"><span>USD (DXY)</span><b className="m2-u">104.6</b></div><div className="kv"><span>5Y CDS</span><b>38bp</b></div></div>
-            <div className="m2-cty"><div className="ch"><span className="cn">Brazil</span><span className="risk md">RISK MED</span></div><div className="kv"><span>Equity</span><b className="m2-u">IBOV +0.5%</b></div><div className="kv"><span>10Y</span><b>6.34%</b></div><div className="kv"><span>BRL</span><b className="m2-d">5.42</b></div><div className="kv"><span>5Y CDS</span><b>148bp</b></div></div>
-            <div className="m2-cty"><div className="ch"><span className="cn">Eurozone</span><span className="risk lo">RISK LOW</span></div><div className="kv"><span>Equity</span><b className="m2-u">Stoxx +0.3%</b></div><div className="kv"><span>Bund 10Y</span><b>2.38%</b></div><div className="kv"><span>EUR</span><b className="m2-d">1.084</b></div><div className="kv"><span>BTP-Bund</span><b>128bp</b></div></div>
-          </div>
-          <div className="m2-sec"><h3>Credit &amp; risk</h3><a>More</a></div>
-          <div className="m2-g3">
-            {[['VIX','14.2','-0.6','d'],['MOVE','98','-2','d'],['US HY OAS','312','-4bp','u'],['US IG OAS','92','-1bp','u'],['EM CDS','168','flat','flat'],['BR CDS','148','-2','u']].map(x=>(
-              <div className="m2-cell" key={x[0]}><div className="n">{x[0]}</div><div className="v">{x[1]}</div><div className={'c m2-'+x[3]}>{x[2]}</div></div>))}
+            {CTRY.map(c=>{const eq=look(c.eq);const yy=y10(c.cc);const fx=c.fx?(data&&data.forex&&data.forex[c.fx]):null;return (
+              <div className="m2-cty" key={c.name}>
+                <div className="ch"><span className="cn">{c.name}</span><span className={'risk '+c.risk}>{c.risk==='lo'?'RISK LOW':'RISK MED'}</span></div>
+                <div className="kv"><span>Equity</span><b className={cls(eq&&eq.changePct)}>{fmtC(eq&&eq.changePct)}</b></div>
+                <div className="kv"><span>10Y</span><b>{yy!=null?yy.toFixed(2)+'%':'—'}</b></div>
+                {c.fx&&(<div className="kv"><span>{c.fx.slice(0,3)}/{c.fx.slice(3)}</span><b className={cls(fx&&fx.changePct)}>{fmtP(fx&&fx.price)}</b></div>)}
+              </div>);})}
           </div>
         </div>
       )}
