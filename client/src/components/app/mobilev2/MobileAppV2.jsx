@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import './mobilev2.css';
 import { useMarketData } from '../../../hooks/useMarketData';
 import { useWatchlist } from '../../../context/WatchlistContext';
+import { apiFetch } from '../../../utils/api';
 
 const I = ({d, w=22}) => (<svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>);
 const icons = {
@@ -138,6 +139,11 @@ export default function MobileAppV2(){
   const FX=[['EURUSD','EUR / USD'],['USDBRL','USD / BRL'],['USDJPY','USD / JPY'],['GBPUSD','GBP / USD']];
   const COMM=[['GLD','Gold'],['USO','WTI crude'],['SLV','Silver'],['UNG','Nat gas'],['CORN','Corn']];
   const wl=((watchlist&&watchlist.length)?watchlist:['SPY','QQQ','AAPL','NVDA','GLD','BTCUSD','EWZ']).slice(0,8);
+  const [vaultDocs,setVaultDocs]=useState(null);
+  useEffect(()=>{let m=true;apiFetch('/api/vault/documents').then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&Array.isArray(d.documents))setVaultDocs(d.documents);}).catch(()=>{});return()=>{m=false;};},[]);
+  const relTime=(iso)=>{if(!iso)return '';const t=(Date.now()-new Date(iso).getTime())/1000;if(t<3600)return Math.max(1,Math.round(t/60))+'m ago';if(t<86400)return Math.round(t/3600)+'h ago';return Math.round(t/86400)+'d ago';};
+  const docTitle=(f)=>f?f.replace(/\.[^.]+$/,''):'Untitled';
+  const docType=(f)=>{const m=/\.([^.]+)$/.exec(f||'');return m?m[1].toUpperCase():'DOC';};
 
   return (
     <div className="m2-root">
@@ -235,11 +241,13 @@ export default function MobileAppV2(){
       {tab==='vault' && !detail && (
         <div className="m2-screen">
           <div className="m2-h1" style={{paddingTop:'6px'}}>Vault</div>
-          <div className="m2-sub">Your private research · 148 documents</div>
+          <div className="m2-sub">Your private research · {vaultDocs?vaultDocs.length:0} document{(vaultDocs&&vaultDocs.length===1)?'':'s'}</div>
           <div className="m2-askvault"><b>Ask your vault</b><p>"What did our last Nvidia note conclude on margins?" — Particle searches every document you've saved and answers with citations.</p></div>
           <div className="m2-sec"><h3>Recent</h3><a>All</a></div>
-          {[['Nvidia — Q3 teardown','PDF · 12 pages · added 2d ago'],['LatAm rates outlook','Note · added 5d ago'],['Petrobras dividend model','XLSX · added 1w ago']].map(x=>(
-            <div className="m2-vcard" key={x[0]}><div className="m2-vico"><I d={icons.doc} w={19}/></div><div className="nm"><b>{x[0]}</b><span>{x[1]}</span></div></div>))}
+          {(vaultDocs&&vaultDocs.length?vaultDocs.slice(0,10):[]).map(doc=>(
+            <div className="m2-vcard" key={doc.id}><div className="m2-vico"><I d={icons.doc} w={19}/></div><div className="nm"><b>{docTitle(doc.filename)}</b><span>{docType(doc.filename)}{doc.chunk_count?(' · '+doc.chunk_count+' chunks'):''} · {relTime(doc.created_at)}</span></div></div>))}
+          {vaultDocs&&!vaultDocs.length && (<div className="m2-vcard"><div className="nm"><b>No documents yet</b><span>Email or upload research to build your vault</span></div></div>)}
+          {!vaultDocs && (<div className="m2-vcard"><div className="nm"><span>Loading your vault…</span></div></div>)}
         </div>
       )}
 
