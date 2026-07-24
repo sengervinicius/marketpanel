@@ -762,7 +762,13 @@ export default function App() {
 
   // ── MOBILE (v2 native rebuild) ──────────────────────────────────────────
   if (isMobile) {
-    return <MobileAppV2 />;
+    return (
+      <WatchlistProvider>
+        <ParticleChatProvider>
+          <MobileAppV2 />
+        </ParticleChatProvider>
+      </WatchlistProvider>
+    );
   }
 
   // ── DESKTOP ──────────────────────────────────────────────────────────────
