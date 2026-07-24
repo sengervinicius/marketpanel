@@ -25,6 +25,11 @@ const DESKTOP_MQ = '(min-width: 768px)';
 
 function detectMobileFromWindow() {
   if (typeof window === 'undefined') return false;
+  // Dev/QA override: force the mobile UI at any width via ?mobile=1 or localStorage.forceMobile='1'
+  try {
+    if (new URLSearchParams(window.location.search).get('mobile') === '1') return true;
+    if (window.localStorage.getItem('forceMobile') === '1') return true;
+  } catch { /* no-op */ }
   let mqDesktop = false;
   try {
     if (typeof window.matchMedia === 'function') {
