@@ -23,6 +23,23 @@ const icons = {
 };
 
 /* ---- interactive chart (line default, candles/area, scrub crosshair) ---- */
+function saToText(sa){
+  if(!sa||typeof sa!=='object') return '';
+  const L=[];
+  if(sa.headline) L.push(sa.headline);
+  if(sa.type==='scenario_analysis'&&Array.isArray(sa.scenarios)){
+    sa.scenarios.forEach(x=>{L.push('• '+(x.name||'')+(x.probability?(' ('+x.probability+')'):'')+(x.outcome?(' — '+x.outcome):''));});
+  }
+  if(Array.isArray(sa.strengths)&&sa.strengths.length) L.push('Strengths: '+sa.strengths.join('; '));
+  if(Array.isArray(sa.weaknesses)&&sa.weaknesses.length) L.push('Weaknesses: '+sa.weaknesses.join('; '));
+  if(Array.isArray(sa.counterArguments)&&sa.counterArguments.length) L.push('Counter-arguments: '+sa.counterArguments.join('; '));
+  if(Array.isArray(sa.riskFactors)&&sa.riskFactors.length) L.push('Risks: '+sa.riskFactors.join('; '));
+  if(Array.isArray(sa.recommendations)&&sa.recommendations.length) L.push('Recommendations: '+sa.recommendations.map(r=>(r.action||'')+' '+(r.ticker||'')+(r.reason?(' — '+r.reason):'')).join('; '));
+  if(sa.metrics&&typeof sa.metrics==='object'){const m=Object.entries(sa.metrics).map(([k,v])=>k+': '+v);if(m.length)L.push(m.join(' · '));}
+  if(sa.bottomLine) L.push('Bottom line: '+sa.bottomLine);
+  return L.join('\n\n').trim();
+}
+
 function ChartV2({bars}){
   const [kind,setKind]=useState('line');
   const hostRef=useRef(null); const dataRef=useRef(null);
@@ -270,7 +287,15 @@ export default function MobileAppV2(){
             <div className="m2-chat">
               {chat.messages.map((m,i)=>(
                 <div key={i} className={'m2-msg '+(m.role==='user'?'me':'ai')}>
-                  {m.role==='assistant'&&m.streaming&&!m.content ? <span style={{color:'var(--mut)'}}>Particle is thinking…</span> : m.content}
+                  {(()=>{
+                    if(m.role!=='assistant') return m.content;
+                    if(m.streaming&&!m.content) return <span style={{color:'var(--mut)'}}>Particle is thinking…</span>;
+                    if((m.content||'').trim()) return m.content;
+                    const sa=saToText(m.structuredAnalysis);
+                    if(sa) return sa;
+                    const prevUser=[...chat.messages.slice(0,i)].reverse().find(x=>x.role==='user');
+                    return (<span style={{color:'var(--mut)'}}>{m.partialError||'That one came back empty.'}{prevUser? <> · <a onClick={()=>chat.send(prevUser.content)} style={{color:'#ff8a2a',cursor:'pointer',fontWeight:600}}>retry</a></> : null}</span>);
+                  })()}
                   {m.role==='assistant'&&!m.streaming&&m.vaultSources&&m.vaultSources.length>0 && (<div className="m2-cite"><I d={icons.cite} w={12}/>{m.vaultSources.length} vault source{m.vaultSources.length>1?'s':''}</div>)}
                 </div>))}
               <div ref={chatEndRef}></div>

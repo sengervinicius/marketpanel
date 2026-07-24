@@ -1596,7 +1596,26 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
   while (rounds < MAX_TOOL_ROUNDS) {
     rounds += 1;
     const body = buildToolUseBody(provider, messages, systemPrompt);
-    const resp = await callClaudeJson(provider, body);
+    // RESILIENCE: a mid-loop model call can fail (transient 429/529, or a
+    // 400 on the grown tool-use transcript). Previously any such throw
+    // escaped runToolLoop entirely, skipped the closing-synthesis + safety
+    // net below, and surfaced as a blank { partial } with zero chunks
+    // ("(No response)"). If we've already made progress this turn (ran a
+    // round and gathered tool results, or emitted some text), swallow the
+    // error and BREAK to the closing synthesis so the user gets an answer
+    // from what we have. Only a first-round failure (no progress yet) is
+    // rethrown, so runToolLoopStream's one-shot Haiku fallback still fires.
+    let resp;
+    try {
+      resp = await callClaudeJson(provider, body);
+    } catch (roundErr) {
+      const madeProgress = rounds > 1 || accumulatedText.length > 0 || messages.length > initialMessages.length;
+      logger.warn('aiToolbox', 'mid-loop model call failed', {
+        userId: ctx.userId || null, round: rounds, madeProgress, error: roundErr.message,
+      });
+      if (!madeProgress) throw roundErr;
+      break;
+    }
 
     if (resp.usage) {
       totalIn  += Number(resp.usage.input_tokens)  || 0;
@@ -1695,6 +1714,13 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
       system: systemPrompt + exhaustionNote,
       messages,
       max_tokens: 2048,
+      // The transcript contains tool_use/tool_result blocks from the loop;
+      // Anthropic 400s if `tools` is absent when those blocks are present.
+      // Include the schema (the exhaustionNote tells the model NOT to call
+      // them) so this closing synthesis is a VALID request and can actually
+      // turn the gathered tool results into a user-facing answer, instead of
+      // 400ing and dropping to the canned fallback.
+      tools: TOOLS,
     };
     try {
       const resp = await callClaudeJson(provider, closeBody);
