@@ -23,6 +23,34 @@ const icons = {
 };
 
 /* ---- interactive chart (line default, candles/area, scrub crosshair) ---- */
+function renderRich(text){
+  if(text==null) return null;
+  const str=String(text);
+  // Split into blocks on blank lines so paragraphs breathe on mobile.
+  const blocks=str.split(/\n{2,}/);
+  return blocks.map((blk,bi)=>{
+    // Tokenise inline: **bold**, $TICKER(.SA), [sentiment:x], [N] cites,
+    // [action:...] tags. Everything else is plain text. Markers that are
+    // control-only ([action], [sentiment]) are dropped/relabelled so the
+    // reply reads like prose, not raw markup.
+    const parts=blk.split(/(\*\*[^*]+\*\*|\$[A-Z]{1,5}(?:\.[A-Z]{1,2})?|\[sentiment:(?:bull|bear|neutral)\]|\[action:[a-z_]+(?::[^\]]+)?\]|\[\d{1,2}\])/gi);
+    const nodes=parts.map((pt,i)=>{
+      if(!pt) return null;
+      let m;
+      if((m=pt.match(/^\*\*([^*]+)\*\*$/))) return <b key={i}>{m[1]}</b>;
+      if((m=pt.match(/^\$([A-Z]{1,5}(?:\.[A-Z]{1,2})?)$/))) return <span key={i} style={{color:'#ff8a2a',fontWeight:600}}>{'$'+m[1]}</span>;
+      if((m=pt.match(/^\[sentiment:(bull|bear|neutral)\]$/i))){
+        const c=m[1].toLowerCase()==='bull'?'#37d67a':m[1].toLowerCase()==='bear'?'#ff5d5d':'#9aa0aa';
+        return <span key={i} style={{display:'inline-block',width:7,height:7,borderRadius:4,background:c,marginRight:6,verticalAlign:'middle'}}/>;
+      }
+      if(/^\[action:/.test(pt)) return null; // terminal action tag — not user-facing on mobile
+      if((m=pt.match(/^\[(\d{1,2})\]$/))) return <sup key={i} style={{color:'var(--mut)',fontSize:'0.7em',fontWeight:600}}>{m[1]}</sup>;
+      return <span key={i}>{pt}</span>;
+    });
+    return <p key={bi} style={{margin:bi?'8px 0 0':0}}>{nodes}</p>;
+  });
+}
+
 function saToText(sa){
   if(!sa||typeof sa!=='object') return '';
   const L=[];
@@ -290,7 +318,7 @@ export default function MobileAppV2(){
                   {(()=>{
                     if(m.role!=='assistant') return m.content;
                     if(m.streaming&&!m.content) return <span style={{color:'var(--mut)'}}>Particle is thinking…</span>;
-                    if((m.content||'').trim()) return m.content;
+                    if((m.content||'').trim()) return renderRich(m.content);
                     const sa=saToText(m.structuredAnalysis);
                     if(sa) return sa;
                     const prevUser=[...chat.messages.slice(0,i)].reverse().find(x=>x.role==='user');
