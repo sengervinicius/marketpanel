@@ -8,6 +8,11 @@ workflows:
       node: "22"
       vars:
         BUNDLE_ID: "com.the-particle.app"
+        # Native app must call the backend by absolute URL (there is no same-origin
+        # proxy inside the app shell). Auth uses a Bearer token so cross-origin is fine.
+        VITE_API_URL: "https://senger-server.onrender.com"
+        VITE_WS_URL: "wss://senger-server.onrender.com/ws"
+        VITE_APPLE_REDIRECT_URI: "https://the-particle.com"
     integrations:
       app_store_connect: CodemagicASCKey
     scripts:
