@@ -21,7 +21,14 @@ workflows:
       - name: Set up code signing (fetch/create App Store cert + profile)
         script: |
           keychain initialize
-          # App Store Connect needs a signing private key to create/save the distribution
+          # CI mints a fresh Apple Distribution certificate each run. Apple caps the number
+          # of distribution certificates, so revoke existing ones first to always free a slot.
+          app-store-connect certificates list --json > /tmp/certs.json 2>/dev/null || echo "[]" > /tmp/certs.json
+          for cid in $(python3 -c "import json; print('\n'.join(c.get('id','') for c in json.load(open('/tmp/certs.json')) if 'DISTRIBUTION' in (c.get('attributes') or {}).get('certificateType','')))"); do
+            echo "Revoking existing distribution certificate $cid"
+            app-store-connect certificates delete "$cid" --ignore-not-found || true
+          done
+          # App Store Connect needs a signing private key to create the distribution
           # certificate. Use a persisted CERTIFICATE_PRIVATE_KEY if provided; otherwise
           # generate an ephemeral RSA key for this build.
           if [ -z "$CERTIFICATE_PRIVATE_KEY" ]; then

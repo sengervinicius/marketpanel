@@ -69,7 +69,7 @@ export default function PricingModal({ visible, onDismiss, onSelectTier, current
         setTiers([
           { id: 'new_particle', label: 'New Particle', price: { monthly: 29, annual: 290 } },
           { id: 'dark_particle', label: 'Dark Particle', price: { monthly: 79, annual: 790 } },
-          { id: 'nuclear_particle', label: 'Nuclear Particle', price: { monthly: 199, annual: 1990 } },
+          { id: 'nuclear_particle', label: 'Nuclear Particle', price: { monthly: 199, annual: 999 }, promo: { annual: { regular: 1990, badge: 'LAUNCH PROMO · 50% OFF' } } },
         ]);
       });
   }, [visible]);
@@ -163,7 +163,13 @@ export default function PricingModal({ visible, onDismiss, onSelectTier, current
                   {meta.tagline}
                 </div>
 
+                {isAnnual && tier.promo && tier.promo.annual && (
+                  <div className="pricing-card-promo-badge">{tier.promo.annual.badge}</div>
+                )}
                 <div className="pricing-card-price">
+                  {isAnnual && tier.promo && tier.promo.annual && (
+                    <span className="pricing-card-amount-was">${tier.promo.annual.regular}</span>
+                  )}
                   <span className="pricing-card-amount">${price}</span>
                   <span className="pricing-card-period">/{isAnnual ? 'yr' : 'mo'}</span>
                 </div>

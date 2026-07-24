@@ -218,6 +218,27 @@
   line-height: 1;
 }
 
+.pricing-card-amount-was {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+  line-height: 1;
+  margin-right: 2px;
+}
+
+.pricing-card-promo-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #0a0a0f;
+  background: var(--accent, #ff6a00);
+  border-radius: 4px;
+  padding: 3px 6px;
+  margin-bottom: 6px;
+}
+
 .pricing-card-period {
   font-size: 11px;
   color: var(--color-text-muted);

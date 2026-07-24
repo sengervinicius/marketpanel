@@ -115,6 +115,7 @@ router.get('/tiers', (req, res) => {
       id: key,
       label: tier.label,
       price: tier.price,
+      promo: tier.promo || null,
       features: {
         vaultDocuments: tier.vaultDocuments === -1 ? 'Unlimited' : tier.vaultDocuments,
         aiQueriesPerDay: tier.aiQueriesPerDay === -1 ? 'Unlimited' : tier.aiQueriesPerDay,

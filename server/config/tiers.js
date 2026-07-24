@@ -83,7 +83,11 @@ const TIERS = {
     morningBrief: 'full',
     predictionMarkets: 'full',  // + custom tracking
     centralVaultAccess: 'suggest', // can suggest additions
-    price: { monthly: 199, annual: 1990 },
+    price: { monthly: 199, annual: 999 },
+    // Launch promotion: annual normally 1990/yr (10x monthly); currently 999/yr.
+    // NOTE: Apple caps this app's subscription price points at $999.99, so the annual
+    // App Store price is $999.99 and framed as a limited-time launch promo in the paywall.
+    promo: { annual: { regular: 1990, badge: 'LAUNCH PROMO · 50% OFF' } },
     appleProductId: {
       monthly: 'com.theparticle.app.nuclear.monthly',
       annual:  'com.theparticle.app.nuclear.annual',
