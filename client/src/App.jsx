@@ -96,6 +96,7 @@ import {
   ParticleModeBar,
   TerminalSubNav,
 } from './components/app/AppMobile';
+import MobileAppV2 from './components/app/mobilev2/MobileAppV2';
 // Perf (#bundle): ParticleScreen pulls three.js (~490 kB min) via useParticleCanvas —
 // lazy-load it so the three chunk is only fetched when Particle mode mounts.
 const ParticleScreen = lazyWithRetry(() => import('./components/app/ParticleScreen'));
@@ -757,6 +758,11 @@ export default function App() {
         <div className="boot-bar"><div className="boot-bar-fill" /></div>
       </div>
     );
+  }
+
+  // ── MOBILE (v2 native rebuild) ──────────────────────────────────────────
+  if (isMobile) {
+    return <MobileAppV2 />;
   }
 
   // ── DESKTOP ──────────────────────────────────────────────────────────────
