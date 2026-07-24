@@ -190,9 +190,9 @@ export default function MobileAppV2(){
   const [greeting,setGreeting]=useState(null);
   useEffect(()=>{let m=true;
     apiFetch('/api/yield-curves').then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&!d.error)setCurves(d);}).catch(()=>{});
-    apiFetch('/api/brief/greeting').then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&d.ok&&d.greeting&&!/loading/i.test(d.greeting))setGreeting(d.greeting);}).catch(()=>{});
+    apiFetch('/api/brief/greeting').then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&d.ok&&d.greeting)setGreeting(d.greeting);}).catch(()=>{});
     return()=>{m=false;};},[]);
-  const y10=(cc)=>{const c=curves&&curves[cc]&&curves[cc].curve;const p=c&&c.find(x=>x.tenor==='10Y');return p&&p.yield!=null?p.yield:null;};
+  const y10=(cc)=>{const c=curves&&curves[cc]&&curves[cc].curve;const p=c&&c.find(x=>x.tenor==='10Y');return p?(p.rate!=null?p.rate:(p.yield!=null?p.yield:null)):null;};
   const CTRY=[{name:'United States',risk:'lo',eq:'SPY',cc:'US',fx:null},{name:'Brazil',risk:'md',eq:'EWZ',cc:'BR',fx:'USDBRL'},{name:'Eurozone',risk:'lo',eq:'EFA',cc:'EU',fx:'EURUSD'}];
 
   return (
@@ -222,7 +222,7 @@ export default function MobileAppV2(){
           <div className="m2-card">
             {wl.map(sym=>{const q=look(sym);const nm=NAMES[sym]||sym;return (
               <div className="m2-row" key={sym} onClick={()=>setDetail(sym)}>
-                <div className="m2-tk">{sym.replace(/USD$/,'').slice(0,3)}</div><div className="nm"><b>{nm}</b><span>{sym}</span></div>
+                <div className="m2-tk">{sym.replace(/USD$/,'').slice(0,3)}</div><div className="nm"><b>{nm}</b>{nm!==sym&&(<span>{sym}</span>)}</div>
                 <div className="pr"><b>{fmtP(q&&q.price)}</b><small className={cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</small></div><span className="m2-chev"><I d={icons.chev} w={15}/></span>
               </div>);})}
           </div>
