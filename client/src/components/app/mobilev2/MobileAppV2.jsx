@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import './mobilev2.css';
+import { useMarketData } from '../../../hooks/useMarketData';
+import { useWatchlist } from '../../../context/WatchlistContext';
 
 const I = ({d, w=22}) => (<svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>);
 const icons = {
@@ -125,6 +127,18 @@ export default function MobileAppV2(){
   const endIntro=()=>{setIntro(false);let seen=false;try{seen=localStorage.getItem('m2tour')==='1';}catch(e){}if(!seen)setTimeout(()=>setTour(true),250);};
   const endTour=()=>{setTour(false);try{localStorage.setItem('m2tour','1');}catch(e){}};
 
+  const { data } = useMarketData();
+  const { watchlist } = useWatchlist();
+  const look=(sym)=>data?.stocks?.[sym]||data?.forex?.[sym]||data?.crypto?.[sym]||data?.indices?.[sym]||null;
+  const NAMES={SPY:'S&P 500',QQQ:'Nasdaq 100',DIA:'Dow Jones',IWM:'Russell 2000',EWZ:'Ibovespa',EFA:'EAFE',EWJ:'Japan',EEM:'Emerging Mkts',FXI:'China',AAPL:'Apple',NVDA:'Nvidia',MSFT:'Microsoft',TSLA:'Tesla',AMZN:'Amazon',GOOGL:'Alphabet',META:'Meta',GLD:'Gold',SLV:'Silver',USO:'WTI crude',UNG:'Nat gas',CORN:'Corn',CPER:'Copper',EURUSD:'EUR / USD',USDBRL:'USD / BRL',USDJPY:'USD / JPY',GBPUSD:'GBP / USD',BTCUSD:'Bitcoin',ETHUSD:'Ethereum',SOLUSD:'Solana',VALE:'Vale',PBR:'Petrobras'};
+  const fmtP=(v)=>{if(v==null)return '—';const a=Math.abs(v);if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:0});if(a>=10)return v.toFixed(2);return v.toFixed(4);};
+  const fmtC=(c)=>c==null?'—':(c>=0?'+':'')+c.toFixed(2)+'%';
+  const cls=(c)=>c==null?'m2-flat':(c>0?'m2-u':c<0?'m2-d':'m2-flat');
+  const PULSE=[['SPY','S&P 500'],['QQQ','Nasdaq'],['EWZ','Ibovespa'],['EFA','EAFE'],['EWJ','Japan']];
+  const FX=[['EURUSD','EUR / USD'],['USDBRL','USD / BRL'],['USDJPY','USD / JPY'],['GBPUSD','GBP / USD']];
+  const COMM=[['GLD','Gold'],['USO','WTI crude'],['SLV','Silver'],['UNG','Nat gas'],['CORN','Corn']];
+  const wl=((watchlist&&watchlist.length)?watchlist:['SPY','QQQ','AAPL','NVDA','GLD','BTCUSD','EWZ']).slice(0,8);
+
   return (
     <div className="m2-root">
       <div className="m2-aura"><b className="a1"></b><b className="a2"></b></div>
@@ -146,26 +160,26 @@ export default function MobileAppV2(){
           </div>
           <div className="m2-sec"><h3>Global pulse</h3><a>Indices</a></div>
           <div className="m2-strip">
-            {[['S&P 500','5,842','+0.7%','u'],['Nasdaq','20,914','+1.1%','u'],['Stoxx 600','521.4','+0.3%','u'],['Ibovespa','129,340','+0.5%','u'],['Nikkei','39,102','-0.4%','d']].map(x=>(
-              <div className="m2-chip" key={x[0]}><div className="n">{x[0]}</div><div className="v">{x[1]}</div><div className={'c m2-'+x[3]}>{x[2]}</div></div>))}
+            {PULSE.map(([sym,label])=>{const q=look(sym);return (
+              <div className="m2-chip" key={sym}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></div>);})}
           </div>
           <div className="m2-sec"><h3>Watchlist</h3><a>tap a name → in-depth</a></div>
           <div className="m2-card">
-            {[['AA','Apple','AAPL · Nasdaq','228.42','+1.2%','u'],['NV','Nvidia','NVDA · Nasdaq','174.05','+2.8%','u'],['PE','Petrobras','PETR4 · B3','R$38.10','-0.6%','d']].map(x=>(
-              <div className="m2-row" key={x[0]} onClick={()=>setDetail(true)}>
-                <div className="m2-tk">{x[0]}</div><div className="nm"><b>{x[1]}</b><span>{x[2]}</span></div>
-                <div className="pr"><b>{x[3]}</b><small className={'m2-'+x[5]}>{x[4]}</small></div><span className="m2-chev"><I d={icons.chev} w={15}/></span>
-              </div>))}
+            {wl.map(sym=>{const q=look(sym);const nm=NAMES[sym]||sym;return (
+              <div className="m2-row" key={sym} onClick={()=>setDetail(true)}>
+                <div className="m2-tk">{sym.replace(/USD$/,'').slice(0,3)}</div><div className="nm"><b>{nm}</b><span>{sym}</span></div>
+                <div className="pr"><b>{fmtP(q&&q.price)}</b><small className={cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</small></div><span className="m2-chev"><I d={icons.chev} w={15}/></span>
+              </div>);})}
           </div>
           <div className="m2-sec"><h3>FX</h3><a>All pairs</a></div>
           <div className="m2-g2">
-            {[['EUR / USD','1.0842','-0.30%','d'],['USD / BRL','5.4210','+0.42%','u'],['USD / JPY','156.18','+0.18%','u'],['GBP / USD','1.2914','-0.11%','d']].map(x=>(
-              <div className="m2-cell" key={x[0]}><div className="n">{x[0]}</div><div className="v">{x[1]}</div><div className={'c m2-'+x[3]}>{x[2]}</div></div>))}
+            {FX.map(([sym,label])=>{const q=data&&data.forex&&data.forex[sym];return (
+              <div className="m2-cell" key={sym}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></div>);})}
           </div>
           <div className="m2-sec"><h3>Commodities</h3><a>All</a></div>
           <div className="m2-strip">
-            {[['Gold','2,412','+0.6%','u'],['WTI crude','78.40','-1.1%','d'],['Brent','82.15','-0.9%','d'],['Copper','4.28','+0.4%','u'],['Nat gas','2.14','+2.3%','u']].map(x=>(
-              <div className="m2-chip" key={x[0]}><div className="n">{x[0]}</div><div className="v">{x[1]}</div><div className={'c m2-'+x[3]}>{x[2]}</div></div>))}
+            {COMM.map(([sym,label])=>{const q=data&&data.stocks&&data.stocks[sym];return (
+              <div className="m2-chip" key={sym}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></div>);})}
           </div>
           <div className="m2-sec"><h3>Countries</h3><a>Explore</a></div>
           <div className="m2-strip">
