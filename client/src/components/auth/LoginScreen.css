@@ -619,3 +619,36 @@
     margin-bottom: 28px;
   }
 }
+
+/* ── Native app (iOS/Android): full-screen native login, no floating modal ── */
+.lp-auth--native {
+  background: #0a0a0f;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 0;
+  align-items: stretch;
+  justify-content: stretch;
+}
+.lp-auth--native .lp-auth-card {
+  max-width: none;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: #0a0a0f;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding:
+    calc(env(safe-area-inset-top) + 48px)
+    28px
+    calc(env(safe-area-inset-bottom) + 28px);
+  animation: none;
+}
+.lp-auth--native .lp-auth-back { display: none; }
+.lp-auth--native .lp-auth-logo { margin-bottom: 28px; font-size: 20px; }

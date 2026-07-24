@@ -84,7 +84,7 @@ export default function LoginScreen({ children }) {
   const { user, login, register, loginWithApple } = useAuth?.() || {};
 
   // Landing vs auth form state
-  const [showAuth, setShowAuth] = useState(false);
+  const [showAuth, setShowAuth] = useState(() => isNative());
   const [showVideoModal, setShowVideoModal] = useState(false);
 
   // Auth form state
@@ -136,6 +136,7 @@ export default function LoginScreen({ children }) {
   };
 
   const closeAuth = () => {
+    if (isNative()) return; // native app has no landing hero to return to
     setShowAuth(false);
     setError('');
     setUsername('');
@@ -296,7 +297,7 @@ export default function LoginScreen({ children }) {
 
       {/* ── Auth overlay ─────────────────────────────────────────────────── */}
       {showAuth && (
-        <div className="lp-auth-backdrop" onClick={closeAuth}>
+        <div className={`lp-auth-backdrop ${isNative() ? 'lp-auth--native' : ''}`} onClick={closeAuth}>
           <div className={`lp-auth-card ${shake ? 'ls-shake' : ''}`} onClick={(e) => e.stopPropagation()}>
             <button className="lp-auth-back" onClick={closeAuth} type="button" aria-label="Back to landing">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5">
