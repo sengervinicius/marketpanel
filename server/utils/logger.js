@@ -167,6 +167,10 @@ function emit(level, ctx, msg, meta = {}) {
 const info  = (ctx, msg, meta) => emit('INFO', ctx, msg, meta);
 const warn  = (ctx, msg, meta) => emit('WARN', ctx, msg, meta);
 const error = (ctx, msg, meta) => emit('ERROR', ctx, msg, meta);
+// debug: low-priority diagnostics. Was missing from exports, so any
+// logger.debug(...) call (conversationMemory, etc.) threw 'logger.debug is
+// not a function' and aborted the surrounding fire-and-forget task.
+const debug = (ctx, msg, meta) => emit('DEBUG', ctx, msg, meta);
 
 /**
  * Express request logger middleware.
@@ -229,7 +233,7 @@ function correlationSync(req, _res, next) {
 function reqId(req) { return req?.reqId || '--------'; }
 
 module.exports = {
-  info, warn, error,
+  info, warn, error, debug,
   requestLogger, correlationSync, reqId,
   emit, redact,
   withContext, getContext,

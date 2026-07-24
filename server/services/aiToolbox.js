@@ -1671,8 +1671,19 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
     // success vs. failure. We also surface `{ truncated: true }` as a
     // successful-but-noteworthy event so the UI can hint that the payload
     // was capped.
-    const limited = toolUses.slice(0, MAX_TOOLS_PER_ROUND);
-    const results = await Promise.all(limited.map(async (tu) => {
+    // CRITICAL API CONTRACT: the assistant turn we just pushed contains
+    // EVERY tool_use block the model emitted, and Anthropic 400s
+    // ("tool_use ids without tool_result blocks") on the next call unless
+    // we reply with a tool_result for EACH one. We still cap how many we
+    // actually DISPATCH per round (budget protection), but the ones over
+    // the cap must still get a synthetic tool_result so the transcript
+    // stays valid — otherwise the whole loop and its closing synthesis are
+    // rejected and the user gets a blank/canned reply. (This was the root
+    // cause of watchlist/multi-ticker queries returning "(No response)":
+    // the model asked for >6 quotes in one round.)
+    const toDispatch = toolUses.slice(0, MAX_TOOLS_PER_ROUND);
+    const overflow   = toolUses.slice(MAX_TOOLS_PER_ROUND);
+    const dispatched = await Promise.all(toDispatch.map(async (tu) => {
       const t0 = Date.now();
       const out = await dispatchTool(tu.name, tu.input || {}, ctx);
       const durationMs = Date.now() - t0;
@@ -1699,6 +1710,18 @@ async function runToolLoop(provider, initialMessages, systemPrompt, ctx = {}) {
         content: serialised,
       };
     }));
+    // Synthetic tool_result for every over-cap tool_use so no id is orphaned.
+    const skipped = overflow.map((tu) => ({
+      type: 'tool_result',
+      tool_use_id: tu.id,
+      content: JSON.stringify({ error: 'skipped: per-round tool cap reached — re-request this tool on the next turn if still needed' }),
+    }));
+    if (overflow.length) {
+      logger.info('aiToolbox', 'per-round tool cap: over-cap tool_uses answered with skip results', {
+        userId: ctx.userId || null, round: rounds, dispatched: toDispatch.length, skipped: overflow.length,
+      });
+    }
+    const results = [...dispatched, ...skipped];
 
     messages.push({ role: 'user', content: results });
   }
