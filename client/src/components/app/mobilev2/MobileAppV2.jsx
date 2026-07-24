@@ -68,7 +68,7 @@ function saToText(sa){
   return L.join('\n\n').trim();
 }
 
-function ChartV2({bars}){
+function ChartV2({bars,onScrub}){
   const [kind,setKind]=useState('line');
   const hostRef=useRef(null); const dataRef=useRef(null);
   const G={W:352,pT:20,pH:206,vT:236,vH:30,rPad:38,x0:6};
@@ -106,9 +106,9 @@ function ChartV2({bars}){
   },[build]);
   const setLegend=(d)=>{const host=hostRef.current;if(!host)return;const el=host.querySelector('.m2-ohlc');if(!el)return;const up=d.c>=d.o;const col=up?'#25d0a0':'#ff5a6a';el.innerHTML=`<b>${fmtD(d.dt)}</b>O <s>${d.o.toFixed(2)}</s> H <s style="color:#25d0a0">${d.hi.toFixed(2)}</s> L <s style="color:#ff5a6a">${d.lo.toFixed(2)}</s> C <s style="color:${col}">${d.c.toFixed(2)}</s>`;};
   const attach=()=>{const host=hostRef.current;if(!host)return;const svg=host.querySelector('#m2csvg');if(!svg)return;const xh=svg.querySelector('#m2xh');
-    const at=(cx)=>{const dd=dataRef.current;if(!dd)return;const r=svg.getBoundingClientRect();let vb=(cx-r.left)/r.width*G.W;let i=Math.round((vb-dd.x0)/dd.step-0.5);i=Math.max(0,Math.min(dd.N-1,i));const d=dd.cs[i];xh.style.display='';svg.querySelector('#m2xv').setAttribute('x1',d.cx);svg.querySelector('#m2xv').setAttribute('x2',d.cx);svg.querySelector('#m2xd').setAttribute('cx',d.cx);svg.querySelector('#m2xd').setAttribute('cy',d.yc);setLegend(d);};
+    const at=(cx)=>{const dd=dataRef.current;if(!dd)return;const r=svg.getBoundingClientRect();let vb=(cx-r.left)/r.width*G.W;let i=Math.round((vb-dd.x0)/dd.step-0.5);i=Math.max(0,Math.min(dd.N-1,i));const d=dd.cs[i];xh.style.display='';svg.querySelector('#m2xv').setAttribute('x1',d.cx);svg.querySelector('#m2xv').setAttribute('x2',d.cx);svg.querySelector('#m2xd').setAttribute('cx',d.cx);svg.querySelector('#m2xd').setAttribute('cy',d.yc);setLegend(d);if(onScrub)onScrub({c:d.c,o:d.o,hi:d.hi,lo:d.lo,dt:d.dt});};
     const mv=(e)=>{e.preventDefault();at(e.touches?e.touches[0].clientX:e.clientX);};
-    const end=()=>{xh.style.display='none';const dd=dataRef.current;if(dd)setLegend(dd.cs[dd.N-1]);};
+    const end=()=>{xh.style.display='none';const dd=dataRef.current;if(dd)setLegend(dd.cs[dd.N-1]);if(onScrub)onScrub(null);};
     svg.addEventListener('pointerdown',mv);svg.addEventListener('pointermove',(e)=>{if(e.buttons)mv(e);});svg.addEventListener('pointerup',end);svg.addEventListener('pointerleave',end);
     svg.addEventListener('touchstart',mv,{passive:false});svg.addEventListener('touchmove',mv,{passive:false});svg.addEventListener('touchend',end);};
   useEffect(()=>{render(kind);},[kind,render]);
@@ -174,9 +174,21 @@ function Tour({tabRefs,onEnd}){
 function DetailView({sym,quote,name,fmtP,fmtC,cls,onClose,onAsk}){
   const [bars,setBars]=useState(null);
   const [funds,setFunds]=useState(null);
+  const [logo,setLogo]=useState(null);
+  const [prof,setProf]=useState(null);
+  const [scrub,setScrub]=useState(null);
+  const FXSET=new Set(['EURUSD','USDBRL','USDJPY','GBPUSD','USDCAD','AUDUSD','USDCHF','USDMXN','USDCNY']);
+  const CRYSET=new Set(['BTCUSD','ETHUSD','SOLUSD','BNBUSD','XRPUSD','ADAUSD','DOGEUSD']);
+  const equityish=/^[A-Z]{1,5}(\.[A-Z]{1,2})?$/.test(sym)&&!FXSET.has(sym)&&!CRYSET.has(sym);
+  const DESC={SPY:'SPDR S&P 500 ETF — tracks the 500 largest US companies.',QQQ:'Invesco QQQ — tracks the tech-heavy Nasdaq-100.',DIA:'SPDR Dow Jones ETF — 30 US blue-chip industrials.',IWM:'iShares Russell 2000 — US small-cap equities.',EWZ:'iShares MSCI Brazil ETF — Brazilian large caps (Ibovespa proxy).',EFA:'iShares MSCI EAFE — developed markets ex-US & Canada.',EWJ:'iShares MSCI Japan — Japanese equities.',EEM:'iShares MSCI Emerging Markets.',FXI:'iShares China Large-Cap.',GLD:'SPDR Gold Shares — tracks spot gold bullion.',SLV:'iShares Silver Trust — tracks spot silver.',USO:'United States Oil Fund — tracks WTI crude futures.',UNG:'US Natural Gas Fund — tracks Henry Hub gas futures.',CORN:'Teucrium Corn Fund — corn futures.',CPER:'US Copper Index Fund.',BTCUSD:'Bitcoin — the largest cryptocurrency by market value.',ETHUSD:'Ethereum — smart-contract blockchain, 2nd-largest crypto.',SOLUSD:'Solana — high-throughput layer-1 crypto.',EURUSD:'Euro vs US Dollar — the world\'s most-traded FX pair.',USDBRL:'US Dollar vs Brazilian Real.',USDJPY:'US Dollar vs Japanese Yen.',GBPUSD:'British Pound vs US Dollar.'};
   useEffect(()=>{let m=true;const ds=d=>d.toISOString().slice(0,10);const to=new Date();const from=new Date(Date.now()-120*864e5);
+    setBars(null);setFunds(null);setLogo(null);setProf(null);setScrub(null);
     apiFetch(`/api/chart/${encodeURIComponent(sym)}?multiplier=1&timespan=day&from=${ds(from)}&to=${ds(to)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&Array.isArray(d.results))setBars(d.results);}).catch(()=>{});
     apiFetch(`/api/fundamentals/${encodeURIComponent(sym)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m)setFunds(d);}).catch(()=>{});
+    if(equityish){
+      apiFetch(`/api/market/td/logo/${encodeURIComponent(sym)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&d.url)setLogo(d.url);}).catch(()=>{});
+      apiFetch(`/api/market/td/profile/${encodeURIComponent(sym)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&d.data)setProf(d.data);}).catch(()=>{});
+    }
     return()=>{m=false;};},[sym]);
   const price=quote&&quote.price; const chg=quote&&quote.changePct;
   const fmtBig=(v)=>{if(v==null)return '—';const a=Math.abs(v);if(a>=1e12)return (v/1e12).toFixed(2)+'T';if(a>=1e9)return (v/1e9).toFixed(2)+'B';if(a>=1e6)return (v/1e6).toFixed(1)+'M';return v.toLocaleString();};
@@ -185,12 +197,28 @@ function DetailView({sym,quote,name,fmtP,fmtC,cls,onClose,onAsk}){
   const lows=bars&&bars.length?Math.min(...bars.map(b=>b.l??b.low)):null,highs=bars&&bars.length?Math.max(...bars.map(b=>b.h??b.high)):null;
   const pos=(price!=null&&lows!=null&&highs!=null&&highs>lows)?Math.max(0,Math.min(100,((price-lows)/(highs-lows))*100)):50;
   const F=[['Mkt cap',fmtBig(mc)],['P/E',pe!=null?(+pe).toFixed(1):'—'],['EPS',eps!=null?(+eps).toFixed(2):'—'],['Div yield',dvd!=null?(+dvd).toFixed(2)+'%':'—'],['Beta',beta!=null?(+beta).toFixed(2):'—'],['Revenue',fmtBig(rev)]];
+  const fmtD=(d)=>d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+  const desc=(prof&&prof.description)?prof.description:(DESC[sym]||'');
+  const descShort=desc&&desc.length>210?desc.slice(0,207).trim()+'…':desc;
+  const metaBits=[prof&&prof.sector,prof&&prof.industry,prof&&(prof.exchange||prof.mic_code)].filter(Boolean);
+  const initials=(name||sym).replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase();
   return (
     <div className="m2-screen">
-      <div className="m2-dhead"><button className="m2-back" onClick={onClose}><I d={icons.back} w={18}/></button><div className="m2-dtitle"><b>{name} · {sym}</b><br/><span>Instrument · live</span></div><div className="m2-star"><I d={icons.star} w={18}/></div></div>
-      <div className="m2-dprice"><div className="v">{price!=null?fmtP(price):'—'}</div>{chg!=null&&(<div className="c" style={{color:chg<0?'#ff5a6a':'#25d0a0',background:chg<0?'rgba(255,90,106,.12)':'rgba(37,208,160,.12)',borderColor:'transparent'}}><I d={icons.up} w={12}/>{fmtC(chg)}</div>)}</div>
-      <ChartV2 bars={bars}/>
+      <div className="m2-dhead">
+        <button className="m2-back" onClick={onClose}><I d={icons.back} w={18}/></button>
+        <div className="m2-dlogo">{logo? <img src={logo} alt="" onError={e=>{e.target.style.display='none';}}/> : <span>{initials}</span>}</div>
+        <div className="m2-dtitle"><b>{name}</b><br/><span>{sym} · {equityish?'live':(CRYSET.has(sym)?'crypto · live':(FXSET.has(sym)?'FX · live':'live'))}</span></div>
+        <div className="m2-star"><I d={icons.star} w={18}/></div>
+      </div>
+      <div className="m2-dprice">
+        <div className="v">{scrub? fmtP(scrub.c) : (price!=null?fmtP(price):'—')}</div>
+        {scrub ? (
+          <div className="m2-scrub"><b>{fmtD(scrub.dt)}</b> O {scrub.o.toFixed(2)} · H <s style={{color:'#25d0a0'}}>{scrub.hi.toFixed(2)}</s> · L <s style={{color:'#ff5a6a'}}>{scrub.lo.toFixed(2)}</s> · C {scrub.c.toFixed(2)}</div>
+        ) : (chg!=null&&(<div className="c" style={{color:chg<0?'#ff5a6a':'#25d0a0',background:chg<0?'rgba(255,90,106,.12)':'rgba(37,208,160,.12)',borderColor:'transparent'}}><I d={icons.up} w={12}/>{fmtC(chg)}</div>))}
+      </div>
+      <ChartV2 bars={bars} onScrub={setScrub}/>
       {lows!=null&&(<div className="m2-range"><div className="rt">Range (120 days)</div><div className="rl"><span>{fmtP(lows)}</span><span>{fmtP(highs)}</span></div><div className="m2-bar"><i style={{left:pos+'%'}}></i></div></div>)}
+      {(descShort||metaBits.length>0)&&(<div className="m2-about"><h3>About</h3>{metaBits.length>0&&(<div className="m2-metarow">{metaBits.map((b,i)=>(<span key={i}>{b}</span>))}</div>)}{descShort&&<p>{descShort}</p>}</div>)}
       <div className="m2-sec"><h3>Fundamentals</h3><a>{funds?'live':(bars?'—':'loading…')}</a></div>
       <div className="m2-fgrid">{F.map(x=>(<div className="m2-fg" key={x[0]}><span>{x[0]}</span><b>{x[1]}</b></div>))}</div>
       <div className="m2-aitake" onClick={()=>onAsk(sym,name)} style={{cursor:'pointer'}}><div className="h"><span className="o2"></span>Particle AI take</div><p style={{display:'flex',alignItems:'center',gap:6}}>Ask Particle for a full view on {name} — valuation, momentum and risks <I d={icons.chev} w={14}/></p></div>

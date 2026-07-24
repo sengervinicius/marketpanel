@@ -2,12 +2,12 @@
   "appId": "com.the-particle.app",
   "appName": "The Particle",
   "webDir": "dist",
-  "backgroundColor": "#0a0a0f",
+  "backgroundColor": "#07070b",
   "ios": {
-    "contentInset": "automatic",
+    "contentInset": "never",
     "allowsLinkPreview": true,
     "scheme": "Senger",
-    "backgroundColor": "#0a0a0f",
+    "backgroundColor": "#07070b",
     "scrollEnabled": true,
     "preferredContentMode": "mobile"
   },
