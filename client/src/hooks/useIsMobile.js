@@ -25,10 +25,13 @@ const DESKTOP_MQ = '(min-width: 768px)';
 
 function detectMobileFromWindow() {
   if (typeof window === 'undefined') return false;
-  // Dev/QA override: force the mobile UI at any width via ?mobile=1 or localStorage.forceMobile='1'
+  // QA override: force the mobile UI via an explicit ?mobile=1 URL param ONLY.
+  // Per-URL and non-persistent — a normal desktop visitor never has it, so it
+  // cannot make real users land in mobile. (The old localStorage.forceMobile
+  // flag was removed: it persisted across every visit and could stick a
+  // desktop browser in the mobile view.)
   try {
     if (new URLSearchParams(window.location.search).get('mobile') === '1') return true;
-    if (window.localStorage.getItem('forceMobile') === '1') return true;
   } catch { /* no-op */ }
   let mqDesktop = false;
   try {

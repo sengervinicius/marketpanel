@@ -19,14 +19,18 @@ try { const v = localStorage.getItem('senger_watchlist_v1'); if (v !== null) { l
 
 const SEED_WATCHLIST = ['SPY', 'QQQ', 'AAPL', 'NVDA', 'GLD', 'BTCUSD', 'EWZ'];
 
-function loadWatchlist() {
+function loadWatchlistRaw() {
+  // Returns the user's explicitly-stored list, or null if nothing is stored.
   try {
     const raw = localStorage.getItem(LS_KEY);
     const arr = JSON.parse(raw);
-    return Array.isArray(arr) && arr.length > 0 ? arr : SEED_WATCHLIST;
+    return Array.isArray(arr) && arr.length > 0 ? arr : null;
   } catch {
-    return SEED_WATCHLIST;
+    return null;
   }
+}
+function loadWatchlist() {
+  return loadWatchlistRaw() || SEED_WATCHLIST;
 }
 
 export function WatchlistProvider({ children }) {
@@ -34,6 +38,8 @@ export function WatchlistProvider({ children }) {
   const syncTimer = useRef(null);
   const pendingRef = useRef(null);
   const hasFetchedServer = useRef(false);
+  // True only if the user had an explicitly-saved local list (not the seed).
+  const hadStoredLocal = useRef(loadWatchlistRaw() !== null);
 
   // ── Persist to localStorage immediately ──────────────────────────────
   const persistLocal = useCallback((next) => {
@@ -93,15 +99,22 @@ export function WatchlistProvider({ children }) {
           return;
         }
 
-        // Merge: server is source of truth, but keep any local additions
-        const localList = loadWatchlist();
-        const merged = [...serverList];
-        for (const sym of localList) {
-          if (!merged.some(s => s.toUpperCase() === sym.toUpperCase())) {
-            merged.push(sym);
+        // Server is the source of truth. Only merge in local symbols the user
+        // genuinely added on THIS device (hadStoredLocal). If the local list is
+        // just the seed default (fresh device / new install), take the server
+        // list verbatim — otherwise the seed (GLD, SPY, ...) leaks into and
+        // pollutes the user's real cross-device watchlist.
+        let final;
+        if (hadStoredLocal.current) {
+          const localList = loadWatchlist();
+          const merged = [...serverList];
+          for (const sym of localList) {
+            if (!merged.some(s => s.toUpperCase() === sym.toUpperCase())) merged.push(sym);
           }
+          final = merged.slice(0, MAX_WATCHLIST_SIZE);
+        } else {
+          final = serverList.slice(0, MAX_WATCHLIST_SIZE);
         }
-        const final = merged.slice(0, MAX_WATCHLIST_SIZE);
 
         setWatchlist(final);
         persistLocal(final);

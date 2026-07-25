@@ -71,7 +71,7 @@ function saToText(sa){
   return L.join('\n\n').trim();
 }
 
-function ChartV2({bars,onScrub}){
+function ChartV2({bars,onScrub,tf,onTf}){
   const [kind,setKind]=useState('line');
   const hostRef=useRef(null); const dataRef=useRef(null);
   const G={W:352,pT:20,pH:206,vT:236,vH:30,rPad:38,x0:6};
@@ -120,7 +120,7 @@ function ChartV2({bars,onScrub}){
       {['line','candles','area'].map(k=>(<button key={k} className={'m2-ct'+(kind===k?' on':'')} onClick={()=>setKind(k)}>{k[0].toUpperCase()+k.slice(1)}</button>))}
     </div><span className="m2-cind">drag to inspect</span></div>
     <div className="m2-charthost" ref={hostRef}><div className="m2-ohlc"></div></div>
-    <div className="m2-tf">{['1D','1M','3M','6M','1Y','5Y'].map((t,i)=>(<div key={t} className={'t'+(i===1?' on':'')}>{t}</div>))}</div>
+    <div className="m2-tf">{['1D','1M','3M','6M','1Y','5Y'].map(t=>(<button key={t} className={'t'+(tf===t?' on':'')} onClick={()=>onTf&&onTf(t)}>{t}</button>))}</div>
   </>);
 }
 
@@ -180,19 +180,24 @@ function DetailView({sym,quote,name,fmtP,fmtC,cls,onClose,onAsk,watching,onToggl
   const [logo,setLogo]=useState(null);
   const [prof,setProf]=useState(null);
   const [scrub,setScrub]=useState(null);
+  const [tf,setTf]=useState('1M');
+  const TFMAP={'1D':{mult:5,span:'minute',days:1,label:'1 day'},'1M':{mult:1,span:'day',days:31,label:'1 month'},'3M':{mult:1,span:'day',days:93,label:'3 months'},'6M':{mult:1,span:'day',days:186,label:'6 months'},'1Y':{mult:1,span:'day',days:372,label:'1 year'},'5Y':{mult:1,span:'week',days:1830,label:'5 years'}};
   const FXSET=new Set(['EURUSD','USDBRL','USDJPY','GBPUSD','USDCAD','AUDUSD','USDCHF','USDMXN','USDCNY']);
   const CRYSET=new Set(['BTCUSD','ETHUSD','SOLUSD','BNBUSD','XRPUSD','ADAUSD','DOGEUSD']);
   const equityish=/^[A-Z]{1,5}(\.[A-Z]{1,2})?$/.test(sym)&&!FXSET.has(sym)&&!CRYSET.has(sym);
   const DESC={SPY:'SPDR S&P 500 ETF — tracks the 500 largest US companies.',QQQ:'Invesco QQQ — tracks the tech-heavy Nasdaq-100.',DIA:'SPDR Dow Jones ETF — 30 US blue-chip industrials.',IWM:'iShares Russell 2000 — US small-cap equities.',EWZ:'iShares MSCI Brazil ETF — Brazilian large caps (Ibovespa proxy).',EFA:'iShares MSCI EAFE — developed markets ex-US & Canada.',EWJ:'iShares MSCI Japan — Japanese equities.',EEM:'iShares MSCI Emerging Markets.',FXI:'iShares China Large-Cap.',GLD:'SPDR Gold Shares — tracks spot gold bullion.',SLV:'iShares Silver Trust — tracks spot silver.',USO:'United States Oil Fund — tracks WTI crude futures.',UNG:'US Natural Gas Fund — tracks Henry Hub gas futures.',CORN:'Teucrium Corn Fund — corn futures.',CPER:'US Copper Index Fund.',BTCUSD:'Bitcoin — the largest cryptocurrency by market value.',ETHUSD:'Ethereum — smart-contract blockchain, 2nd-largest crypto.',SOLUSD:'Solana — high-throughput layer-1 crypto.',EURUSD:'Euro vs US Dollar — the world\'s most-traded FX pair.',USDBRL:'US Dollar vs Brazilian Real.',USDJPY:'US Dollar vs Japanese Yen.',GBPUSD:'British Pound vs US Dollar.'};
-  useEffect(()=>{let m=true;const ds=d=>d.toISOString().slice(0,10);const to=new Date();const from=new Date(Date.now()-120*864e5);
-    setBars(null);setFunds(null);setLogo(null);setProf(null);setScrub(null);
-    apiFetch(`/api/chart/${encodeURIComponent(sym)}?multiplier=1&timespan=day&from=${ds(from)}&to=${ds(to)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m)setBars(d&&Array.isArray(d.results)?d.results:[]);}).catch(()=>{if(m)setBars([]);});
+  useEffect(()=>{let m=true;
+    setFunds(null);setLogo(null);setProf(null);setScrub(null);setTf('1M');
     apiFetch(`/api/fundamentals/${encodeURIComponent(sym)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m)setFunds(d);}).catch(()=>{});
     if(equityish){
       apiFetch(`/api/market/td/logo/${encodeURIComponent(sym)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&d.url)setLogo(d.url);}).catch(()=>{});
       apiFetch(`/api/market/td/profile/${encodeURIComponent(sym)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&d.data)setProf(d.data);}).catch(()=>{});
     }
     return()=>{m=false;};},[sym]);
+  useEffect(()=>{let m=true;const cfg=TFMAP[tf]||TFMAP['1M'];const ds=d=>d.toISOString().slice(0,10);const to=new Date();const from=new Date(Date.now()-cfg.days*864e5);
+    setBars(null);
+    apiFetch(`/api/chart/${encodeURIComponent(sym)}?multiplier=${cfg.mult}&timespan=${cfg.span}&from=${ds(from)}&to=${ds(to)}`).then(r=>r&&r.ok?r.json():null).then(d=>{if(m)setBars(d&&Array.isArray(d.results)?d.results:[]);}).catch(()=>{if(m)setBars([]);});
+    return()=>{m=false;};},[sym,tf]);
   const _lb=bars&&bars.length?bars[bars.length-1]:null, _pb=bars&&bars.length>1?bars[bars.length-2]:null;
   const _lbc=_lb?(_lb.c??_lb.close):null, _pbc=_pb?(_pb.c??_pb.close):null;
   const price=(quote&&quote.price!=null)?quote.price:_lbc;
@@ -222,8 +227,8 @@ function DetailView({sym,quote,name,fmtP,fmtC,cls,onClose,onAsk,watching,onToggl
           <div className="m2-scrub"><b>{fmtD(scrub.dt)}</b> O {scrub.o.toFixed(2)} · H <s style={{color:'#25d0a0'}}>{scrub.hi.toFixed(2)}</s> · L <s style={{color:'#ff5a6a'}}>{scrub.lo.toFixed(2)}</s> · C {scrub.c.toFixed(2)}</div>
         ) : (chg!=null&&(<div className="c" style={{color:chg<0?'#ff5a6a':'#25d0a0',background:chg<0?'rgba(255,90,106,.12)':'rgba(37,208,160,.12)',borderColor:'transparent'}}><I d={icons.up} w={12}/>{fmtC(chg)}</div>))}
       </div>
-      <ChartV2 bars={bars} onScrub={setScrub}/>
-      {lows!=null&&(<div className="m2-range"><div className="rt">Range (120 days)</div><div className="rl"><span>{fmtP(lows)}</span><span>{fmtP(highs)}</span></div><div className="m2-bar"><i style={{left:pos+'%'}}></i></div></div>)}
+      <ChartV2 bars={bars} onScrub={setScrub} tf={tf} onTf={setTf}/>
+      {lows!=null&&(<div className="m2-range"><div className="rt">Range · {(TFMAP[tf]||{}).label||tf}</div><div className="rl"><span>{fmtP(lows)}</span><span>{fmtP(highs)}</span></div><div className="m2-bar"><i style={{left:pos+'%'}}></i></div></div>)}
       {(descShort||metaBits.length>0)&&(<div className="m2-about"><h3>About</h3>{metaBits.length>0&&(<div className="m2-metarow">{metaBits.map((b,i)=>(<span key={i}>{b}</span>))}</div>)}{descShort&&<p>{descShort}</p>}</div>)}
       <div className="m2-sec"><h3>Fundamentals</h3><a>{funds?'live':(bars?'—':'loading…')}</a></div>
       <div className="m2-fgrid">{F.map(x=>(<div className="m2-fg" key={x[0]}><span>{x[0]}</span><b>{x[1]}</b></div>))}</div>
@@ -298,9 +303,10 @@ export default function MobileAppV2(){
   const { data } = useMarketData();
   const { watchlist, addTicker, removeTicker, isWatching } = useWatchlist();
   const look=(sym)=>data?.stocks?.[sym]||data?.forex?.[sym]||data?.crypto?.[sym]||data?.indices?.[sym]||null;
-  const NAMES={SPY:'S&P 500',QQQ:'Nasdaq 100',DIA:'Dow Jones',IWM:'Russell 2000',EWZ:'Ibovespa',EFA:'EAFE',EWJ:'Japan',EEM:'Emerging Mkts',FXI:'China',AAPL:'Apple',NVDA:'Nvidia',MSFT:'Microsoft',TSLA:'Tesla',AMZN:'Amazon',GOOGL:'Alphabet',META:'Meta',GLD:'Gold',SLV:'Silver',USO:'WTI crude',UNG:'Nat gas',CORN:'Corn',CPER:'Copper',EURUSD:'EUR / USD',USDBRL:'USD / BRL',USDJPY:'USD / JPY',GBPUSD:'GBP / USD',BTCUSD:'Bitcoin',ETHUSD:'Ethereum',SOLUSD:'Solana',VALE:'Vale',PBR:'Petrobras'};
+  const NAMES={SPY:'S&P 500',QQQ:'Nasdaq 100',DIA:'Dow Jones',IWM:'Russell 2000',EWZ:'Ibovespa',EFA:'EAFE',EWJ:'Japan',EEM:'Emerging Mkts',FXI:'China',AAPL:'Apple',NVDA:'Nvidia',MSFT:'Microsoft',TSLA:'Tesla',AMZN:'Amazon',GOOGL:'Alphabet',META:'Meta',GLD:'Gold',SLV:'Silver',USO:'WTI crude',UNG:'Nat gas',CORN:'Corn',CPER:'Copper',EURUSD:'EUR / USD',USDBRL:'USD / BRL',USDJPY:'USD / JPY',GBPUSD:'GBP / USD',BTCUSD:'Bitcoin',ETHUSD:'Ethereum',SOLUSD:'Solana',VALE:'Vale',PBR:'Petrobras','GC=F':'Gold','CL=F':'WTI Crude','SI=F':'Silver','NG=F':'Nat Gas','HG=F':'Copper','BZ=F':'Brent','ZC=F':'Corn','ES=F':'S&P Futures'};
   const fmtP=(v)=>{if(v==null)return '—';const a=Math.abs(v);if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:0});if(a>=10)return v.toFixed(2);return v.toFixed(4);};
   const fmtC=(c)=>c==null?'—':(c>=0?'+':'')+c.toFixed(2)+'%';
+  const tkBadge=(sym)=>{const b=(sym||'').split(/[=.]/)[0].replace(/USD$/,'');return (b||sym||'').slice(0,4).toUpperCase();};
   const cls=(c)=>c==null?'m2-flat':(c>0?'m2-u':c<0?'m2-d':'m2-flat');
   const PULSE=[['SPY','S&P 500'],['QQQ','Nasdaq'],['EWZ','Ibovespa'],['EFA','EAFE'],['EWJ','Japan']];
   const FX=[['EURUSD','EUR / USD'],['USDBRL','USD / BRL'],['USDJPY','USD / JPY'],['GBPUSD','GBP / USD']];
@@ -364,6 +370,7 @@ export default function MobileAppV2(){
     const COMMS=new Set(['GLD','SLV','USO','UNG','CORN','CPER','WEAT','SOYB','PALL','PPLT','DBA','DBC','USG','UGA']);
     if(/^(BTC|ETH|SOL|BNB|XRP|ADA|DOGE|AVAX|DOT|MATIC|LTC|LINK|TRX)USD$/.test(u))return 'Crypto';
     if(u.length===6&&/^[A-Z]{6}$/.test(u)&&/(USD|BRL|JPY|EUR|GBP|CHF|CAD|AUD|CNY|MXN|SEK|NOK)$/.test(u))return 'FX';
+    if(/=F$/.test(u))return 'Commodities';
     if(COMMS.has(u))return 'Commodities';
     if(IDX.has(u))return 'Indices & ETFs';
     return 'Equities';
@@ -396,17 +403,16 @@ export default function MobileAppV2(){
               <button className="m2-chip" key={sym} onClick={()=>openDetail(sym,label)}><div className="n">{label}</div><div className="v">{fmtP(q&&q.price)}</div><div className={'c '+cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</div></button>);})}
           </div>
           <div className="m2-sec"><h3>Watchlist</h3></div>
-          {wlGroups.map(([grp,syms])=>(
-            <div key={grp}>
-              <div className="m2-wlgrp">{grp}</div>
-              <div className="m2-card">
-                {syms.map(sym=>{const q=look(sym);const nm=NAMES[sym]||sym;return (
-                  <div className="m2-row" key={sym} onClick={()=>openDetail(sym,nm)}>
-                    <div className="m2-tk">{sym.replace(/USD$/,'').slice(0,3)}</div><div className="nm"><b>{nm}</b>{nm!==sym&&(<span>{sym}</span>)}</div>
-                    <div className="pr"><b>{fmtP(q&&q.price)}</b><small className={cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</small></div><span className="m2-chev"><I d={icons.chev} w={15}/></span>
-                  </div>);})}
-              </div>
-            </div>))}
+          <div className="m2-card">
+            {wlGroups.flatMap(([grp,syms])=>[
+              <div className="m2-wlgrp2" key={'g-'+grp}>{grp}</div>,
+              ...syms.map(sym=>{const q=look(sym);const nm=NAMES[sym]||sym;return (
+                <div className="m2-row" key={sym} onClick={()=>openDetail(sym,nm)}>
+                  <div className="m2-tk">{tkBadge(sym)}</div><div className="nm"><b>{nm}</b>{nm!==sym&&(<span>{sym}</span>)}</div>
+                  <div className="pr"><b>{fmtP(q&&q.price)}</b><small className={cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</small></div><span className="m2-chev"><I d={icons.chev} w={15}/></span>
+                </div>);})
+            ])}
+          </div>
           <div className="m2-sec"><h3>FX</h3></div>
           <div className="m2-g2">
             {FX.map(([sym,label])=>{const q=data&&data.forex&&data.forex[sym];return (
@@ -497,7 +503,7 @@ export default function MobileAppV2(){
             {sq.trim().length===0 && <div className="m2-sempty">Search stocks, ETFs, FX, crypto and indices across every market we cover.</div>}
             {sres.map((r,i)=>{const sym=normSym(r.symbol||r.symbolKey);const ac=(r.assetClass||r.type||'').toString().replace(/_/g,' ');return (
               <button className="m2-sitem" key={(r.symbolKey||r.symbol||'')+i} onClick={()=>openDetail(r.symbol||r.symbolKey,r.name)}>
-                <div className="m2-stk">{sym.slice(0,3)}</div>
+                <div className="m2-stk">{tkBadge(sym)}</div>
                 <div className="m2-sinfo"><b>{r.name||sym}</b><span>{sym}{ac?(' · '+ac):''}</span></div>
                 <span className="m2-chev"><I d={icons.chev} w={15}/></span>
               </button>);})}
