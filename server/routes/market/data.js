@@ -1742,4 +1742,61 @@ router.get('/market/enriched-batch', async (req, res) => {
   }
 });
 
+/**
+ * GET /market/bloomberg-tv
+ * Resolves Bloomberg Television's CURRENT live YouTube video id by reading the
+ * channel's /live page, so we can embed the live video directly. YouTube
+ * deprecated the /embed/live_stream?channel= endpoint (it now shows "video
+ * unavailable"), which is why the old panel stopped connecting. Cached 10 min.
+ */
+const BLOOMBERG_TV_CHANNEL = 'UCIALMKvObZNtJ6AmdCLP7Lg'; // Bloomberg Television (@markets)
+router.get('/market/bloomberg-tv', async (req, res) => {
+  const ck = 'bloomberg-tv:videoId';
+  try {
+    const cached = cacheGet(ck);
+    if (cached) return res.json({ ok: true, videoId: cached.videoId, live: !!cached.videoId, source: 'cache' });
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 9000);
+    let html = '';
+    try {
+      const r = await fetch(`https://www.youtube.com/channel/${BLOOMBERG_TV_CHANNEL}/live`, {
+        signal: controller.signal,
+        headers: {
+          // A desktop UA gets the full watch payload with videoDetails.
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      });
+      html = await r.text();
+    } finally {
+      clearTimeout(timer);
+    }
+
+    // Prefer the canonical watch URL (points at the live video), then fall back
+    // to the first videoId in the ytInitialPlayerResponse blob.
+    let videoId = null;
+    const canon = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([\w-]{11})">/);
+    if (canon) videoId = canon[1];
+    if (!videoId) {
+      const m = html.match(/"videoId":"([\w-]{11})"/);
+      if (m) videoId = m[1];
+    }
+    // Only treat as live if the page actually marks it live (avoid pinning a VOD).
+    const isLive = /"isLive":true/.test(html) || /"isLiveContent":true/.test(html) || /BADGE_STYLE_TYPE_LIVE_NOW/.test(html);
+
+    if (videoId && isLive) {
+      cacheSet(ck, { videoId }, 600_000); // 10 min
+      return res.json({ ok: true, videoId, live: true, source: 'youtube' });
+    }
+    // No live right now (or blocked). Cache a short null so we don't hammer YT.
+    cacheSet(ck, { videoId: null }, 120_000);
+    return res.json({ ok: true, videoId: videoId || null, live: false, source: 'youtube', channelUrl: `https://www.youtube.com/channel/${BLOOMBERG_TV_CHANNEL}/live` });
+  } catch (e) {
+    logger.warn('GET /market/bloomberg-tv error:', e.message);
+    return res.json({ ok: false, videoId: null, live: false, channelUrl: `https://www.youtube.com/channel/${BLOOMBERG_TV_CHANNEL}/live`, error: e.message });
+  }
+});
+
+
 module.exports = router;
