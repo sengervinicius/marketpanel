@@ -232,7 +232,10 @@ export default function PricingModal({ visible, onDismiss, onSelectTier, current
             {currentTier && currentTier !== 'trial' ? 'Keep current plan' : 'Continue with free trial'}
           </button>
           <div className="pricing-fine-print">
+            Subscriptions renew automatically for the same period and price until cancelled.
             Cancel anytime. Secure payment via Stripe.
+            {' '}<a href="/terms" target="_blank" rel="noreferrer">Terms of Use</a>
+            {' · '}<a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>
           </div>
         </div>
       </div>

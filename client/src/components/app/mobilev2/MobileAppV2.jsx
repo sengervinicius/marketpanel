@@ -337,6 +337,20 @@ export default function MobileAppV2(){
   //    for auto-renewables, a restore-purchases path) ─────────────────────
   const auth = useAuth();
   const [showAccount,setShowAccount]=useState(false);
+  const [showPlans,setShowPlans]=useState(false);
+  const [cycle,setCycle]=useState('annual');
+  const [buying,setBuying]=useState(null);
+  // Mirrors server/config/tiers.js. Apple caps this app's price points at
+  // $999.99, so Nuclear annual ships at 999 framed as a launch promo.
+  const PLANS=[
+    {key:'new_particle',   label:'New Particle',     monthly:29,  annual:290,  blurb:'Live multi-asset terminal, watchlist and morning brief.'},
+    {key:'dark_particle',  label:'Dark Particle',    monthly:79,  annual:790,  blurb:'Adds Particle AI, the research vault and deeper analytics.'},
+    {key:'nuclear_particle',label:'Nuclear Particle',monthly:199, annual:999,  regularAnnual:1990, blurb:'Everything, unlimited AI and priority data.'},
+  ];
+  const buyPlan=async(tierKey)=>{setBuying(tierKey);setAcctMsg(null);
+    try{ await auth.startCheckout(tierKey,cycle); setAcctMsg('Purchase complete — your plan is active.'); setShowPlans(false); }
+    catch(e){ setAcctMsg(e?.message||'Purchase could not be completed.'); }
+    finally{ setBuying(null); }};
   const [delStep,setDelStep]=useState(0);      // 0 idle · 1 confirm · 2 deleting
   const [acctMsg,setAcctMsg]=useState(null);
   const [online,setOnline]=useState(typeof navigator==='undefined'?true:navigator.onLine!==false);
@@ -509,6 +523,7 @@ export default function MobileAppV2(){
                 </div>
               )}
               <div ref={chatEndRef}></div>
+              <div className="m2-aidisc">AI-generated content for information and analysis only — not investment advice. Verify against primary sources before acting.</div>
             </div>
           )}
         </div>
@@ -574,6 +589,56 @@ export default function MobileAppV2(){
               {Array.isArray(brief.vaultCheck)&&brief.vaultCheck.length>0&&(<div className="m2-bsec"><h3>From your vault</h3>{brief.vaultCheck.map((v,vi)=>(<div key={vi} className="m2-bitem"><b className="doc">{v.docName}</b><span>{v.line||''}</span></div>))}</div>)}
             </>)}
             {!briefLoading && !brief && <div className="m2-sempty">Brief unavailable right now — try again shortly.</div>}
+            {!briefLoading && brief && !brief.__pending && (<div className="m2-aidisc">AI-generated content for information and analysis only — not investment advice. Verify against primary sources before acting.</div>)}
+          </div>
+        </div>
+      )}
+
+      {/* PLANS — auto-renewable subscriptions. Apple 3.1.2 requires title, length,
+           price, auto-renewal disclosure and functional Terms + Privacy links on
+           the purchase screen; the products must also be reachable by a reviewer. */}
+      {showPlans && (
+        <div className="m2-sheetwrap" onClick={()=>setShowPlans(false)}>
+          <div className="m2-sheet" onClick={e=>e.stopPropagation()}>
+            <div className="m2-sheetgrip"></div>
+            <div className="m2-sheethead">
+              <div className="m2-sheetid"><b>Choose your plan</b><span>Auto-renewing subscription · cancel anytime</span></div>
+              <button className="m2-sheetx" onClick={()=>setShowPlans(false)} aria-label="Close"><I d={icons.close} w={17}/></button>
+            </div>
+            {acctMsg && <div className="m2-sheetmsg">{acctMsg}</div>}
+            <div className="m2-cyc">
+              <button className={cycle==='monthly'?'on':''} onClick={()=>setCycle('monthly')}>Monthly</button>
+              <button className={cycle==='annual'?'on':''} onClick={()=>setCycle('annual')}>Annual</button>
+            </div>
+            {PLANS.map(pl=>{const price=cycle==='annual'?pl.annual:pl.monthly;const per=cycle==='annual'?'year':'month';
+              const promo=cycle==='annual'&&pl.regularAnnual;
+              return (
+                <div className="m2-plan" key={pl.key}>
+                  <div className="m2-planhead">
+                    <b>{pl.label}</b>
+                    <div className="m2-planprice">
+                      {promo&&<s>${pl.regularAnnual}</s>}
+                      <span>${price}</span><i>/{per}</i>
+                    </div>
+                  </div>
+                  {promo&&<div className="m2-planpromo">LAUNCH PROMO · 50% OFF</div>}
+                  <p>{pl.blurb}</p>
+                  <button className="m2-planbuy" disabled={!!buying} onClick={()=>buyPlan(pl.key)}>
+                    {buying===pl.key?'Processing…':`Subscribe · $${price}/${per}`}
+                  </button>
+                </div>);})}
+            <p className="m2-legal">
+              Payment is charged to your Apple ID at confirmation of purchase. The subscription renews automatically
+              for the same period and price unless auto-renew is turned off at least 24 hours before the end of the
+              current period. Your account is charged for renewal within 24 hours of the end of the current period.
+              You can manage or cancel your subscription in your Apple ID account settings after purchase.
+            </p>
+            <div className="m2-legallinks">
+              <a href="https://the-particle.com/terms" target="_blank" rel="noreferrer">Terms of Use (EULA)</a>
+              <span>·</span>
+              <a href="https://the-particle.com/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>
+              {isIOS() && (<><span>·</span><a onClick={doRestore}>Restore purchases</a></>)}
+            </div>
           </div>
         </div>
       )}
@@ -595,6 +660,7 @@ export default function MobileAppV2(){
             {acctMsg && <div className="m2-sheetmsg">{acctMsg}</div>}
 
             {delStep===0 && (<>
+              <button className="m2-sheetrow" onClick={()=>{setShowPlans(true);setAcctMsg(null);}}><I d={icons.spark} w={17}/><span>Plans &amp; pricing</span><i className="m2-chev"><I d={icons.chev} w={15}/></i></button>
               {isIOS() && (
                 <button className="m2-sheetrow" onClick={doRestore}><I d={icons.restore} w={17}/><span>Restore purchases</span><i className="m2-chev"><I d={icons.chev} w={15}/></i></button>
               )}
