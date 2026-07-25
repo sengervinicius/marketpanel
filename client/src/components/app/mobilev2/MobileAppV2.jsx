@@ -326,8 +326,6 @@ export default function MobileAppV2(){
     apiFetch('/api/brief/').then(r=>r&&r.ok?r.json():null).then(d=>{if(!m)return;if(d&&d.data)setBrief(d.data);else if(d&&d.ok===false)setBrief({__pending:d.message||'Your brief is being prepared.'});else setBrief({__pending:'Brief unavailable right now.'});}).catch(()=>{if(m)setBrief({__pending:'Brief unavailable right now.'});}).finally(()=>{if(m)setBriefLoading(false);});
     return()=>{m=false;};},[]);
   const y10=(cc)=>{const c=curves&&curves[cc]&&curves[cc].curve;const p=c&&c.find(x=>x.tenor==='10Y');return p?(p.rate!=null?p.rate:(p.yield!=null?p.yield:null)):null;};
-  const _goodGreeting=(greeting&&!/loading|prepar/i.test(greeting))?greeting:null;
-  const briefPreview=(brief&&brief.oneThing)?brief.oneThing:(_goodGreeting||'Your market brief is ready — tap to open.');
   const CTRY=[{name:'United States',risk:'lo',eq:'SPY',cc:'US',fx:null},{name:'Brazil',risk:'md',eq:'EWZ',cc:'BR',fx:'USDBRL'},{name:'Eurozone',risk:'lo',eq:'EFA',cc:'EU',fx:'EURUSD'}];
 
   // ── Navigation: open in-depth for any symbol (search results carry C:/X:/I: prefixes) ──
@@ -374,6 +372,9 @@ export default function MobileAppV2(){
   const wlFull=(watchlist&&watchlist.length)?watchlist:['SPY','QQQ','AAPL','NVDA','GLD','BTCUSD','EWZ'];
   const wlGroups=(()=>{const g={};wlFull.forEach(s=>{const k=classify(s);(g[k]=g[k]||[]).push(s);});return WL_ORDER.filter(k=>g[k]&&g[k].length).map(k=>[k,g[k]]);})();
 
+
+  const _goodGreeting=(greeting&&!/loading|prepar/i.test(greeting))?greeting:null;
+  const briefPreview=(brief&&brief.oneThing)?brief.oneThing:(_goodGreeting||'Your market brief is ready — tap to open.');
 
   return (
     <div className="m2-root">
