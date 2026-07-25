@@ -232,6 +232,58 @@ function DetailView({sym,quote,name,fmtP,fmtC,cls,onClose,onAsk,watching,onToggl
   );
 }
 
+/* ---------- Morning Brief card: ambient particles + pressable orb ---------- */
+function BriefCard({label,onOpen}){
+  const wrapRef=useRef(null); const cvRef=useRef(null);
+  const S=useRef({parts:[],bparts:[],orb:{x:0,y:0,r:24},raf:0,fired:false});
+  useEffect(()=>{
+    const wrap=wrapRef.current, cv=cvRef.current; if(!wrap||!cv) return;
+    const ctx=cv.getContext('2d'); if(!ctx) return;
+    const dpr=Math.min(window.devicePixelRatio||1,2); let W=0,H=0;
+    const st=S.current;
+    const size=()=>{const r=wrap.getBoundingClientRect();W=r.width;H=r.height;if(!W||!H)return;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+      st.orb={x:W-54,y:H/2,r:24};
+      if(!st.parts.length){for(let i=0;i<24;i++)st.parts.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-0.5)*0.22,vy:(Math.random()-0.5)*0.22,r:0.6+Math.random()*1.7,a:0.12+Math.random()*0.4,o:Math.random()>0.4});}
+    };
+    size();
+    let ro; try{ro=new ResizeObserver(size);ro.observe(wrap);}catch(e){}
+    const loop=(now)=>{
+      if(!W||!H){size();}
+      const orb=st.orb; const pulse=0.5+0.5*Math.sin(now/720);
+      ctx.clearRect(0,0,W,H);
+      // orb glow halo
+      const g=ctx.createRadialGradient(orb.x,orb.y,0,orb.x,orb.y,orb.r*2.8);
+      g.addColorStop(0,'rgba(255,190,110,.85)');g.addColorStop(.34,'rgba(255,106,0,'+(0.5+0.22*pulse)+')');g.addColorStop(1,'rgba(255,106,0,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(orb.x,orb.y,orb.r*2.8,0,7);ctx.fill();
+      // ambient particles drifting, faint attraction to the orb
+      st.parts.forEach(p=>{const dx=orb.x-p.x,dy=orb.y-p.y,d=Math.hypot(dx,dy)||1;p.vx+=(dx/d)*0.006;p.vy+=(dy/d)*0.006;p.vx*=0.98;p.vy*=0.98;p.x+=p.vx;p.y+=p.vy;
+        if(p.x<-4)p.x=W+4;if(p.x>W+4)p.x=-4;if(p.y<-4)p.y=H+4;if(p.y>H+4)p.y=-4;
+        ctx.globalAlpha=p.a*(0.55+0.45*pulse);ctx.fillStyle=p.o?'#ff9a4d':'#ffe3c2';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();});
+      ctx.globalAlpha=1;
+      // orb core
+      const c=ctx.createRadialGradient(orb.x-orb.r*0.32,orb.y-orb.r*0.32,1,orb.x,orb.y,orb.r*(1+0.04*pulse));
+      c.addColorStop(0,'#fff');c.addColorStop(.16,'#ffd8a8');c.addColorStop(.62,'#ff8a2a');c.addColorStop(1,'#ff5a00');
+      ctx.fillStyle=c;ctx.beginPath();ctx.arc(orb.x,orb.y,orb.r*(1+0.04*pulse),0,7);ctx.fill();
+      // burst
+      if(st.bparts.length){st.bparts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vx*=0.93;p.vy*=0.93;p.life-=0.022;if(p.life>0){ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=p.o?'#ff9a4d':'#ffd8a8';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();}});st.bparts=st.bparts.filter(p=>p.life>0);ctx.globalAlpha=1;}
+      st.raf=requestAnimationFrame(loop);
+    };
+    st.raf=requestAnimationFrame(loop);
+    return ()=>{cancelAnimationFrame(st.raf);if(ro)try{ro.disconnect();}catch(e){}};
+  },[]);
+  const press=()=>{const st=S.current;if(st.fired)return;st.fired=true;const orb=st.orb;
+    for(let i=0;i<64;i++){const a=Math.random()*7,sp=1+Math.random()*4.4;st.bparts.push({x:orb.x,y:orb.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,r:1+Math.random()*2.2,life:1,o:Math.random()>0.4});}
+    setTimeout(()=>{st.fired=false;onOpen&&onOpen();},430);};
+  return (<button className="m2-briefcard" ref={wrapRef} onClick={press}>
+    <canvas ref={cvRef} className="m2-briefcv"></canvas>
+    <div className="m2-briefinner">
+      <span className="lbl">MORNING BRIEF</span>
+      <p>{label}</p>
+      <span className="go">Tap the particle to open <I d={icons.arrow} w={13}/></span>
+    </div>
+  </button>);
+}
+
 export default function MobileAppV2(){
   const [tab,setTab]=useState('term');
   const [detail,setDetail]=useState(null);
@@ -271,8 +323,11 @@ export default function MobileAppV2(){
   useEffect(()=>{let m=true;
     apiFetch('/api/yield-curves').then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&!d.error)setCurves(d);}).catch(()=>{});
     apiFetch('/api/brief/greeting').then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&d.ok&&d.greeting)setGreeting(d.greeting);}).catch(()=>{});
+    apiFetch('/api/brief/').then(r=>r&&r.ok?r.json():null).then(d=>{if(!m)return;if(d&&d.data)setBrief(d.data);else if(d&&d.ok===false)setBrief({__pending:d.message||'Your brief is being prepared.'});else setBrief({__pending:'Brief unavailable right now.'});}).catch(()=>{if(m)setBrief({__pending:'Brief unavailable right now.'});}).finally(()=>{if(m)setBriefLoading(false);});
     return()=>{m=false;};},[]);
   const y10=(cc)=>{const c=curves&&curves[cc]&&curves[cc].curve;const p=c&&c.find(x=>x.tenor==='10Y');return p?(p.rate!=null?p.rate:(p.yield!=null?p.yield:null)):null;};
+  const _goodGreeting=(greeting&&!/loading|prepar/i.test(greeting))?greeting:null;
+  const briefPreview=(brief&&brief.oneThing)?brief.oneThing:(_goodGreeting||'Your market brief is ready — tap to open.');
   const CTRY=[{name:'United States',risk:'lo',eq:'SPY',cc:'US',fx:null},{name:'Brazil',risk:'md',eq:'EWZ',cc:'BR',fx:'USDBRL'},{name:'Eurozone',risk:'lo',eq:'EFA',cc:'EU',fx:'EURUSD'}];
 
   // ── Navigation: open in-depth for any symbol (search results carry C:/X:/I: prefixes) ──
@@ -302,9 +357,8 @@ export default function MobileAppV2(){
   // ── Morning brief (full content) ──
   const [showBrief,setShowBrief]=useState(false);
   const [brief,setBrief]=useState(null);
-  const [briefLoading,setBriefLoading]=useState(false);
-  const openBrief=()=>{setShowBrief(true);if(brief||briefLoading)return;setBriefLoading(true);
-    apiFetch('/api/brief/').then(r=>r&&r.ok?r.json():null).then(d=>{if(d&&d.data)setBrief(d.data);else if(d&&d.ok===false)setBrief({__pending:d.message||'Your brief is being prepared.'});else setBrief({__pending:'Brief unavailable right now.'});}).catch(()=>setBrief({__pending:'Brief unavailable right now.'})).finally(()=>setBriefLoading(false));};
+  const [briefLoading,setBriefLoading]=useState(true);
+  const openBrief=()=>setShowBrief(true);
 
   // ── Watchlist classification + grouping (mirrors desktop's asset-class order) ──
   const classify=(x)=>{const u=(x||'').toUpperCase();
@@ -334,11 +388,7 @@ export default function MobileAppV2(){
           </div>
           <div className="m2-h1">Terminal</div>
           <div className="m2-sub"><span className="m2-dot"></span>Live · {new Date().toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'})}</div>
-          <button className="m2-brief" onClick={openBrief} style={{width:'100%',textAlign:'left',border:'none',fontFamily:'inherit',cursor:'pointer'}}>
-            <div className="bh"><span className="tag">MORNING BRIEF</span><span className="tm">Tap to read</span></div>
-            <h2>{greeting||'Your market brief is being prepared…'}</h2>
-            <div className="cta">Read full brief <I d={icons.arrow} w={14}/></div>
-          </button>
+          <BriefCard label={briefPreview} onOpen={openBrief}/>
           <div className="m2-sec"><h3>Global pulse</h3></div>
           <div className="m2-strip">
             {PULSE.map(([sym,label])=>{const q=look(sym);return (
