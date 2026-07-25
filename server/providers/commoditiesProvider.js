@@ -209,6 +209,11 @@ function resolve(input) {
 // Twelve Data: strip =F suffix (TD uses "CL" not "CL=F").
 async function fetchTwelveDataCommodity(sym) {
   if (!process.env.TWELVEDATA_API_KEY) return null;
+  // NEVER send futures to Twelve Data. Stripping "=F" turns a futures root into a
+  // real EQUITY ticker on TD (BZ -> Kanzhun ~$15, CL -> Colgate ~$90), and because
+  // TD returns a valid quote the Yahoo fallback never runs — that is how Brent
+  // printed $15/bbl. Yahoo handles "=F" symbols natively.
+  if (/=F$/i.test(sym)) return null;
   const root = sym.replace(/=F$/i, '');
 
   const ck = `td:commodity:${root}`;

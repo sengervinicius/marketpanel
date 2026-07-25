@@ -18,7 +18,7 @@
 
 import { TOKEN_HEX } from '../../utils/tokenHex';
 import { useEffect, useState, useRef, memo } from 'react';
-import { API_BASE } from '../../utils/api';
+import { API_BASE, apiFetch } from '../../utils/api';
 import './InlineChart.css';
 
 // Color palette for terminal
@@ -44,54 +44,38 @@ function periodToDays(period) {
 /**
  * Fetch historical price data for a ticker
  */
-async function fetchHistoricalData(ticker) {
+async function fetchHistoricalData(ticker, period = '1M') {
+  // Real candles only. This previously returned generateMockPriceData() — a
+  // Math.random() walk — so any AI answer containing [chart:...] rendered a
+  // plausible-looking chart of INVENTED prices. Never synthesise market data.
   try {
-    // Generate mock data for now (backend endpoint would be /api/instruments/:symbol/history)
-    // In production, fetch from: ${API_BASE}/api/instruments/${ticker.toUpperCase()}/history?range=1M
-    const data = generateMockPriceData(ticker);
-    return data;
+    const resp = await apiFetch(
+      `/api/history/${encodeURIComponent(String(ticker).toUpperCase())}?period=${encodeURIComponent(period)}&interval=1d`
+    );
+    if (!resp || !resp.ok) return null;
+    const json = await resp.json();
+    const candles = Array.isArray(json?.candles) ? json.candles : [];
+    if (!candles.length) return null;
+    return candles
+      .filter(c => c && c.c != null)
+      .map(c => {
+        const ts = typeof c.t === 'number' ? (c.t < 1e12 ? c.t * 1000 : c.t) : Date.parse(c.t);
+        return {
+          timestamp: ts,
+          date: new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          open: c.o ?? c.c,
+          high: c.h ?? c.c,
+          low: c.l ?? c.c,
+          close: c.c,
+          volume: c.v ?? 0,
+        };
+      });
   } catch (err) {
     console.error('[InlineChart] Data fetch error:', err);
     return null;
   }
 }
 
-/**
- * Generate mock OHLCV data for demonstration
- * In production, replace with real API call
- */
-function generateMockPriceData(ticker) {
-  const days = 30;
-  const now = Date.now();
-  const data = [];
-
-  // Simulate realistic price movement
-  let basePrice = 100 + Math.random() * 100;
-  const trend = (Math.random() - 0.5) * 0.02; // ±1% daily drift
-  const volatility = 0.02; // ±2% daily
-
-  for (let i = days - 1; i >= 0; i--) {
-    const change = trend + (Math.random() - 0.5) * volatility * 2;
-    const open = basePrice;
-    const close = basePrice * (1 + change);
-    const high = Math.max(open, close) * (1 + Math.random() * volatility);
-    const low = Math.min(open, close) * (1 - Math.random() * volatility);
-
-    data.push({
-      timestamp: now - i * 86400000,
-      date: new Date(now - i * 86400000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      open: parseFloat(open.toFixed(2)),
-      high: parseFloat(high.toFixed(2)),
-      low: parseFloat(low.toFixed(2)),
-      close: parseFloat(close.toFixed(2)),
-      volume: Math.floor(Math.random() * 50000000 + 10000000),
-    });
-
-    basePrice = close;
-  }
-
-  return data;
-}
 
 /**
  * SparklineChart — Mini line chart with gradient fill
@@ -349,7 +333,7 @@ const InlineChart = memo(function InlineChart({ type = 'sparkline', tickers, per
 
         // Fetch data for each ticker in parallel
         const promises = tickerArray.map(async (ticker) => {
-          const data = await fetchHistoricalData(ticker);
+          const data = await fetchHistoricalData(ticker, period);
           if (data) {
             newDataMap[ticker.toUpperCase()] = data;
           }

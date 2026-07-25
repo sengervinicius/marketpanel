@@ -4,6 +4,8 @@ import { useMarketData } from '../../../hooks/useMarketData';
 import { useWatchlist } from '../../../context/WatchlistContext';
 import { apiFetch } from '../../../utils/api';
 import { useParticleChat } from '../../../context/ParticleChatContext';
+import { useAuth } from '../../../context/AuthContext';
+import { isIOS } from '../../../services/platform';
 
 const I = ({d, w=22}) => (<svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>);
 const icons = {
@@ -17,6 +19,12 @@ const icons = {
   back:<path d="M15 5l-7 7 7 7"/>,
   star:<path d="M12 3l2.5 6 6.5.5-5 4.2 1.6 6.3L12 17l-5.6 3 1.6-6.3-5-4.2 6.5-.5z"/>,
   send:<path d="M4 12l16-8-6 16-3-7-7-1z"/>,
+  user:<><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></>,
+  out:<><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></>,
+  restore:<><path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8"/><path d="M3 3v5h5"/></>,
+  card:<><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></>,
+  trash:<><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></>,
+  close:<path d="M6 6l12 12M18 6L6 18"/>,
   doc:<><path d="M6 2h9l3 3v17H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></>,
   cite:<><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></>,
   up:<path d="M4 16l6-6 4 4 6-8"/>,
@@ -324,6 +332,31 @@ export default function MobileAppV2(){
   const askAI=(sym,name)=>{setDetail(null);setTab('ai');chat.send('Give me your full view on '+(name||sym)+' ('+sym+') — valuation, momentum and key risks.');};
   useEffect(()=>{if(tab==='ai'&&chatEndRef.current)chatEndRef.current.scrollIntoView({block:'end'});},[chat.messages,tab]);
   const SUGG=["What's moving my watchlist today?","Summarise the macro picture","Any risks I should watch?"];
+
+  // ── Account sheet (App Store requires in-app logout, account deletion and,
+  //    for auto-renewables, a restore-purchases path) ─────────────────────
+  const auth = useAuth();
+  const [showAccount,setShowAccount]=useState(false);
+  const [delStep,setDelStep]=useState(0);      // 0 idle · 1 confirm · 2 deleting
+  const [acctMsg,setAcctMsg]=useState(null);
+  const [online,setOnline]=useState(typeof navigator==='undefined'?true:navigator.onLine!==false);
+  useEffect(()=>{const up=()=>setOnline(true),down=()=>setOnline(false);
+    window.addEventListener('online',up);window.addEventListener('offline',down);
+    return()=>{window.removeEventListener('online',up);window.removeEventListener('offline',down);};},[]);
+  const closeAccount=()=>{setShowAccount(false);setDelStep(0);setAcctMsg(null);};
+  const doRestore=async()=>{setAcctMsg('Restoring…');
+    try{ await auth.restorePurchases(); setAcctMsg('Purchases restored.'); }
+    catch(e){ setAcctMsg(e?.message||'Nothing to restore.'); }};
+  const doManage=async()=>{
+    if(isIOS()){ try{ window.open('https://apps.apple.com/account/subscriptions','_blank'); }catch(e){ setAcctMsg('Open Settings › Apple ID › Subscriptions.'); } return; }
+    try{ await auth.openBillingPortal(); }catch(e){ setAcctMsg(e?.message||'Billing portal unavailable.'); }};
+  const doDelete=async()=>{setDelStep(2);setAcctMsg(null);
+    try{
+      const res=await apiFetch('/api/auth/account',{method:'DELETE'});
+      if(!res||!res.ok){const d=res?await res.json().catch(()=>({})):{};throw new Error(d.error||'Could not delete your account.');}
+      try{localStorage.clear();}catch(e){}
+      window.location.reload();
+    }catch(e){ setAcctMsg(e?.message||'Could not delete your account.'); setDelStep(1); }};
   const [curves,setCurves]=useState(null);
   const [greeting,setGreeting]=useState(null);
   useEffect(()=>{let m=true;
@@ -391,11 +424,11 @@ export default function MobileAppV2(){
       {/* TERMINAL */}
       {tab==='term' && !detail && (
         <div className="m2-screen">
-          <div className="m2-top"><div className="m2-av"></div>
+          <div className="m2-top"><button className="m2-av" onClick={()=>setShowAccount(true)} aria-label="Account"></button>
             <button className="m2-search" onClick={()=>{setShowSearch(true);setSq('');setSres([]);}}><I d={icons.search} w={15}/>Search any market or ticker…</button>
           </div>
           <div className="m2-h1">Terminal</div>
-          <div className="m2-sub"><span className="m2-dot"></span>Live · {new Date().toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'})}</div>
+          <div className="m2-sub"><span className={'m2-dot'+(online?'':' off')}></span>{online?'Live':'Offline'} · {new Date().toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'})}</div>
           <BriefCard label={briefPreview} onOpen={openBrief}/>
           <div className="m2-sec"><h3>Global pulse</h3></div>
           <div className="m2-strip">
@@ -427,7 +460,7 @@ export default function MobileAppV2(){
           <div className="m2-strip">
             {CTRY.map(c=>{const eq=look(c.eq);const yy=y10(c.cc);const fx=c.fx?(data&&data.forex&&data.forex[c.fx]):null;return (
               <button className="m2-cty" key={c.name} onClick={()=>openDetail(c.eq,c.name)}>
-                <div className="ch"><span className="cn">{c.name}</span><span className={'risk '+c.risk}>{c.risk==='lo'?'RISK LOW':'RISK MED'}</span></div>
+                <div className="ch"><span className="cn">{c.name}</span></div>
                 <div className="kv"><span>Equity</span><b className={cls(eq&&eq.changePct)}>{fmtC(eq&&eq.changePct)}</b></div>
                 <div className="kv"><span>10Y</span><b>{yy!=null?yy.toFixed(2)+'%':'—'}</b></div>
                 {c.fx&&(<div className="kv"><span>{c.fx.slice(0,3)}/{c.fx.slice(3)}</span><b className={cls(fx&&fx.changePct)}>{fmtP(fx&&fx.price)}</b></div>)}
@@ -441,7 +474,7 @@ export default function MobileAppV2(){
 
       {/* PARTICLE AI */}
       {tab==='ai' && !detail && (<>
-        <div className="m2-screen">
+        <div className="m2-screen ai-pad">
           <div style={{height:'8px'}}></div>
           <div className="m2-aihead"><div className="m2-orb"></div><div><b>Particle AI</b><br/><span><span className="m2-dot"></span>Grounded in markets + your vault</span></div></div>
           {chat.messages.length===0 ? (
@@ -468,6 +501,13 @@ export default function MobileAppV2(){
                   })()}
                   {m.role==='assistant'&&!m.streaming&&m.vaultSources&&m.vaultSources.length>0 && (<div className="m2-cite"><I d={icons.cite} w={12}/>{m.vaultSources.length} vault source{m.vaultSources.length>1?'s':''}</div>)}
                 </div>))}
+              {chat.error && (
+                <div className="m2-chaterr">
+                  {String(chat.error)}
+                  {(()=>{const lastUser=[...chat.messages].reverse().find(m=>m.role==='user');
+                    return lastUser?(<> · <a onClick={()=>chat.send(lastUser.content)}>retry</a></>):null;})()}
+                </div>
+              )}
               <div ref={chatEndRef}></div>
             </div>
           )}
@@ -481,10 +521,10 @@ export default function MobileAppV2(){
           <div className="m2-h1" style={{paddingTop:'6px'}}>Vault</div>
           <div className="m2-sub">Your private research · {vaultDocs?vaultDocs.length:0} document{(vaultDocs&&vaultDocs.length===1)?'':'s'}</div>
           <button className="m2-askvault" onClick={()=>go('ai')} style={{width:'100%',textAlign:'left',fontFamily:'inherit',cursor:'pointer'}}><b>Ask your vault <I d={icons.arrow} w={13}/></b><p>Particle searches every document you’ve saved and answers with citations. Tap to ask.</p></button>
-          <div className="m2-sec"><h3>Recent</h3><a>All</a></div>
+          <div className="m2-sec"><h3>Recent</h3></div>
           {(vaultDocs&&vaultDocs.length?vaultDocs.slice(0,10):[]).map(doc=>(
             <div className="m2-vcard" key={doc.id}><div className="m2-vico"><I d={icons.doc} w={19}/></div><div className="nm"><b>{docTitle(doc.filename)}</b><span>{docType(doc.filename)}{doc.chunk_count?(' · '+doc.chunk_count+' chunks'):''} · {relTime(doc.created_at)}</span></div></div>))}
-          {vaultDocs&&!vaultDocs.length && (<div className="m2-vcard"><div className="nm"><b>No documents yet</b><span>Email or upload research to build your vault</span></div></div>)}
+          {vaultDocs&&!vaultDocs.length && (<div className="m2-vcard"><div className="nm"><b>No documents yet</b><span>Add research from the desktop terminal and it appears here</span></div></div>)}
           {!vaultDocs && (<div className="m2-vcard"><div className="nm"><span>Loading your vault…</span></div></div>)}
         </div>
       )}
@@ -534,6 +574,48 @@ export default function MobileAppV2(){
               {Array.isArray(brief.vaultCheck)&&brief.vaultCheck.length>0&&(<div className="m2-bsec"><h3>From your vault</h3>{brief.vaultCheck.map((v,vi)=>(<div key={vi} className="m2-bitem"><b className="doc">{v.docName}</b><span>{v.line||''}</span></div>))}</div>)}
             </>)}
             {!briefLoading && !brief && <div className="m2-sempty">Brief unavailable right now — try again shortly.</div>}
+          </div>
+        </div>
+      )}
+
+      {/* ACCOUNT SHEET — logout / restore / manage / delete (App Store 5.1.1(v) + 3.1.1) */}
+      {showAccount && (
+        <div className="m2-sheetwrap" onClick={closeAccount}>
+          <div className="m2-sheet" onClick={e=>e.stopPropagation()}>
+            <div className="m2-sheetgrip"></div>
+            <div className="m2-sheethead">
+              <div className="m2-sheetav"><I d={icons.user} w={19}/></div>
+              <div className="m2-sheetid">
+                <b>{auth?.user?.email||auth?.user?.username||'Your account'}</b>
+                <span>{auth?.subscription?.planTier?String(auth.subscription.planTier).replace(/_/g,' '):'Particle'}{auth?.subscription?.status?(' · '+String(auth.subscription.status).toLowerCase()):''}</span>
+              </div>
+              <button className="m2-sheetx" onClick={closeAccount} aria-label="Close"><I d={icons.close} w={17}/></button>
+            </div>
+
+            {acctMsg && <div className="m2-sheetmsg">{acctMsg}</div>}
+
+            {delStep===0 && (<>
+              {isIOS() && (
+                <button className="m2-sheetrow" onClick={doRestore}><I d={icons.restore} w={17}/><span>Restore purchases</span><i className="m2-chev"><I d={icons.chev} w={15}/></i></button>
+              )}
+              <button className="m2-sheetrow" onClick={doManage}><I d={icons.card} w={17}/><span>Manage subscription</span><i className="m2-chev"><I d={icons.chev} w={15}/></i></button>
+              <a className="m2-sheetrow" href="https://the-particle.com/terms" target="_blank" rel="noreferrer"><I d={icons.doc} w={17}/><span>Terms of Use</span><i className="m2-chev"><I d={icons.chev} w={15}/></i></a>
+              <a className="m2-sheetrow" href="https://the-particle.com/privacy" target="_blank" rel="noreferrer"><I d={icons.doc} w={17}/><span>Privacy Policy</span><i className="m2-chev"><I d={icons.chev} w={15}/></i></a>
+              <button className="m2-sheetrow" onClick={()=>{try{auth.logout();}catch(e){}}}><I d={icons.out} w={17}/><span>Log out</span></button>
+              <button className="m2-sheetrow danger" onClick={()=>setDelStep(1)}><I d={icons.trash} w={17}/><span>Delete account</span></button>
+              <p className="m2-sheetnote">Particle provides market data and research tools. Nothing here is investment advice.</p>
+            </>)}
+
+            {delStep>0 && (
+              <div className="m2-delbox">
+                <b>Delete your account?</b>
+                <p>This permanently erases your profile, watchlist, saved research and vault documents. It cannot be undone. An active subscription must be cancelled separately in your Apple subscription settings.</p>
+                <div className="m2-delacts">
+                  <button className="m2-delcancel" disabled={delStep===2} onClick={()=>{setDelStep(0);setAcctMsg(null);}}>Keep account</button>
+                  <button className="m2-delgo" disabled={delStep===2} onClick={doDelete}>{delStep===2?'Deleting…':'Delete permanently'}</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

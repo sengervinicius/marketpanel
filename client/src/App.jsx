@@ -763,11 +763,13 @@ export default function App() {
   // ── MOBILE (v2 native rebuild) ──────────────────────────────────────────
   if (isMobile) {
     return (
-      <WatchlistProvider>
-        <ParticleChatProvider>
-          <MobileAppV2 />
-        </ParticleChatProvider>
-      </WatchlistProvider>
+      <AppErrorBoundary>
+        <WatchlistProvider>
+          <ParticleChatProvider>
+            <MobileAppV2 />
+          </ParticleChatProvider>
+        </WatchlistProvider>
+      </AppErrorBoundary>
     );
   }
 
@@ -1188,7 +1190,7 @@ export default function App() {
                   <HomeGrid
                     grid={gridLayouts.activeGrid}
                     onGridChange={gridLayouts.setActiveGrid}
-                    panelCtx={{ mergedData, loading, setChartTicker, chartTicker, setChartGridCount, openDetail }}
+                    panelCtx={panelCtx}
                   />
                 </Suspense>
               ) : (() => {

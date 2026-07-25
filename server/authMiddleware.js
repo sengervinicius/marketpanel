@@ -24,6 +24,10 @@ function requireAuth(req, res, next) {
   try {
     const payload = verifyToken(token);
     req.user = { id: payload.id, username: payload.username };
+    // Canonical per-user id. Several modules (privacy/LGPD routes, rateLimitByUser,
+    // share, discord, logger/Sentry context) read req.userId — it was never assigned,
+    // so those silently ran with `undefined` (per-user quotas degraded to per-IP).
+    req.userId = payload.id;
     next();
   } catch (e) {
     return res.status(401).json({ error: 'Invalid or expired token', code: 'invalid_token' });

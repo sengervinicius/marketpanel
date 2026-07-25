@@ -92,7 +92,7 @@ async function store(userId, sessionId, type, content, tickers = null) {
       await db.query(
         `INSERT INTO conversation_memory
            (user_id, session_id, type, content, tickers_mentioned, ttl_hours, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW() + ($6 || ' hours')::INTERVAL)`,
+         VALUES ($1, $2, $3, $4, $5, $6, NOW() + make_interval(hours => $6))`,
         [userId, sessionId, type, content, tickersMentioned, ttlHours]
       );
       return;

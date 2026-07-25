@@ -65,6 +65,7 @@ import LoginScreen from './components/auth/LoginScreen.jsx'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { ToastProvider } from './context/ToastContext.jsx'
 import CookieConsentBanner from './components/common/CookieConsentBanner.jsx'
+import { isNative } from './services/platform'
 import SupportWidget from './components/common/SupportWidget.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { SettingsProvider, useSettings } from './context/SettingsContext.jsx'
@@ -154,7 +155,12 @@ function ThemeSync({ children }) {
 class RootErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { hasError: false, error: null }; }
   static getDerivedStateFromError(error) { return { hasError: true, error }; }
-  componentDidCatch(error, info) { console.error('[RootErrorBoundary]', error, info); }
+  componentDidCatch(error, info) {
+    console.error('[RootErrorBoundary]', error, info);
+    // React error boundaries stop the error before Sentry's global handler, so
+    // without this every caught render crash was invisible in production.
+    try { Sentry.captureException(error, { contexts: { react: { componentStack: info?.componentStack } } }); } catch (_) { /* never mask the original error */ }
+  }
   render() {
     if (this.state.hasError) {
       return (
@@ -162,7 +168,7 @@ class RootErrorBoundary extends Component {
           <div style={{ color:'var(--color-accent)', fontWeight:700, fontSize:13, letterSpacing:'3px' }}>PARTICLE</div>
           <div style={{ color:'var(--color-down)', fontSize:14, fontWeight:600 }}>Something went wrong</div>
           <div style={{ color:'#ff9900', fontSize:11, maxWidth:600, wordBreak:'break-word', textAlign:'center' }}>{this.state.error?.message || 'Unknown error'}</div>
-          <pre style={{ color:'#888', fontSize:9, maxWidth:'90vw', maxHeight:'40vh', overflow:'auto', whiteSpace:'pre-wrap' }}>{this.state.error?.stack || ''}</pre>
+          {import.meta.env.DEV && (<pre style={{ color:'#888', fontSize:9, maxWidth:'90vw', maxHeight:'40vh', overflow:'auto', whiteSpace:'pre-wrap' }}>{this.state.error?.stack || ''}</pre>)}
           <button onClick={() => window.location.reload()} style={{ background:'var(--color-particle)', color:'var(--color-text-inverse)', border:'none', padding:'8px 24px', borderRadius:4, cursor:'pointer', fontSize:12, letterSpacing:'1px' }}>RELOAD</button>
         </div>
       );
@@ -212,7 +218,9 @@ createRoot(document.getElementById('root')).render(
       <AuthProvider>
         <ToastProvider>
           <AppShell />
-          <CookieConsentBanner locale="pt" />
+          {/* Web only: on native iOS this fixed pt-BR bar sat on the home indicator,
+              above the tab bar, before the user had seen the app. */}
+          {!isNative() && <CookieConsentBanner locale="pt" />}
           <SupportWidget />
         </ToastProvider>
       </AuthProvider>

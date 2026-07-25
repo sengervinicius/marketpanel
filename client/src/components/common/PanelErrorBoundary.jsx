@@ -10,6 +10,7 @@
  * once (short guard against loops) and the button does a real page reload.
  */
 import { Component } from 'react';
+import * as Sentry from '@sentry/react';
 
 function isChunkLoadError(err) {
   if (!err) return false;
@@ -44,6 +45,14 @@ export default class PanelErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
+    // Report to Sentry: boundaries intercept the error before Sentry's global
+    // handler, so panel crashes were previously invisible in production.
+    try {
+      Sentry.captureException(error, {
+        tags: { panel: this.props.name || 'unknown' },
+        contexts: { react: { componentStack: errorInfo?.componentStack } },
+      });
+    } catch (_) { /* never mask the original error */ }
     console.error(
       `[PanelErrorBoundary] ${this.props.name || 'Panel'} crashed:`,
       error,
@@ -88,7 +97,7 @@ export default class PanelErrorBoundary extends Component {
               ? 'A new version was deployed. Reload to get the update.'
               : (this.state.error?.message || 'Something went wrong. Try refreshing this panel.')}
           </span>
-          {!chunk && this.state.error?.stack && (
+          {import.meta.env.DEV && !chunk && this.state.error?.stack && (
             <details style={{ marginTop: 4, maxWidth: 400, textAlign: 'left' }}>
               <summary style={{ cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: 9 }}>Stack trace</summary>
               <pre style={{ color: 'var(--color-text-muted)', fontSize: 8.5, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 120, overflow: 'auto', marginTop: 4 }}>

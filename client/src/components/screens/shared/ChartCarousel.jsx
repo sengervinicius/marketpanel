@@ -40,17 +40,6 @@ export function ChartCarousel({
     return tickers.map(t => typeof t === 'string' ? t : t.symbol).filter(Boolean);
   }, [tickers]);
 
-  if (!tickerList || tickerList.length === 0) {
-    return null;
-  }
-
-  // On desktop, don't use carousel — let parent handle multi-column grid
-  if (!isMobile) {
-    return null;
-  }
-
-  const currentTicker = tickerList[currentIndex];
-
   // Touch event handlers for swipe detection
   const handleTouchStart = useCallback((e) => {
     touchStartX.current = e.changedTouches[0].screenX;
@@ -77,6 +66,17 @@ export function ChartCarousel({
     touchStartX.current = 0;
     touchEndX.current = 0;
   }, [tickerList.length]);
+
+
+  // Rules of hooks: these guards MUST come after every hook call. isMobile flips
+  // on resize/matchMedia, so an early return above the useCallbacks changed the
+  // hook count between renders and crashed the panel ("Rendered more hooks than
+  // during the previous render") when a desktop window crossed 768px.
+  if (!tickerList || tickerList.length === 0) return null;
+  // On desktop, don't use carousel — let parent handle multi-column grid
+  if (!isMobile) return null;
+
+  const currentTicker = tickerList[currentIndex];
 
   const handlePrevClick = (e) => {
     e.stopPropagation();

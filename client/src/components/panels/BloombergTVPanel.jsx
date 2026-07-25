@@ -31,14 +31,22 @@ export default function BloombergTVPanel() {
   const [status, setStatus] = useState('loading'); // loading | ready | offline
 
   const resolve = useCallback(() => {
-    setStatus('loading');
+    // Only show the loading state when we have nothing to play. The periodic
+    // refresh below must NOT flip status to 'loading' — that unmounted the
+    // iframe and restarted the live stream (audio and all) every 10 minutes.
+    setStatus(prev => (prev === 'ready' ? prev : 'loading'));
     apiFetch('/api/market/bloomberg-tv')
       .then(r => (r && r.ok ? r.json() : null))
       .then(d => {
-        if (d && d.videoId) { setVideoId(d.videoId); setStatus('ready'); }
-        else { setVideoId(null); setStatus('offline'); }
+        if (d && d.videoId) {
+          // Keep the same iframe when the live id hasn't changed.
+          setVideoId(prev => (prev === d.videoId ? prev : d.videoId));
+          setStatus('ready');
+        } else {
+          setVideoId(null); setStatus('offline');
+        }
       })
-      .catch(e => { swallow(e, 'btv.resolve'); setStatus('offline'); });
+      .catch(e => { swallow(e, 'btv.resolve'); setStatus(prev => (prev === 'ready' ? prev : 'offline')); });
   }, []);
 
   // Resolve on mount, and refresh the live id every 10 min (streams rotate).
