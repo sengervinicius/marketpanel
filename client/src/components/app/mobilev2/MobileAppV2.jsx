@@ -302,11 +302,11 @@ export default function MobileAppV2(){
 
   const { data } = useMarketData();
   const { watchlist, addTicker, removeTicker, isWatching } = useWatchlist();
-  const look=(sym)=>data?.stocks?.[sym]||data?.forex?.[sym]||data?.crypto?.[sym]||data?.indices?.[sym]||null;
-  const NAMES={SPY:'S&P 500',QQQ:'Nasdaq 100',DIA:'Dow Jones',IWM:'Russell 2000',EWZ:'Ibovespa',EFA:'EAFE',EWJ:'Japan',EEM:'Emerging Mkts',FXI:'China',AAPL:'Apple',NVDA:'Nvidia',MSFT:'Microsoft',TSLA:'Tesla',AMZN:'Amazon',GOOGL:'Alphabet',META:'Meta',GLD:'Gold',SLV:'Silver',USO:'WTI crude',UNG:'Nat gas',CORN:'Corn',CPER:'Copper',EURUSD:'EUR / USD',USDBRL:'USD / BRL',USDJPY:'USD / JPY',GBPUSD:'GBP / USD',BTCUSD:'Bitcoin',ETHUSD:'Ethereum',SOLUSD:'Solana',VALE:'Vale',PBR:'Petrobras','GC=F':'Gold','CL=F':'WTI Crude','SI=F':'Silver','NG=F':'Nat Gas','HG=F':'Copper','BZ=F':'Brent','ZC=F':'Corn','ES=F':'S&P Futures'};
+  const look=(sym)=>{const k=(sym||'').replace(/\//g,'');const d=data||{};return d.stocks?.[sym]||d.forex?.[sym]||d.crypto?.[sym]||d.indices?.[sym]||d.stocks?.[k]||d.forex?.[k]||d.crypto?.[k]||d.indices?.[k]||null;};
+  const NAMES={SPY:'S&P 500',QQQ:'Nasdaq 100',DIA:'Dow Jones',IWM:'Russell 2000',EWZ:'Ibovespa',EFA:'EAFE',EWJ:'Japan',EEM:'Emerging Mkts',FXI:'China',AAPL:'Apple',NVDA:'Nvidia',MSFT:'Microsoft',TSLA:'Tesla',AMZN:'Amazon',GOOGL:'Alphabet',META:'Meta',GLD:'Gold',SLV:'Silver',USO:'WTI crude',UNG:'Nat gas',CORN:'Corn',CPER:'Copper',EURUSD:'EUR / USD',USDBRL:'USD / BRL',USDJPY:'USD / JPY',GBPUSD:'GBP / USD',BTCUSD:'Bitcoin',ETHUSD:'Ethereum',SOLUSD:'Solana',VALE:'Vale',PBR:'Petrobras','GC=F':'Gold','CL=F':'WTI Crude','SI=F':'Silver','NG=F':'Nat Gas','HG=F':'Copper','BZ=F':'Brent','ZC=F':'Corn','ES=F':'S&P Futures','EUR/USD':'EUR / USD','EURUSD':'EUR / USD','RENT3.SA':'Localiza','U':'Unity'};
   const fmtP=(v)=>{if(v==null)return '—';const a=Math.abs(v);if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:0});if(a>=10)return v.toFixed(2);return v.toFixed(4);};
   const fmtC=(c)=>c==null?'—':(c>=0?'+':'')+c.toFixed(2)+'%';
-  const tkBadge=(sym)=>{const b=(sym||'').split(/[=.]/)[0].replace(/USD$/,'');return (b||sym||'').slice(0,4).toUpperCase();};
+  const tkBadge=(sym)=>{const b=(sym||'').split(/[=./]/)[0].replace(/USD$/,'');return (b||sym||'').slice(0,4).toUpperCase();};
   const cls=(c)=>c==null?'m2-flat':(c>0?'m2-u':c<0?'m2-d':'m2-flat');
   const PULSE=[['SPY','S&P 500'],['QQQ','Nasdaq'],['EWZ','Ibovespa'],['EFA','EAFE'],['EWJ','Japan']];
   const FX=[['EURUSD','EUR / USD'],['USDBRL','USD / BRL'],['USDJPY','USD / JPY'],['GBPUSD','GBP / USD']];
@@ -335,7 +335,7 @@ export default function MobileAppV2(){
   const CTRY=[{name:'United States',risk:'lo',eq:'SPY',cc:'US',fx:null},{name:'Brazil',risk:'md',eq:'EWZ',cc:'BR',fx:'USDBRL'},{name:'Eurozone',risk:'lo',eq:'EFA',cc:'EU',fx:'EURUSD'}];
 
   // ── Navigation: open in-depth for any symbol (search results carry C:/X:/I: prefixes) ──
-  const normSym=(x)=>String(x||'').replace(/^[A-Z]:/,'').replace(/[\s]/g,'').toUpperCase();
+  const normSym=(x)=>String(x||'').replace(/^[A-Z]:/,'').replace(/[\s\/]/g,'').toUpperCase();
   const openDetail=(x,nm)=>{const sym=normSym(x);if(!sym)return;setDetailName(nm||null);setDetail(sym);setTab('term');setShowSearch(false);const sc=document.querySelector('.m2-screen');if(sc)sc.scrollTop=0;};
 
   // ── Universal search (same registry the desktop uses) ──
@@ -365,7 +365,7 @@ export default function MobileAppV2(){
   const openBrief=()=>setShowBrief(true);
 
   // ── Watchlist classification + grouping (mirrors desktop's asset-class order) ──
-  const classify=(x)=>{const u=(x||'').toUpperCase();
+  const classify=(x)=>{const u=(x||'').toUpperCase().replace(/[\/\s]/g,'');
     const IDX=new Set(['SPY','QQQ','DIA','IWM','EWZ','EFA','EWJ','EEM','FXI','VTI','VOO','IVV','ACWI','AGG','TLT']);
     const COMMS=new Set(['GLD','SLV','USO','UNG','CORN','CPER','WEAT','SOYB','PALL','PPLT','DBA','DBC','USG','UGA']);
     if(/^(BTC|ETH|SOL|BNB|XRP|ADA|DOGE|AVAX|DOT|MATIC|LTC|LINK|TRX)USD$/.test(u))return 'Crypto';
