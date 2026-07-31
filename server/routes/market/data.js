@@ -1799,6 +1799,134 @@ async function ytFetch(url, timeoutMs = 9000) {
   }
 }
 
+/**
+ * Extracts the balanced JSON object that follows a marker in a page, e.g.
+ * ytInitialData. Regex cannot do this correctly (the payload contains nested
+ * braces inside strings), so we brace-match while tracking string/escape state.
+ */
+function extractJsonAfter(html, marker) {
+  const at = html.indexOf(marker);
+  if (at === -1) return null;
+  const start = html.indexOf('{', at);
+  if (start === -1) return null;
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < html.length; i++) {
+    const c = html[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === '{') depth++;
+    else if (c === '}') {
+      depth--;
+      if (depth === 0) {
+        try { return JSON.parse(html.slice(start, i + 1)); } catch (_e) { return null; }
+      }
+    }
+  }
+  return null;
+}
+
+/** Reads a YouTube "title" node, which is either simpleText or runs[]. */
+function ytTitleText(t) {
+  if (!t) return '';
+  if (typeof t === 'string') return t;
+  if (t.simpleText) return t.simpleText;
+  if (Array.isArray(t.runs)) return t.runs.map((r) => r && r.text).filter(Boolean).join('');
+  return '';
+}
+
+/**
+ * Walks ytInitialData for video entries that are CURRENTLY live, pairing the id
+ * with its own LIVE badge inside the same renderer node. The pairing is the
+ * whole point: an earlier version of this resolver read the id and the live
+ * signal from separate places in the document, so a random channel upload could
+ * inherit a live badge from elsewhere -- which is how the panel ended up playing
+ * unrelated videos.
+ */
+function findLiveVideosInYtData(data) {
+  const out = [];
+  const seen = new Set();
+  (function walk(node, depth) {
+    if (!node || typeof node !== 'object' || depth > 40) return;
+    if (Array.isArray(node)) { for (const x of node) walk(x, depth + 1); return; }
+    if (typeof node.videoId === 'string' && node.videoId.length === 11 && !seen.has(node.videoId)) {
+      // Only look for the badge within THIS node's own overlays/badges.
+      const scope = JSON.stringify({
+        o: node.thumbnailOverlays || null,
+        b: node.badges || null,
+        v: node.viewCountText || null,
+      });
+      const isLive = /"style":"LIVE"/.test(scope)
+        || /"BADGE_STYLE_TYPE_LIVE_NOW"/.test(scope)
+        || /"iconType":"LIVE"/.test(scope);
+      if (isLive) {
+        seen.add(node.videoId);
+        out.push({ videoId: node.videoId, title: ytTitleText(node.title) });
+      }
+    }
+    for (const k in node) walk(node[k], depth + 1);
+  })(data, 0);
+  return out;
+}
+
+/**
+ * Strategy: the channel's /streams tab.
+ *
+ * This is the one that actually finds a 24/7 stream. RSS cannot: a rolling live
+ * stream is published once and then runs for weeks, so it falls off the feed's
+ * 15 most-recent entries while still being live -- verified against Bloomberg,
+ * whose live stream was absent from RSS while the channel was on air. The
+ * /streams tab lists live streams first and carries an explicit LIVE badge.
+ */
+async function resolveViaStreamsTab(chan, dbg) {
+  try {
+    const { status, body: html } = await ytFetch(
+      `https://www.youtube.com/channel/${chan.id}/streams?hl=en&gl=US`, 10000);
+    if (status !== 200) { dbg.streams = `HTTP ${status}`; return null; }
+
+    const data = extractJsonAfter(html, 'ytInitialData');
+    let candidates = data ? findLiveVideosInYtData(data) : [];
+
+    // Fallback if the JSON shape moves: scoped regex over each id's own window.
+    // Still a pairing -- the badge must appear near that specific id.
+    if (!candidates.length) {
+      const re = /"videoId":"([\w-]{11})"/g;
+      let m;
+      const seen = new Set();
+      while ((m = re.exec(html)) !== null) {
+        const id = m[1];
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const w = html.slice(m.index, m.index + 1500);
+        if (/"style":"LIVE"|BADGE_STYLE_TYPE_LIVE_NOW/.test(w)) {
+          const tm = w.match(/"title":\{"runs":\[\{"text":"([^"]{0,120})"/);
+          candidates.push({ videoId: id, title: tm ? tm[1] : '' });
+        }
+      }
+      if (candidates.length) dbg.streamsVia = 'regex-fallback';
+    } else {
+      dbg.streamsVia = 'ytInitialData';
+    }
+
+    dbg.streams = {
+      bytes: html.length,
+      parsedJson: !!data,
+      liveCandidates: candidates.slice(0, 5).map((c) => `${c.videoId} — ${(c.title || '').slice(0, 60)}`),
+    };
+    if (!candidates.length) return null;
+
+    // Prefer a candidate whose title identifies the channel; otherwise, since we
+    // already fetched this channel's own page, the first live entry is still its
+    // own stream.
+    const pick = candidates.find((c) => chan.match.test(c.title || '')) || candidates[0];
+    return { videoId: pick.videoId, title: pick.title || null, via: 'streams' };
+  } catch (e) { dbg.streams = `error: ${e.message}`; return null; }
+}
+
 /** Strategy 1: official API. Exact, but needs a key. */
 async function resolveViaDataApi(chan, dbg) {
   const key = process.env.YOUTUBE_API_KEY;
@@ -1943,7 +2071,10 @@ async function handleLiveTv(req, res) {
       }
     }
 
+    // Order matters: the /streams tab is the only strategy that reliably sees a
+    // long-running 24/7 stream, so it goes first among the keyless options.
     let found = await resolveViaDataApi(chan, dbg);
+    if (!found) found = await resolveViaStreamsTab(chan, dbg);
     if (!found) found = await resolveViaRss(chan, dbg);
     if (!found) found = await resolveViaScrape(chan, dbg);
 
