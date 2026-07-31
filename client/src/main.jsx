@@ -65,6 +65,7 @@ import LoginScreen from './components/auth/LoginScreen.jsx'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
 import { ToastProvider } from './context/ToastContext.jsx'
 import CookieConsentBanner from './components/common/CookieConsentBanner.jsx'
+import NewVersionBanner from './components/common/NewVersionBanner.jsx'
 import { isNative } from './services/platform'
 import SupportWidget from './components/common/SupportWidget.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
@@ -220,6 +221,8 @@ createRoot(document.getElementById('root')).render(
           <AppShell />
           {/* Web only: on native iOS this fixed pt-BR bar sat on the home indicator,
               above the tab bar, before the user had seen the app. */}
+          {/* One app-level notice when a deploy invalidated this tab's chunks. */}
+          <NewVersionBanner />
           {!isNative() && <CookieConsentBanner locale="pt" />}
           <SupportWidget />
         </ToastProvider>
