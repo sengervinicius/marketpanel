@@ -1846,28 +1846,47 @@ function ytTitleText(t) {
  * signal from separate places in the document, so a random channel upload could
  * inherit a live badge from elsewhere -- which is how the panel ended up playing
  * unrelated videos.
+ *
+ * Two node shapes are handled because YouTube is mid-migration:
+ *
+ *   lockupViewModel (current) -- id in `contentId`, live badge under
+ *     contentImage.thumbnailViewModel.overlays[].thumbnailBottomOverlayViewModel
+ *     .badges[].thumbnailBadgeViewModel. We key off the badge icon's
+ *     clientResource.imageName === 'LIVE' rather than its text, because the text
+ *     is localised (it arrives as "AO VIVO" from a Brazilian egress IP) and would
+ *     silently stop matching.
+ *
+ *   videoRenderer (legacy) -- id in `videoId`, badge in `thumbnailOverlays`.
  */
 function findLiveVideosInYtData(data) {
   const out = [];
   const seen = new Set();
+  const push = (id, title) => {
+    if (!id || id.length !== 11 || seen.has(id)) return;
+    seen.add(id);
+    out.push({ videoId: id, title: title || '' });
+  };
   (function walk(node, depth) {
     if (!node || typeof node !== 'object' || depth > 40) return;
     if (Array.isArray(node)) { for (const x of node) walk(x, depth + 1); return; }
-    if (typeof node.videoId === 'string' && node.videoId.length === 11 && !seen.has(node.videoId)) {
-      // Only look for the badge within THIS node's own overlays/badges.
-      const scope = JSON.stringify({
-        o: node.thumbnailOverlays || null,
-        b: node.badges || null,
-        v: node.viewCountText || null,
-      });
-      const isLive = /"style":"LIVE"/.test(scope)
-        || /"BADGE_STYLE_TYPE_LIVE_NOW"/.test(scope)
-        || /"iconType":"LIVE"/.test(scope);
-      if (isLive) {
-        seen.add(node.videoId);
-        out.push({ videoId: node.videoId, title: ytTitleText(node.title) });
+
+    // Current shape.
+    if (typeof node.contentId === 'string' && node.contentType === 'LOCKUP_CONTENT_TYPE_VIDEO') {
+      const badgeScope = JSON.stringify(node.contentImage || null);
+      if (/"imageName":"LIVE"/.test(badgeScope) || /"imageName":"LIVE_FILLED"/.test(badgeScope)) {
+        const mvm = node.metadata && node.metadata.lockupMetadataViewModel;
+        push(node.contentId, (mvm && mvm.title && mvm.title.content) || '');
       }
     }
+
+    // Legacy shape.
+    if (typeof node.videoId === 'string' && (node.thumbnailOverlays || node.badges)) {
+      const scope = JSON.stringify({ o: node.thumbnailOverlays || null, b: node.badges || null });
+      if (/"style":"LIVE"/.test(scope) || /BADGE_STYLE_TYPE_LIVE_NOW/.test(scope) || /"iconType":"LIVE"/.test(scope)) {
+        push(node.videoId, ytTitleText(node.title));
+      }
+    }
+
     for (const k in node) walk(node[k], depth + 1);
   })(data, 0);
   return out;
@@ -1894,7 +1913,7 @@ async function resolveViaStreamsTab(chan, dbg) {
     // Fallback if the JSON shape moves: scoped regex over each id's own window.
     // Still a pairing -- the badge must appear near that specific id.
     if (!candidates.length) {
-      const re = /"videoId":"([\w-]{11})"/g;
+      const re = /"(?:videoId|contentId)":"([\w-]{11})"/g;
       let m;
       const seen = new Set();
       while ((m = re.exec(html)) !== null) {
@@ -1902,8 +1921,9 @@ async function resolveViaStreamsTab(chan, dbg) {
         if (seen.has(id)) continue;
         seen.add(id);
         const w = html.slice(m.index, m.index + 1500);
-        if (/"style":"LIVE"|BADGE_STYLE_TYPE_LIVE_NOW/.test(w)) {
-          const tm = w.match(/"title":\{"runs":\[\{"text":"([^"]{0,120})"/);
+        if (/"style":"LIVE"|BADGE_STYLE_TYPE_LIVE_NOW|"imageName":"LIVE"/.test(w)) {
+          const tm = w.match(/"title":\{"runs":\[\{"text":"([^"]{0,120})"/)
+                  || w.match(/"title":\{"content":"([^"]{0,120})"/);
           candidates.push({ videoId: id, title: tm ? tm[1] : '' });
         }
       }
