@@ -25,14 +25,15 @@ const DESKTOP_MQ = '(min-width: 768px)';
 
 function detectMobileFromWindow() {
   if (typeof window === 'undefined') return false;
-  // QA override: force the mobile UI via an explicit ?mobile=1 URL param ONLY.
-  // Per-URL and non-persistent — a normal desktop visitor never has it, so it
-  // cannot make real users land in mobile. (The old localStorage.forceMobile
-  // flag was removed: it persisted across every visit and could stick a
-  // desktop browser in the mobile view.)
-  try {
-    if (new URLSearchParams(window.location.search).get('mobile') === '1') return true;
-  } catch { /* no-op */ }
+  // NO overrides. Mobile detection is viewport-only.
+  //
+  // There used to be a QA escape hatch here (localStorage.forceMobile, then
+  // ?mobile=1). Both leaked into real use: the flag persisted across every visit
+  // to the origin, and the URL param got autocompleted by the browser, so a
+  // desktop kept opening the phone UI. A debug affordance that can strand a
+  // paying user on the wrong layout is not worth having — test mobile by
+  // resizing the window instead (this hook already reacts to resize/matchMedia).
+
   let mqDesktop = false;
   try {
     if (typeof window.matchMedia === 'function') {
