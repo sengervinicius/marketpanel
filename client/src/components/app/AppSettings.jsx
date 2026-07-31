@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
+import { useEntitlement } from '../../hooks/useEntitlement';
 import { apiFetch } from '../../utils/api';
 import { useSettings } from '../../context/SettingsContext';
 import { useAlerts } from '../../context/AlertsContext';
@@ -962,6 +963,9 @@ export function ParticleMemoryPanel() {
 
 // ── User Dropdown (header avatar menu) ───────────────────────────────────────
 export function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) {
+  // Plan + usage come from the shared entitlement resolver so desktop and mobile
+  // can never disagree about which plan the user is on.
+  const ent = useEntitlement();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -992,6 +996,30 @@ export function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) 
           background: 'var(--bg-overlay)', border: '1px solid var(--border-strong)',
           width: 150, boxShadow: 'var(--shadow-dropdown)',
           }}>
+          {/* Plan + usage. Previously the user had no way to tell which plan
+              they were on, on either platform. */}
+          <div style={{ padding: '9px 10px', borderBottom: '1px solid var(--border-default)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span style={{ color: 'var(--accent)', fontSize: 10, fontWeight: 700, letterSpacing: '.6px' }}>
+                {(ent.tierLabel || 'PARTICLE').toUpperCase()}
+              </span>
+              {ent.status && (
+                <span style={{ fontSize: 8.5, letterSpacing: '.5px', color: ent.status === 'expired' ? 'var(--price-down)' : 'var(--text-faint)' }}>
+                  {ent.status === 'trial' && ent.trialDaysRemaining != null
+                    ? `TRIAL · ${ent.trialDaysRemaining}D LEFT`
+                    : ent.status.toUpperCase()}
+                </span>
+              )}
+            </div>
+            <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+                AI {ent.ai ? (ent.ai.limit === 'unlimited' ? `${ent.ai.used ?? 0} · unlimited` : `${ent.ai.used ?? 0} / ${ent.ai.limit ?? '—'} today`) : '—'}
+              </span>
+              <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+                Vault {ent.vault ? (ent.vault.limit === 'unlimited' ? `${ent.vault.used ?? 0} · unlimited` : `${ent.vault.used ?? 0} / ${ent.vault.limit ?? '—'} docs`) : '—'}
+              </span>
+            </div>
+          </div>
           {isPaid && onBilling && (
             <div
               onClick={(e) => { e.stopPropagation(); setOpen(false); onBilling(); }}

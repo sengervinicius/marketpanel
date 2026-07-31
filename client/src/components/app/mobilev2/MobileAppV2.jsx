@@ -6,6 +6,7 @@ import { apiFetch } from '../../../utils/api';
 import { useParticleChat } from '../../../context/ParticleChatContext';
 import { useAuth } from '../../../context/AuthContext';
 import { isIOS } from '../../../services/platform';
+import { useEntitlement } from '../../../hooks/useEntitlement';
 import { toDisplay, canonicalKey, inferCurrency, classify as classifyTicker } from '../../../utils/tickerNormalize';
 
 const I = ({d, w=22}) => (<svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>);
@@ -350,6 +351,7 @@ export default function MobileAppV2(){
   // ── Account sheet (App Store requires in-app logout, account deletion and,
   //    for auto-renewables, a restore-purchases path) ─────────────────────
   const auth = useAuth();
+  const ent = useEntitlement();   // shared plan + usage resolver (same as desktop)
   const [showAccount,setShowAccount]=useState(false);
   const [showPlans,setShowPlans]=useState(false);
   const [cycle,setCycle]=useState('annual');
@@ -670,8 +672,8 @@ export default function MobileAppV2(){
             <div className="m2-sheethead">
               <div className="m2-sheetav"><I d={icons.user} w={19}/></div>
               <div className="m2-sheetid">
-                <b>{auth?.user?.email||auth?.user?.username||'Your account'}</b>
-                <span>{auth?.subscription?.planTier?String(auth.subscription.planTier).replace(/_/g,' '):'Particle'}{auth?.subscription?.status?(' · '+String(auth.subscription.status).toLowerCase()):''}</span>
+                <b>{ent.email||ent.username||auth?.user?.email||'Your account'}</b>
+                <span>{ent.tierLabel||'Particle'}{ent.status?(' · '+(ent.status==='trial'&&ent.trialDaysRemaining!=null?`trial, ${ent.trialDaysRemaining}d left`:ent.status)):''}</span>
               </div>
               <button className="m2-sheetx" onClick={closeAccount} aria-label="Close"><I d={icons.close} w={17}/></button>
             </div>
@@ -679,6 +681,27 @@ export default function MobileAppV2(){
             {acctMsg && <div className="m2-sheetmsg">{acctMsg}</div>}
 
             {delStep===0 && (<>
+              {/* Your plan, and how much of it you've used. */}
+              <div className="m2-plancard">
+                <div className="m2-planrow">
+                  <span className="k">Plan</span>
+                  <b>{ent.tierLabel||'—'}</b>
+                </div>
+                <div className="m2-planrow">
+                  <span className="k">Status</span>
+                  <b className={ent.status==='expired'?'bad':''}>
+                    {ent.status==='trial'&&ent.trialDaysRemaining!=null?`Trial · ${ent.trialDaysRemaining} days left`:(ent.status?ent.status.charAt(0).toUpperCase()+ent.status.slice(1):'—')}
+                  </b>
+                </div>
+                <div className="m2-planrow">
+                  <span className="k">Particle AI today</span>
+                  <b>{ent.ai?(ent.ai.limit==='unlimited'?`${ent.ai.used??0} · unlimited`:`${ent.ai.used??0} / ${ent.ai.limit??'—'}`):'—'}</b>
+                </div>
+                <div className="m2-planrow">
+                  <span className="k">Vault documents</span>
+                  <b>{ent.vault?(ent.vault.limit==='unlimited'?`${ent.vault.used??0} · unlimited`:`${ent.vault.used??0} / ${ent.vault.limit??'—'}`):'—'}</b>
+                </div>
+              </div>
               <button className="m2-sheetrow" onClick={()=>{setShowPlans(true);setAcctMsg(null);}}><I d={icons.spark} w={17}/><span>Plans &amp; pricing</span><i className="m2-chev"><I d={icons.chev} w={15}/></i></button>
               {isIOS() && (
                 <button className="m2-sheetrow" onClick={doRestore}><I d={icons.restore} w={17}/><span>Restore purchases</span><i className="m2-chev"><I d={icons.chev} w={15}/></i></button>
