@@ -333,8 +333,8 @@ export const PANEL_DEFINITIONS = {
   },
   bloombergTV: {
     id:             'bloombergTV',
-    label:          'Bloomberg TV',
-    defaultTitle:   'Bloomberg TV',
+    label:          'Live TV',
+    defaultTitle:   'Live TV',
     defaultSymbols: [],
     allowedGroups:  null,
     editable:       false, // live video, no instrument list
