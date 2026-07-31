@@ -1773,22 +1773,53 @@ router.get('/market/bloomberg-tv', async (req, res) => {
       clearTimeout(timer);
     }
 
-    // Prefer the canonical watch URL (points at the live video), then fall back
-    // to the first videoId in the ytInitialPlayerResponse blob.
+    // STRICT resolution. Three independent conditions must all hold, and they must
+    // all describe the SAME video. The previous version extracted the id and the
+    // "is live" signal independently, so a random channel upload could be paired
+    // with a live badge from elsewhere on the page — which is exactly how a
+    // Bloomberg TV panel ended up playing unrelated YouTube videos.
+    //
+    // 1. The id comes ONLY from the canonical watch URL. On /live YouTube redirects
+    //    to the actual live watch page, so the canonical link IS the live video.
+    //    There is deliberately no "first videoId on the page" fallback.
+    // 2. The player response for that id must mark it live.
+    // 3. The title must actually look like Bloomberg. If we cannot prove that, we
+    //    show the honest offline state rather than embedding something unknown.
     let videoId = null;
-    const canon = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([\w-]{11})">/);
+    const canon = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([\w-]{11})"/);
     if (canon) videoId = canon[1];
-    if (!videoId) {
-      const m = html.match(/"videoId":"([\w-]{11})"/);
-      if (m) videoId = m[1];
-    }
-    // Only treat as live if the page actually marks it live (avoid pinning a VOD).
-    const isLive = /"isLive":true/.test(html) || /"isLiveContent":true/.test(html) || /BADGE_STYLE_TYPE_LIVE_NOW/.test(html);
 
-    if (videoId && isLive) {
-      cacheSet(ck, { videoId }, 600_000); // 10 min
-      return res.json({ ok: true, videoId, live: true, source: 'youtube' });
+    // Liveness must be asserted near this video's own player payload, not anywhere
+    // in the document.
+    let isLive = false;
+    if (videoId) {
+      const idx = html.indexOf(`"videoId":"${videoId}"`);
+      if (idx !== -1) {
+        const scope = html.slice(idx, idx + 4000);
+        isLive = /"isLive"\s*:\s*true/.test(scope);
+      }
+      // Fall back to the top-level videoDetails block, still scoped to this id.
+      if (!isLive) {
+        const vd = html.match(/"videoDetails"\s*:\s*\{[\s\S]{0,4000}?\}/);
+        if (vd && vd[0].includes(videoId)) isLive = /"isLive"\s*:\s*true/.test(vd[0]);
+      }
     }
+
+    // Title sanity check — refuse to embed anything that isn't plausibly Bloomberg.
+    let title = null;
+    const tm = html.match(/<meta name="title" content="([^"]{0,200})"/) || html.match(/<title>([^<]{0,200})<\/title>/);
+    if (tm) title = tm[1];
+    const titleLooksRight = !title || /bloomberg/i.test(title);
+
+    if (videoId && isLive && titleLooksRight) {
+      cacheSet(ck, { videoId }, 600_000); // 10 min
+      return res.json({ ok: true, videoId, live: true, title: title || null, source: 'youtube' });
+    }
+
+    logger.info('bloomberg-tv', 'not embedding', {
+      hasCanonical: !!videoId, isLive, title: title ? title.slice(0, 80) : null,
+    });
+
     // No live right now (or blocked). Cache a short null so we don't hammer YT.
     cacheSet(ck, { videoId: null }, 120_000);
     return res.json({ ok: true, videoId: videoId || null, live: false, source: 'youtube', channelUrl: `https://www.youtube.com/channel/${BLOOMBERG_TV_CHANNEL}/live` });
