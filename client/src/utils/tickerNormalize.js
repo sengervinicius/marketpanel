@@ -160,3 +160,38 @@ export function toPolygonWithDefault(input, defaultTicker = 'SPY') {
   if (/-USD[T]?$/.test(t)) t = t.replace('-', '');
   return toPolygon(t);
 }
+
+/**
+ * inferCurrency — the trading currency of an instrument, derived from its symbol.
+ *
+ * A terminal that mixes AAPL (USD), PETR4.SA (BRL) and ^N225 (JPY) MUST label the
+ * currency or the numbers are meaningless. Prefer a real `currency` field from a
+ * quote when you have one; use this when you only have the symbol (snapshot tiles,
+ * watchlist rows).
+ */
+const CCY_SUFFIX = { '.SA': 'BRL', '.SAO': 'BRL', '.L': 'GBP', '.DE': 'EUR', '.PA': 'EUR', '.MI': 'EUR', '.AS': 'EUR', '.SW': 'CHF', '.T': 'JPY', '.HK': 'HKD', '.TO': 'CAD', '.AX': 'AUD', '.MX': 'MXN' };
+const CCY_INDEX  = { '^N225': 'JPY', '^GDAXI': 'EUR', '^FTSE': 'GBP', '^FCHI': 'EUR', '^HSI': 'HKD', '^BVSP': 'BRL', '^STOXX50E': 'EUR', '^AXJO': 'AUD', '^GSPTSE': 'CAD' };
+
+export function inferCurrency(input) {
+  const raw = extractSymbol(input);
+  if (!raw) return 'USD';
+  const t = raw.toUpperCase().trim();
+
+  // Index symbols
+  if (CCY_INDEX[t]) return CCY_INDEX[t];
+
+  // FX pairs: the QUOTE currency is the price's unit (USDBRL is priced in BRL)
+  const fx = t.replace(/^C:/, '').replace(/=X$/, '');
+  if (/^[A-Z]{6}$/.test(fx) && t.startsWith('C:')) return fx.slice(3);
+  if (/^[A-Z]{3}\/[A-Z]{3}$/.test(t)) return t.slice(4);
+
+  // Exchange suffixes
+  for (const [suffix, ccy] of Object.entries(CCY_SUFFIX)) {
+    if (t.endsWith(suffix)) return ccy;
+  }
+
+  // Crypto pairs and futures quote in USD on our feeds
+  if (t.startsWith('X:') || /USD$/.test(t) || /=F$/.test(t)) return 'USD';
+
+  return 'USD';
+}

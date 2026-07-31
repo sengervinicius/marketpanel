@@ -764,11 +764,15 @@ export default function App() {
   if (isMobile) {
     return (
       <AppErrorBoundary>
-        <WatchlistProvider>
-          <ParticleChatProvider>
-            <MobileAppV2 />
-          </ParticleChatProvider>
-        </WatchlistProvider>
+        {/* PortfolioProvider is the canonical asset-list store; WatchlistProvider is
+            now a thin adapter over it, so mobile and desktop read/write ONE list. */}
+        <PortfolioProvider>
+          <WatchlistProvider>
+            <ParticleChatProvider>
+              <MobileAppV2 />
+            </ParticleChatProvider>
+          </WatchlistProvider>
+        </PortfolioProvider>
       </AppErrorBoundary>
     );
   }

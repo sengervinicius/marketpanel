@@ -6,6 +6,7 @@ import { apiFetch } from '../../../utils/api';
 import { useParticleChat } from '../../../context/ParticleChatContext';
 import { useAuth } from '../../../context/AuthContext';
 import { isIOS } from '../../../services/platform';
+import { toDisplay, canonicalKey, inferCurrency, classify as classifyTicker } from '../../../utils/tickerNormalize';
 
 const I = ({d, w=22}) => (<svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">{d}</svg>);
 const icons = {
@@ -182,7 +183,7 @@ function Tour({tabRefs,onEnd}){
   </div>);
 }
 
-function DetailView({sym,quote,name,fmtP,fmtC,cls,onClose,onAsk,watching,onToggleWatch}){
+function DetailView({sym,quote,name,fmtP,fmtC,cls,onClose,onAsk,watching,onToggleWatch,currency}){
   const [bars,setBars]=useState(null);
   const [funds,setFunds]=useState(null);
   const [logo,setLogo]=useState(null);
@@ -226,11 +227,11 @@ function DetailView({sym,quote,name,fmtP,fmtC,cls,onClose,onAsk,watching,onToggl
       <div className="m2-dhead">
         <button className="m2-back" onClick={onClose}><I d={icons.back} w={18}/></button>
         <div className="m2-dlogo">{logo? <img src={logo} alt="" onError={e=>{e.target.style.display='none';}}/> : <span>{initials}</span>}</div>
-        <div className="m2-dtitle"><b>{name}</b><br/><span>{sym} · {equityish?'live':(CRYSET.has(sym)?'crypto · live':(FXSET.has(sym)?'FX · live':'live'))}</span></div>
+        <div className="m2-dtitle"><b>{name}</b><br/><span>{sym}{currency?(' · '+currency):''} · {equityish?'live':(CRYSET.has(sym)?'crypto · live':(FXSET.has(sym)?'FX · live':'live'))}</span></div>
         <button className={"m2-star"+(watching?" on":"")} onClick={(e)=>{e.stopPropagation();onToggleWatch&&onToggleWatch(sym);}}><I d={icons.star} w={18}/></button>
       </div>
       <div className="m2-dprice">
-        <div className="v">{scrub? fmtP(scrub.c) : (price!=null?fmtP(price):'—')}</div>
+        <div className="v">{scrub? fmtP(scrub.c) : (price!=null?fmtP(price):'—')}{currency?<span className="m2-ccy">{currency}</span>:null}</div>
         {scrub ? (
           <div className="m2-scrub"><b>{fmtD(scrub.dt)}</b> O {scrub.o.toFixed(2)} · H <s style={{color:'#25d0a0'}}>{scrub.hi.toFixed(2)}</s> · L <s style={{color:'#ff5a6a'}}>{scrub.lo.toFixed(2)}</s> · C {scrub.c.toFixed(2)}</div>
         ) : (chg!=null&&(<div className="c" style={{color:chg<0?'#ff5a6a':'#25d0a0',background:chg<0?'rgba(255,90,106,.12)':'rgba(37,208,160,.12)',borderColor:'transparent'}}><I d={icons.up} w={12}/>{fmtC(chg)}</div>))}
@@ -310,11 +311,24 @@ export default function MobileAppV2(){
 
   const { data } = useMarketData();
   const { watchlist, addTicker, removeTicker, isWatching } = useWatchlist();
-  const look=(sym)=>{const k=(sym||'').replace(/\//g,'');const d=data||{};return d.stocks?.[sym]||d.forex?.[sym]||d.crypto?.[sym]||d.indices?.[sym]||d.stocks?.[k]||d.forex?.[k]||d.crypto?.[k]||d.indices?.[k]||null;};
+  // The canonical store holds provider-prefixed symbols (C:USDBRL, X:BTCUSD, ^N225,
+  // GC=F, PETR4.SA). The snapshot is keyed on plainer forms, so try every spelling.
+  const look=(sym)=>{
+    const d=data||{}; if(!sym) return null;
+    const cands=[sym, String(sym).replace(/\//g,''), String(sym).replace(/^[A-Z]:/,''), canonicalKey(sym)];
+    for(const c of cands){ if(!c) continue;
+      const hit=d.stocks?.[c]||d.forex?.[c]||d.crypto?.[c]||d.indices?.[c];
+      if(hit) return hit;
+    }
+    return null;
+  };
   const NAMES={SPY:'S&P 500',QQQ:'Nasdaq 100',DIA:'Dow Jones',IWM:'Russell 2000',EWZ:'Ibovespa',EFA:'EAFE',EWJ:'Japan',EEM:'Emerging Mkts',FXI:'China',AAPL:'Apple',NVDA:'Nvidia',MSFT:'Microsoft',TSLA:'Tesla',AMZN:'Amazon',GOOGL:'Alphabet',META:'Meta',GLD:'Gold',SLV:'Silver',USO:'WTI crude',UNG:'Nat gas',CORN:'Corn',CPER:'Copper',EURUSD:'EUR / USD',USDBRL:'USD / BRL',USDJPY:'USD / JPY',GBPUSD:'GBP / USD',BTCUSD:'Bitcoin',ETHUSD:'Ethereum',SOLUSD:'Solana',VALE:'Vale',PBR:'Petrobras','GC=F':'Gold','CL=F':'WTI Crude','SI=F':'Silver','NG=F':'Nat Gas','HG=F':'Copper','BZ=F':'Brent','ZC=F':'Corn','ES=F':'S&P Futures','EUR/USD':'EUR / USD','RENT3.SA':'Localiza','U':'Unity'};
   const fmtP=(v)=>{if(v==null)return '—';const a=Math.abs(v);if(a>=1000)return v.toLocaleString('en-US',{maximumFractionDigits:0});if(a>=10)return v.toFixed(2);return v.toFixed(4);};
   const fmtC=(c)=>c==null?'—':(c>=0?'+':'')+c.toFixed(2)+'%';
-  const tkBadge=(sym)=>{const b=(sym||'').split(/[=./]/)[0].replace(/USD$/,'');return (b||sym||'').slice(0,4).toUpperCase();};
+  const tkBadge=(sym)=>{const b=toDisplay(sym).split(/[=./\s]/)[0].replace(/^\^/,'').replace(/USD$/,'');return (b||toDisplay(sym)||'').slice(0,4).toUpperCase();};
+  // One label resolver: curated name -> canonical name -> shared display form.
+  const label=(sym)=>NAMES[sym]||NAMES[canonicalKey(sym)]||toDisplay(sym);
+  const ccy=(sym,q)=>((q&&q.currency)||inferCurrency(sym)||'USD').toUpperCase();
   const cls=(c)=>c==null?'m2-flat':(c>0?'m2-u':c<0?'m2-d':'m2-flat');
   const PULSE=[['SPY','S&P 500'],['QQQ','Nasdaq'],['EWZ','Ibovespa'],['EFA','EAFE'],['EWJ','Japan']];
   const FX=[['EURUSD','EUR / USD'],['USDBRL','USD / BRL'],['USDJPY','USD / JPY'],['GBPUSD','GBP / USD']];
@@ -412,18 +426,23 @@ export default function MobileAppV2(){
   const openBrief=()=>setShowBrief(true);
 
   // ── Watchlist classification + grouping (mirrors desktop's asset-class order) ──
-  const classify=(x)=>{const u=(x||'').toUpperCase().replace(/[\/\s]/g,'');
+  const classify=(x)=>{
+    const cls=classifyTicker(x);                 // shared: equity|crypto|forex|brazil
+    if(cls==='crypto') return 'Crypto';
+    if(cls==='forex')  return 'FX';
+    const u=(x||'').toUpperCase();
+    if(/=F$/.test(u)) return 'Commodities';
+    if(/^\^/.test(u)) return 'Indices & ETFs';
     const IDX=new Set(['SPY','QQQ','DIA','IWM','EWZ','EFA','EWJ','EEM','FXI','VTI','VOO','IVV','ACWI','AGG','TLT']);
-    const COMMS=new Set(['GLD','SLV','USO','UNG','CORN','CPER','WEAT','SOYB','PALL','PPLT','DBA','DBC','USG','UGA']);
-    if(/^(BTC|ETH|SOL|BNB|XRP|ADA|DOGE|AVAX|DOT|MATIC|LTC|LINK|TRX)USD$/.test(u))return 'Crypto';
-    if(u.length===6&&/^[A-Z]{6}$/.test(u)&&/(USD|BRL|JPY|EUR|GBP|CHF|CAD|AUD|CNY|MXN|SEK|NOK)$/.test(u))return 'FX';
-    if(/=F$/.test(u))return 'Commodities';
-    if(COMMS.has(u))return 'Commodities';
-    if(IDX.has(u))return 'Indices & ETFs';
+    const COMMS=new Set(['GLD','SLV','USO','UNG','CORN','CPER','WEAT','SOYB','DBA','DBC']);
+    const k=canonicalKey(u)||u;
+    if(COMMS.has(k)) return 'Commodities';
+    if(IDX.has(k))   return 'Indices & ETFs';
+    if(cls==='brazil') return 'Equities';
     return 'Equities';
   };
   const WL_ORDER=['Indices & ETFs','Equities','FX','Commodities','Crypto'];
-  const wlFull=(watchlist&&watchlist.length)?watchlist:['SPY','QQQ','AAPL','NVDA','GLD','BTCUSD','EWZ'];
+  const wlFull=(watchlist&&watchlist.length)?watchlist:[];
   const wlGroups=(()=>{const g={};wlFull.forEach(s=>{const k=classify(s);(g[k]=g[k]||[]).push(s);});return WL_ORDER.filter(k=>g[k]&&g[k].length).map(k=>[k,g[k]]);})();
 
 
@@ -455,7 +474,7 @@ export default function MobileAppV2(){
               <div className="m2-wlgrp2" key={'g-'+grp}>{grp}</div>,
               ...syms.map(sym=>{const q=look(sym);const nm=NAMES[sym]||sym;return (
                 <div className="m2-row" key={sym} onClick={()=>openDetail(sym,nm)}>
-                  <div className="m2-tk">{tkBadge(sym)}</div><div className="nm"><b>{nm}</b>{nm!==sym&&(<span>{sym}</span>)}</div>
+                  <div className="m2-tk">{tkBadge(sym)}</div><div className="nm"><b>{nm}</b><span>{toDisplay(sym)}{' · '}{ccy(sym,q)}</span></div>
                   <div className="pr"><b>{fmtP(q&&q.price)}</b><small className={cls(q&&q.changePct)}>{fmtC(q&&q.changePct)}</small></div><span className="m2-chev"><I d={icons.chev} w={15}/></span>
                 </div>);})
             ])}
@@ -484,7 +503,7 @@ export default function MobileAppV2(){
       )}
 
       {/* DETAIL */}
-      {detail && (<DetailView sym={detail} quote={look(detail)} name={detailName||NAMES[detail]||detail} fmtP={fmtP} fmtC={fmtC} cls={cls} onClose={()=>setDetail(null)} onAsk={askAI} watching={isWatching&&isWatching(detail)} onToggleWatch={(sy)=>{if(!isWatching)return; isWatching(sy)?removeTicker(sy):addTicker(sy);}}/>)}
+      {detail && (<DetailView sym={detail} quote={look(detail)} name={detailName||label(detail)} fmtP={fmtP} fmtC={fmtC} cls={cls} onClose={()=>setDetail(null)} onAsk={askAI} watching={isWatching&&isWatching(detail)} onToggleWatch={(sy)=>{if(!isWatching)return; isWatching(sy)?removeTicker(sy):addTicker(sy);}} currency={ccy(detail,look(detail))}/>)}
 
       {/* PARTICLE AI */}
       {tab==='ai' && !detail && (<>

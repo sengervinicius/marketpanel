@@ -1,189 +1,104 @@
 /**
  * WatchlistContext.jsx
- * Manages a user-defined watchlist with dual persistence:
- * - localStorage for instant load (offline-first)
- * - Server /api/settings for cross-session / cross-device sync
+ *
+ * SINGLE SOURCE OF TRUTH ADAPTER.
+ *
+ * Historically there were TWO independent asset lists:
+ *   1. settings.watchlist  — a flat array of symbols (localStorage particle_watchlist_v1)
+ *   2. portfolio positions — /api/portfolio, which is what the desktop "Watchlist"
+ *      panel actually renders (usePortfolio -> positions)
+ *
+ * Nothing on desktop wrote (1) any more, so the two drifted badly: the mobile app
+ * showed 11 legacy symbols while the desktop showed 24 real ones, with only 5 in
+ * common. Desktop's News / Calendar / ETF panels also read (1), so they were being
+ * scoped to the wrong list too.
+ *
+ * This provider is now a thin adapter over the portfolio store, so there is exactly
+ * ONE list. Every existing consumer of useWatchlist() keeps the same API and
+ * automatically sees the canonical list; every write goes to /api/portfolio and
+ * therefore syncs across desktop and mobile in both directions.
+ *
+ * Positions carry no quantities in practice — they are just the user's asset list.
  */
 
-import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { apiFetch, beaconSettings } from '../utils/api';
+import { createContext, useContext, useCallback, useMemo, useEffect } from 'react';
+import { usePortfolio } from './PortfolioContext';
+import { canonicalKey } from '../utils/tickerNormalize';
 import { swallow } from '../utils/swallow';
 
 const WatchlistContext = createContext(null);
-const LS_KEY = 'particle_watchlist_v1';
 const MAX_WATCHLIST_SIZE = 50;
-const SYNC_DEBOUNCE_MS = 1500;
-
-// Migrate legacy key
-try { const v = localStorage.getItem('senger_watchlist_v1'); if (v !== null) { localStorage.setItem('particle_watchlist_v1', v); localStorage.removeItem('senger_watchlist_v1'); } } catch (e) { swallow(e, 'context.watchlist.ls_migrate'); }
-
-const SEED_WATCHLIST = ['SPY', 'QQQ', 'AAPL', 'NVDA', 'GLD', 'BTCUSD', 'EWZ'];
-
-function loadWatchlistRaw() {
-  // Returns the user's explicitly-stored list, or null if nothing is stored.
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) && arr.length > 0 ? arr : null;
-  } catch {
-    return null;
-  }
-}
-function loadWatchlist() {
-  return loadWatchlistRaw() || SEED_WATCHLIST;
-}
 
 export function WatchlistProvider({ children }) {
-  const [watchlist, setWatchlist] = useState(loadWatchlist);
-  const syncTimer = useRef(null);
-  const pendingRef = useRef(null);
-  const hasFetchedServer = useRef(false);
-  // True only if the user had an explicitly-saved local list (not the seed).
-  const hadStoredLocal = useRef(loadWatchlistRaw() !== null);
+  // The canonical store. PortfolioProvider must be an ancestor.
+  const portfolio = usePortfolio?.() || null;
+  const positions = portfolio?.positions || [];
 
-  // ── Persist to localStorage immediately ──────────────────────────────
-  const persistLocal = useCallback((next) => {
-    try { localStorage.setItem(LS_KEY, JSON.stringify(next)); } catch (e) { swallow(e, 'context.watchlist.ls_set'); }
-  }, []);
+  // Raw symbols exactly as stored (C:USDBRL, X:BTCUSD, ^N225, GC=F, PETR4.SA…).
+  // Consumers get the stored form so that quote/chart lookups keep working; use
+  // toDisplay() at render time for a human label.
+  const watchlist = useMemo(
+    () => positions.map(p => p?.symbol).filter(Boolean).slice(0, MAX_WATCHLIST_SIZE),
+    [positions]
+  );
 
-  // ── Debounced persist to server ──────────────────────────────────────
-  const persistServer = useCallback((next) => {
-    pendingRef.current = next;
-    if (syncTimer.current) clearTimeout(syncTimer.current);
-    syncTimer.current = setTimeout(async () => {
-      pendingRef.current = null;
-      try {
-        await apiFetch('/api/settings', {
-          method: 'POST',
-          body: JSON.stringify({ watchlist: next }),
-        });
-      } catch (err) {
-        // Silent fail — localStorage is the primary store
-        console.warn('[Watchlist] Server sync failed:', err.message);
-      }
-    }, SYNC_DEBOUNCE_MS);
-  }, []);
+  // Identity is compared on the canonical key so "BTCUSD" matches "X:BTCUSD"
+  // and "PETR4" matches "PETR4.SA" — this is what previously let the same asset
+  // exist twice under two spellings.
+  const findPosition = useCallback((symbol) => {
+    const key = canonicalKey(symbol);
+    if (!key) return null;
+    return positions.find(p => canonicalKey(p?.symbol) === key) || null;
+  }, [positions]);
 
-  // Flush the last watchlist edit if the page is hidden/closed before the 1.5s
-  // debounce fires, so the server (cross-device) copy isn't left stale.
-  useEffect(() => {
-    const flush = () => {
-      if (document.visibilityState === 'hidden' && pendingRef.current) {
-        if (syncTimer.current) clearTimeout(syncTimer.current);
-        beaconSettings({ watchlist: pendingRef.current });
-        pendingRef.current = null;
-      }
-    };
-    window.addEventListener('pagehide', flush);
-    document.addEventListener('visibilitychange', flush);
-    return () => {
-      window.removeEventListener('pagehide', flush);
-      document.removeEventListener('visibilitychange', flush);
-    };
-  }, []);
-
-  // ── On mount: fetch server watchlist and merge with local ────────────
-  useEffect(() => {
-    if (hasFetchedServer.current) return;
-    hasFetchedServer.current = true;
-
-    (async () => {
-      try {
-        const res = await apiFetch('/api/settings');
-        if (!res.ok) return;
-        const data = await res.json();
-        const serverList = data?.settings?.watchlist;
-        if (!Array.isArray(serverList) || serverList.length === 0) {
-          // Server has no watchlist — push local to server
-          persistServer(loadWatchlist());
-          return;
-        }
-
-        // Server is the source of truth. Only merge in local symbols the user
-        // genuinely added on THIS device (hadStoredLocal). If the local list is
-        // just the seed default (fresh device / new install), take the server
-        // list verbatim — otherwise the seed (GLD, SPY, ...) leaks into and
-        // pollutes the user's real cross-device watchlist.
-        let final;
-        if (hadStoredLocal.current) {
-          const localList = loadWatchlist();
-          const merged = [...serverList];
-          for (const sym of localList) {
-            if (!merged.some(s => s.toUpperCase() === sym.toUpperCase())) merged.push(sym);
-          }
-          final = merged.slice(0, MAX_WATCHLIST_SIZE);
-        } else {
-          final = serverList.slice(0, MAX_WATCHLIST_SIZE);
-        }
-
-        setWatchlist(final);
-        persistLocal(final);
-        // If merged differs from server, push back
-        if (final.length !== serverList.length || final.some((s, i) => s !== serverList[i])) {
-          persistServer(final);
-        }
-      } catch {
-        // Offline or not logged in — use localStorage only
-      }
-    })();
-  }, [persistLocal, persistServer]);
+  const isWatching = useCallback((symbol) => !!findPosition(symbol), [findPosition]);
 
   const addTicker = useCallback((symbol) => {
-    setWatchlist(prev => {
-      const upper = symbol.toUpperCase();
-      if (prev.some(s => s.toUpperCase() === upper)) return prev;
-      if (prev.length >= MAX_WATCHLIST_SIZE) return prev;
-      const next = [...prev, upper];
-      persistLocal(next);
-      persistServer(next);
-      return next;
-    });
-  }, [persistLocal, persistServer]);
+    if (!symbol) return;
+    if (findPosition(symbol)) return;              // already present under any spelling
+    if (watchlist.length >= MAX_WATCHLIST_SIZE) return;
+    portfolio?.addTicker?.(symbol);                 // persists + syncs to server
+  }, [findPosition, watchlist.length, portfolio]);
 
   const removeTicker = useCallback((symbol) => {
-    setWatchlist(prev => {
-      const next = prev.filter(s => s !== symbol);
-      persistLocal(next);
-      persistServer(next);
-      return next;
-    });
-  }, [persistLocal, persistServer]);
-
-  const save = useCallback((next) => {
-    if (!Array.isArray(next)) return;
-    const validated = next.slice(0, MAX_WATCHLIST_SIZE);
-    setWatchlist(validated);
-    persistLocal(validated);
-    persistServer(validated);
-  }, [persistLocal, persistServer]);
-
-  // Listen for external watchlist changes (e.g. from particle:action button in AI chat)
-  useEffect(() => {
-    const handler = (e) => {
-      const { watchlist: newList } = e.detail || {};
-      if (Array.isArray(newList)) {
-        setWatchlist(newList.slice(0, MAX_WATCHLIST_SIZE));
-      }
-    };
-    window.addEventListener('particle:watchlist-changed', handler);
-    return () => window.removeEventListener('particle:watchlist-changed', handler);
-  }, []);
-
-  const isWatching = useCallback((symbol) => watchlist.includes(symbol?.toUpperCase()), [watchlist]);
+    const pos = findPosition(symbol);
+    if (pos?.id != null) portfolio?.removePosition?.(pos.id);
+  }, [findPosition, portfolio]);
 
   const toggle = useCallback((symbol) => {
     isWatching(symbol) ? removeTicker(symbol) : addTicker(symbol);
   }, [isWatching, addTicker, removeTicker]);
 
-  return (
-    <WatchlistContext.Provider value={{ watchlist, addTicker, removeTicker, isWatching, toggle, save }}>
-      {children}
-    </WatchlistContext.Provider>
+  // Portfolio persists itself (debounced local + server sync), so save() is a no-op
+  // kept for API compatibility with the previous provider.
+  const save = useCallback(() => {}, []);
+
+  // The AI chat's [action:watchlist_add:XXX] button dispatches this event.
+  useEffect(() => {
+    const handler = (e) => {
+      const list = e?.detail?.watchlist;
+      if (Array.isArray(list)) {
+        list.forEach(sym => { try { addTicker(sym); } catch (err) { swallow(err, 'watchlist.event_add'); } });
+      }
+      const one = e?.detail?.symbol;
+      if (typeof one === 'string') {
+        try { addTicker(one); } catch (err) { swallow(err, 'watchlist.event_add_one'); }
+      }
+    };
+    window.addEventListener('particle:watchlist-changed', handler);
+    return () => window.removeEventListener('particle:watchlist-changed', handler);
+  }, [addTicker]);
+
+  const value = useMemo(
+    () => ({ watchlist, addTicker, removeTicker, isWatching, toggle, save }),
+    [watchlist, addTicker, removeTicker, isWatching, toggle, save]
   );
+
+  return <WatchlistContext.Provider value={value}>{children}</WatchlistContext.Provider>;
 }
 
-export function useWatchlist() {
+export const useWatchlist = () => {
   const ctx = useContext(WatchlistContext);
   if (!ctx) throw new Error('useWatchlist must be used inside WatchlistProvider');
   return ctx;
-}
+};
