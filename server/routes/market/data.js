@@ -1743,96 +1743,256 @@ router.get('/market/enriched-batch', async (req, res) => {
 });
 
 /**
- * GET /market/bloomberg-tv
- * Resolves Bloomberg Television's CURRENT live YouTube video id by reading the
- * channel's /live page, so we can embed the live video directly. YouTube
- * deprecated the /embed/live_stream?channel= endpoint (it now shows "video
- * unavailable"), which is why the old panel stopped connecting. Cached 10 min.
+ * GET /market/live-tv?channel=bloomberg
+ * GET /market/bloomberg-tv                (legacy alias)
+ *
+ * Resolves a news channel's CURRENT live YouTube video id so we can embed the
+ * live stream directly.
+ *
+ * Why this is more than a one-liner: YouTube retired
+ * /embed/live_stream?channel=<id> (it now renders "video unavailable"), which is
+ * what the original panel used and why it stopped working. The replacement has
+ * to discover the live video id, and YouTube gives datacenter IPs (Render) a
+ * consent/bot interstitial instead of the real watch page, so a single scrape is
+ * not dependable. We therefore try several independent strategies in order of
+ * reliability and take the first that can PROVE it found a live video on the
+ * right channel.
+ *
+ *   1. YouTube Data API  — exact and stable. Used only if YOUTUBE_API_KEY is set.
+ *   2. Channel RSS feed  — /feeds/videos.xml is a static XML endpoint with no
+ *                          consent gate, so it answers datacenter IPs.
+ *   3. /live page scrape — works when YouTube serves us real markup.
+ *
+ * Add ?debug=1 to see what each strategy actually observed from the server's own
+ * IP. That matters because the only environment whose behaviour counts here is
+ * Render's, not a browser's.
  */
-const BLOOMBERG_TV_CHANNEL = 'UCIALMKvObZNtJ6AmdCLP7Lg'; // Bloomberg Television (@markets)
-router.get('/market/bloomberg-tv', async (req, res) => {
-  const ck = 'bloomberg-tv:videoId';
+const LIVE_TV_CHANNELS = {
+  bloomberg: { id: 'UCIALMKvObZNtJ6AmdCLP7Lg', label: 'Bloomberg Television', match: /bloomberg/i },
+  yahoo:     { id: 'UCEAZeUIeJs0IjQiqTCdVSIg', label: 'Yahoo Finance',        match: /yahoo/i },
+  reuters:   { id: 'UChqUTb7kYRX8-EiaN3XFrSQ', label: 'Reuters',              match: /reuters/i },
+  cnbc:      { id: 'UCvJJ_dzjViJCoLf5uKUTwoA', label: 'CNBC',                 match: /cnbc/i },
+};
+const BLOOMBERG_TV_CHANNEL = LIVE_TV_CHANNELS.bloomberg.id;
+
+const YT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+
+async function ytFetch(url, timeoutMs = 9000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const cached = cacheGet(ck);
-    if (cached) return res.json({ ok: true, videoId: cached.videoId, live: !!cached.videoId, source: 'cache' });
+    const r = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': YT_UA,
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        // hl/gl pin the locale; CONSENT/SOCS skip the EU consent gate. Neither is
+        // sufficient on its own from a datacenter IP, but they cost nothing.
+        'Cookie': 'CONSENT=YES+cb; SOCS=CAI',
+      },
+    });
+    const body = await r.text();
+    return { status: r.status, body };
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 9000);
-    let html = '';
-    try {
-      // Render's datacenter IP gets YouTube's consent/interstitial page instead of
-      // the real watch page, which is why the canonical link was missing and the
-      // resolver found nothing. hl/gl pin the locale and the CONSENT cookie skips
-      // the EU consent gate — the usual way to get a server-side fetch the same
-      // markup a browser sees.
-      const r = await fetch(`https://www.youtube.com/channel/${BLOOMBERG_TV_CHANNEL}/live?hl=en&gl=US`, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Cookie': 'CONSENT=YES+cb; SOCS=CAI',
-        },
-      });
-      html = await r.text();
-    } finally {
-      clearTimeout(timer);
+/** Strategy 1: official API. Exact, but needs a key. */
+async function resolveViaDataApi(chan, dbg) {
+  const key = process.env.YOUTUBE_API_KEY;
+  if (!key) { dbg.dataApi = 'no YOUTUBE_API_KEY'; return null; }
+  try {
+    const u = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${chan.id}`
+            + `&eventType=live&type=video&maxResults=1&key=${encodeURIComponent(key)}`;
+    const { status, body } = await ytFetch(u, 8000);
+    if (status !== 200) { dbg.dataApi = `HTTP ${status}`; return null; }
+    const j = JSON.parse(body);
+    const item = (j.items || [])[0];
+    if (!item) { dbg.dataApi = 'no live item'; return null; }
+    const videoId = item.id && item.id.videoId;
+    const title = item.snippet && item.snippet.title;
+    if (!videoId) { dbg.dataApi = 'item without videoId'; return null; }
+    dbg.dataApi = `ok ${videoId}`;
+    return { videoId, title: title || null, via: 'dataApi' };
+  } catch (e) { dbg.dataApi = `error: ${e.message}`; return null; }
+}
+
+/**
+ * Strategy 2: channel RSS. Static XML, no bot gate. It lists recent entries but
+ * carries no "is live" flag, so we only accept an entry whose title matches the
+ * channel AND looks like a rolling live stream, and we let the client's player be
+ * the final arbiter (it reports an error and falls back if the embed is not
+ * playable). Being wrong here shows an offline state, never a random video.
+ */
+async function resolveViaRss(chan, dbg) {
+  try {
+    const { status, body } = await ytFetch(
+      `https://www.youtube.com/feeds/videos.xml?channel_id=${chan.id}`, 8000);
+    if (status !== 200) { dbg.rss = `HTTP ${status}`; return null; }
+    const entries = [];
+    const re = /<entry>([\s\S]*?)<\/entry>/g;
+    let m;
+    while ((m = re.exec(body)) !== null && entries.length < 15) {
+      const block = m[1];
+      const id = (block.match(/<yt:videoId>([\w-]{11})<\/yt:videoId>/) || [])[1];
+      const title = (block.match(/<title>([\s\S]*?)<\/title>/) || [])[1];
+      const published = (block.match(/<published>([^<]+)<\/published>/) || [])[1];
+      if (id) entries.push({ id, title: (title || '').trim(), published: published || null });
     }
+    dbg.rss = { count: entries.length, titles: entries.slice(0, 5).map((e) => e.title.slice(0, 70)) };
+    if (!entries.length) return null;
 
-    // STRICT resolution. Three independent conditions must all hold, and they must
-    // all describe the SAME video. The previous version extracted the id and the
-    // "is live" signal independently, so a random channel upload could be paired
-    // with a live badge from elsewhere on the page — which is exactly how a
-    // Bloomberg TV panel ended up playing unrelated YouTube videos.
-    //
-    // 1. The id comes ONLY from the canonical watch URL. On /live YouTube redirects
-    //    to the actual live watch page, so the canonical link IS the live video.
-    //    There is deliberately no "first videoId on the page" fallback.
-    // 2. The player response for that id must mark it live.
-    // 3. The title must actually look like Bloomberg. If we cannot prove that, we
-    //    show the honest offline state rather than embedding something unknown.
+    // A 24/7 stream is titled like "Bloomberg Business News Live" / "... LIVE".
+    const liveish = entries.find((e) => chan.match.test(e.title) && /\blive\b/i.test(e.title));
+    if (!liveish) { dbg.rssPick = 'no live-titled entry'; return null; }
+    dbg.rssPick = `${liveish.id} — ${liveish.title.slice(0, 70)}`;
+    return { videoId: liveish.id, title: liveish.title, via: 'rss' };
+  } catch (e) { dbg.rss = `error: ${e.message}`; return null; }
+}
+
+/**
+ * Strategy 3: scrape /live.
+ *
+ * STRICT. Three independent conditions must hold and must describe the SAME
+ * video. An earlier version extracted the id and the "is live" signal
+ * independently, so a random channel upload could be paired with a live badge
+ * from elsewhere on the page — which is exactly how the panel ended up playing
+ * unrelated YouTube videos. The id therefore comes ONLY from the canonical watch
+ * URL (on /live YouTube redirects to the real live watch page); there is
+ * deliberately no "first videoId on the page" fallback.
+ */
+async function resolveViaScrape(chan, dbg) {
+  try {
+    const { status, body: html } = await ytFetch(
+      `https://www.youtube.com/channel/${chan.id}/live?hl=en&gl=US`, 9000);
+    if (status !== 200) { dbg.scrape = `HTTP ${status}`; return null; }
+
     let videoId = null;
     const canon = html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([\w-]{11})"/);
     if (canon) videoId = canon[1];
 
-    // Liveness must be asserted near this video's own player payload, not anywhere
-    // in the document.
+    // Liveness must be asserted near this video's own player payload, not
+    // anywhere in the document.
     let isLive = false;
     if (videoId) {
       const idx = html.indexOf(`"videoId":"${videoId}"`);
-      if (idx !== -1) {
-        const scope = html.slice(idx, idx + 4000);
-        isLive = /"isLive"\s*:\s*true/.test(scope);
-      }
-      // Fall back to the top-level videoDetails block, still scoped to this id.
+      if (idx !== -1) isLive = /"isLive"\s*:\s*true/.test(html.slice(idx, idx + 4000));
       if (!isLive) {
         const vd = html.match(/"videoDetails"\s*:\s*\{[\s\S]{0,4000}?\}/);
         if (vd && vd[0].includes(videoId)) isLive = /"isLive"\s*:\s*true/.test(vd[0]);
       }
     }
 
-    // Title sanity check — refuse to embed anything that isn't plausibly Bloomberg.
     let title = null;
     const tm = html.match(/<meta name="title" content="([^"]{0,200})"/) || html.match(/<title>([^<]{0,200})<\/title>/);
     if (tm) title = tm[1];
-    const titleLooksRight = !title || /bloomberg/i.test(title);
 
-    if (videoId && isLive && titleLooksRight) {
-      cacheSet(ck, { videoId }, 600_000); // 10 min
-      return res.json({ ok: true, videoId, live: true, title: title || null, source: 'youtube' });
+    dbg.scrape = {
+      bytes: html.length,
+      hasCanonical: !!videoId,
+      isLive,
+      title: title ? title.slice(0, 80) : null,
+      // Tells us whether we are looking at a consent wall rather than a watch page.
+      looksLikeConsent: /consent\.youtube\.com|Before you continue|CONSENT_/i.test(html.slice(0, 20000)),
+      looksLikeBotCheck: /Sign in to confirm|unusual traffic/i.test(html.slice(0, 20000)),
+    };
+
+    if (videoId && isLive && (!title || chan.match.test(title))) {
+      return { videoId, title: title || null, via: 'scrape' };
+    }
+    return null;
+  } catch (e) { dbg.scrape = `error: ${e.message}`; return null; }
+}
+
+/** Confirms the id is a real, embeddable video. oEmbed answers datacenter IPs. */
+async function verifyEmbeddable(videoId, dbg) {
+  try {
+    const { status, body } = await ytFetch(
+      `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent('https://www.youtube.com/watch?v=' + videoId)}`, 6000);
+    if (status !== 200) { dbg.oembed = `HTTP ${status}`; return { ok: false, title: null }; }
+    const j = JSON.parse(body);
+    dbg.oembed = `ok — ${(j.title || '').slice(0, 70)}`;
+    return { ok: true, title: j.title || null };
+  } catch (e) { dbg.oembed = `error: ${e.message}`; return { ok: false, title: null }; }
+}
+
+async function handleLiveTv(req, res) {
+  const wantDebug = req.query.debug === '1';
+  const key = String(req.query.channel || 'bloomberg').toLowerCase();
+  const chan = LIVE_TV_CHANNELS[key];
+  if (!chan) {
+    return res.status(400).json({
+      ok: false, error: `unknown channel "${key}"`, channels: Object.keys(LIVE_TV_CHANNELS),
+    });
+  }
+  const channelUrl = `https://www.youtube.com/channel/${chan.id}/live`;
+  const ck = `live-tv:${key}`;
+  const dbg = {};
+
+  try {
+    if (!wantDebug) {
+      const cached = cacheGet(ck);
+      if (cached) {
+        return res.json({
+          ok: true, channel: key, label: chan.label, channelUrl,
+          videoId: cached.videoId, live: !!cached.videoId,
+          title: cached.title || null, source: 'cache',
+        });
+      }
     }
 
-    logger.info('bloomberg-tv', 'not embedding', {
-      hasCanonical: !!videoId, isLive, title: title ? title.slice(0, 80) : null,
-    });
+    let found = await resolveViaDataApi(chan, dbg);
+    if (!found) found = await resolveViaRss(chan, dbg);
+    if (!found) found = await resolveViaScrape(chan, dbg);
 
-    // No live right now (or blocked). Cache a short null so we don't hammer YT.
-    cacheSet(ck, { videoId: null }, 120_000);
-    return res.json({ ok: true, videoId: videoId || null, live: false, source: 'youtube', channelUrl: `https://www.youtube.com/channel/${BLOOMBERG_TV_CHANNEL}/live` });
+    if (found) {
+      const v = await verifyEmbeddable(found.videoId, dbg);
+      if (!v.ok) found = null;
+      // oEmbed's title is authoritative; re-check it belongs to this channel.
+      else if (v.title && !chan.match.test(v.title) && !chan.match.test(found.title || '')) {
+        dbg.rejected = `oembed title "${v.title.slice(0, 60)}" does not match ${key}`;
+        found = null;
+      } else if (v.title) {
+        found.title = v.title;
+      }
+    }
+
+    const payload = {
+      ok: true, channel: key, label: chan.label, channelUrl,
+      videoId: found ? found.videoId : null,
+      live: !!found,
+      title: found ? found.title : null,
+      source: found ? found.via : 'none',
+    };
+    if (wantDebug) payload.debug = dbg;
+    else if (found) cacheSet(ck, { videoId: found.videoId, title: found.title }, 600_000);
+    else cacheSet(ck, { videoId: null }, 120_000);
+
+    if (!found) logger.info('live-tv', `no live stream resolved for ${key}`, dbg);
+    return res.json(payload);
   } catch (e) {
-    logger.warn('GET /market/bloomberg-tv error:', e.message);
-    return res.json({ ok: false, videoId: null, live: false, channelUrl: `https://www.youtube.com/channel/${BLOOMBERG_TV_CHANNEL}/live`, error: e.message });
+    logger.warn(`GET /market/live-tv (${key}) error:`, e.message);
+    return res.json({
+      ok: false, channel: key, label: chan.label, channelUrl,
+      videoId: null, live: false, error: e.message,
+      ...(wantDebug ? { debug: dbg } : {}),
+    });
   }
+}
+
+router.get('/market/live-tv', handleLiveTv);
+router.get('/market/live-tv/channels', (_req, res) => {
+  res.json({
+    ok: true,
+    channels: Object.entries(LIVE_TV_CHANNELS).map(([k, v]) => ({ key: k, label: v.label })),
+  });
+});
+// Legacy path kept so an old cached client bundle keeps working.
+router.get('/market/bloomberg-tv', (req, res) => {
+  req.query.channel = 'bloomberg';
+  return handleLiveTv(req, res);
 });
 
 
