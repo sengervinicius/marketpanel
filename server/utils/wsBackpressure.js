@@ -35,7 +35,11 @@ const { metrics: promMetrics } = require('./metrics');
 
 // Tunables — overridable via env.
 const BP_MAX_BUFFERED_BYTES     = Number(process.env.WS_MAX_BUFFER_BYTES)    || 1024 * 1024; // 1 MiB
-const BP_MAX_CONNECTIONS_PER_USER = Number(process.env.WS_MAX_CONN_PER_USER) || 5;
+// 5 was too tight for real use: a terminal user with two or three monitors, or a
+// couple of tabs plus a phone, hit the cap and their live feed flapped forever.
+// Slots are released on close (server/index.js unregisterConnection), so the only
+// cost of a higher cap is fan-out per user.
+const BP_MAX_CONNECTIONS_PER_USER = Number(process.env.WS_MAX_CONN_PER_USER) || 10;
 const BP_WARN_BUFFERED_BYTES    = Number(process.env.WS_WARN_BUFFER_BYTES)   || 256 * 1024; // 256 KiB
 
 // Per-user connection bookkeeping: Map<userId, Set<WebSocket>>.

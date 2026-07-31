@@ -1760,12 +1760,18 @@ router.get('/market/bloomberg-tv', async (req, res) => {
     const timer = setTimeout(() => controller.abort(), 9000);
     let html = '';
     try {
-      const r = await fetch(`https://www.youtube.com/channel/${BLOOMBERG_TV_CHANNEL}/live`, {
+      // Render's datacenter IP gets YouTube's consent/interstitial page instead of
+      // the real watch page, which is why the canonical link was missing and the
+      // resolver found nothing. hl/gl pin the locale and the CONSENT cookie skips
+      // the EU consent gate — the usual way to get a server-side fetch the same
+      // markup a browser sees.
+      const r = await fetch(`https://www.youtube.com/channel/${BLOOMBERG_TV_CHANNEL}/live?hl=en&gl=US`, {
         signal: controller.signal,
         headers: {
-          // A desktop UA gets the full watch payload with videoDetails.
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
           'Accept-Language': 'en-US,en;q=0.9',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Cookie': 'CONSENT=YES+cb; SOCS=CAI',
         },
       });
       html = await r.text();

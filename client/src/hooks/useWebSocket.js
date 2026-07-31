@@ -46,6 +46,11 @@ export function useWebSocket(onMessage, token) {
   const mounted = useRef(true);
   const messageQueue = useRef([]);
   const connectCount = useRef(0);
+  // Consecutive "per-user connection cap" rejections. Retrying cannot succeed
+  // until another tab frees a slot, so we stop and tell the user instead of
+  // flapping forever (observed: 38 silent reconnects while the footer just said
+  // "CONNECTING").
+  const capRejects = useRef(0);
   const [readyState, setReadyState] = useState(WebSocket.CLOSED);
 
   // Flush queued messages after reconnect
@@ -142,9 +147,28 @@ export function useWebSocket(onMessage, token) {
         // thing to do is back off far harder than the default so we don't
         // stampede the server.
         const isPolicyClose = evt.code === 1008;
+        const isCapReject = isPolicyClose && /concurrent connections/i.test(evt.reason || '');
         const max = isPolicyClose ? RECONNECT_BACKPRESSURE_MAX : RECONNECT_MAX;
         if (isPolicyClose) {
           delay.current = Math.max(delay.current, RECONNECT_BACKPRESSURE_INITIAL);
+        }
+
+        // Per-user connection cap: more retries cannot help until a slot frees.
+        // Stop after a few attempts and surface an actionable state rather than
+        // reconnecting silently forever.
+        if (isCapReject) {
+          capRejects.current += 1;
+          if (capRejects.current >= 3) {
+            console.warn('[WS] Per-user connection cap reached — pausing live feed until retried');
+            try {
+              window.dispatchEvent(new CustomEvent('particle:feed-paused', {
+                detail: { reason: 'too_many_connections' },
+              }));
+            } catch (_) { /* no-op */ }
+            return; // no reconnect scheduled; a manual retry re-arms it
+          }
+        } else {
+          capRejects.current = 0;
         }
 
         // #291 W1.2 — Auth-invalid close (server sends 4001 "Invalid
@@ -196,6 +220,18 @@ export function useWebSocket(onMessage, token) {
       setReadyState(WebSocket.CLOSED);
     }
   }, [onMessage, token, startHeartbeat, stopHeartbeat, flushQueue]);
+
+  // A paused feed is re-armed by the banner's Retry (or by regaining focus).
+  useEffect(() => {
+    const retry = () => {
+      capRejects.current = 0;
+      delay.current = RECONNECT_INITIAL;
+      try { window.dispatchEvent(new CustomEvent('particle:feed-resumed')); } catch (_) { /* no-op */ }
+      if (mounted.current) connect();
+    };
+    window.addEventListener('particle:feed-retry', retry);
+    return () => window.removeEventListener('particle:feed-retry', retry);
+  }, [connect]);
 
   useEffect(() => {
     mounted.current = true;
