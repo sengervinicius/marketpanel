@@ -46,6 +46,7 @@ import ViewChips, { loadPersistedChip } from '../common/ViewChips';
 import HoverProfileCard, { HoverProfileRow, HoverProfileRange } from '../common/HoverProfileCard';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import { ASSET_CLASSES, classifyAssetClass } from '../../utils/assetClass';
+import { inferCurrency } from '../../utils/tickerNormalize';
 import '../common/Shimmer.css';
 import './WatchlistPanel.css';
 import { useTickerClicks } from '../../hooks/useTickerClicks';
@@ -156,9 +157,17 @@ function HoverCard({ sym, top, snap, fund, newsCount, price }) {
     ? Math.min(1, Math.max(0, (price - lo) / (hi - lo)))
     : null;
 
+  // Real trading currency: the snapshot's own field when the provider gave us one,
+  // otherwise derived from the symbol. Replaces a hardcoded ".SA ? R$ : $" guess
+  // that silently mislabelled JPY/EUR/GBP instruments as dollars.
+  const ccy = (snap?.currency || inferCurrency(sym) || 'USD').toUpperCase();
+  const CCY_GLYPH = { USD: '$', BRL: 'R$', EUR: '€', GBP: '£', JPY: '¥', CHF: 'CHF ', CAD: 'C$', AUD: 'A$', HKD: 'HK$', MXN: 'MX$' };
+  const ccyGlyph = CCY_GLYPH[ccy] || `${ccy} `;
+
   return (
     <HoverProfileCard top={top} title={`${sym}${name ? ` · ${name.toUpperCase()}` : ''}`}>
-      <HoverProfileRow label="Mkt cap" value={mktCap != null ? fmtMarketCap(mktCap, sym && sym.toUpperCase().endsWith('.SA') ? 'R$' : '$') : fLoading ? '…' : '—'} />
+      <HoverProfileRow label="Currency" value={ccy} />
+      <HoverProfileRow label="Mkt cap" value={mktCap != null ? fmtMarketCap(mktCap, ccyGlyph) : fLoading ? '…' : '—'} />
       <HoverProfileRow label={multiLabel} value={multiVal || (fLoading ? '…' : '—')} />
       <HoverProfileRow label="Div yield" value={divYield != null ? fmtYieldPct(divYield) : fLoading ? '…' : '—'} />
       <HoverProfileRow

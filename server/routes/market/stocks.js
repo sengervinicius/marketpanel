@@ -737,6 +737,11 @@ async function fetchTickerSnapshot(sym) {
       // the FUNDAMENTAL view / hover mini-profile need. Finnhub fallback
       // quotes never set these — cells degrade to an em-dash.
       name:        q.shortName || q.longName || null,
+      // Trading currency. A terminal mixing AAPL (USD), PETR4.SA (BRL) and
+      // ^N225 (JPY) must label the unit or the numbers are ambiguous. The
+      // single-quote endpoints already returned this; the BATCH snapshot that
+      // feeds the panel tiles did not, so no tile could show it.
+      currency:    q.currency || null,
       avgVolume3M: q.averageDailyVolume3Month ?? null,
       fund: {
         marketCap:        q.marketCap                   ?? null,
