@@ -117,6 +117,9 @@ export default function SpotlightTour() {
   const [active, setActive] = useState(false);
   const [i, setI] = useState(0);
   const [rect, setRect] = useState(null);
+  // Index of a step found to have no target on screen; consumed by the effect
+  // below to advance the tour.
+  const [skipFrom, setSkipFrom] = useState(null);
 
   useEffect(() => {
     if (!settings) return;
@@ -142,7 +145,21 @@ export default function SpotlightTour() {
     if (el) { try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* ok */ } }
     const measure = () => setRect(getRect(step.sel));
     measure();
-    const t = setTimeout(measure, 280);
+
+    // Skip steps whose panel is not on screen.
+    //
+    // The tour describes a specific set of panels. Any user who removes one --
+    // or, as happened here, every new user because the server seeded a layout
+    // missing five of them -- would get tour cards pointing at nothing, which
+    // reads as the tour being broken. Give the panel one retry window (it may
+    // still be mounting), then move on rather than narrate empty space.
+    const t = setTimeout(() => {
+      measure();
+      if (!document.querySelector(step.sel)) {
+        setSkipFrom(i);
+      }
+    }, 320);
+
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);
     return () => { clearTimeout(t); window.removeEventListener('resize', measure); window.removeEventListener('scroll', measure, true); };
@@ -158,6 +175,17 @@ export default function SpotlightTour() {
   const close = useCallback(() => { setActive(false); markDone(); }, [markDone]);
   const next = useCallback(() => { setI(v => (v < STEPS.length - 1 ? v + 1 : v)); if (i >= STEPS.length - 1) close(); }, [i, close]);
   const back = useCallback(() => setI(v => (v > 0 ? v - 1 : v)), []);
+
+  // Advance past a missing step in a separate effect so the skip decision is
+  // never taken during layout, which would loop.
+  useEffect(() => {
+    if (skipFrom === null) return;
+    setSkipFrom(null);
+    if (skipFrom !== i) return;                 // stale skip, user already moved
+    if (i < STEPS.length - 1) setI(i + 1);
+    else { setActive(false); markDone(); }
+  }, [skipFrom, i, markDone]);
+
 
   useEffect(() => {
     if (!active) return;

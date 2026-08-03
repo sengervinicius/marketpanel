@@ -175,19 +175,28 @@ function defaultSettings() {
       brazilB3:     { title: 'Brazil B3',         symbols: [...CIO_BRAZIL_DEFAULTS] },
       debt:         { title: 'Yields & Rates',    symbols: [] },
     },
-    // CIO home layout (matches client DEFAULT_LAYOUT in config/panels.js):
-    //   Row 1: charts, watchlist, globalIndices, futures
-    //   Row 2: forex (FX + crypto merged), commodities, usEquities, brazilB3
-    //   Row 3: debt, news (H0.4d: optionsFlow/predictions removed from the
-    //   default only — still addable via Cmd+K; saved layouts untouched)
-    layout: {
-      desktopRows: [
-        ['charts',       'watchlist',     'globalIndices', 'futures'],
-        ['forex',        'commodities',   'usEquities',    'brazilB3'],
-        ['debt',         'news'],
-      ],
-      mobileTabs: ['home', 'charts', 'watchlist', 'search', 'detail', 'news'],
-    },
+    // NO layout here -- deliberately.
+    //
+    // This seed used to carry a full desktopRows/mobileTabs layout, and because
+    // saved settings win over client defaults, whatever was written here WAS the
+    // home screen every new user saw. It drifted from client DEFAULT_LAYOUT
+    // (config/panels.js) every single time a panel was added, and the comment
+    // above this block warning about exactly that did not prevent it happening
+    // twice. By the time it was caught, new users were getting:
+    //
+    //   futures instead of LIVE TV, and no BRIEF / MOVERS / CALENDAR /
+    //   MARKET MAP at all -- a three-panel row 3 collapsed to two -- plus a
+    //   mobileTabs list (home/charts/watchlist/search/detail/news) that no
+    //   longer matched the mobile app's actual tabs. The onboarding tour then
+    //   pointed at panels that were not on screen, so it looked broken too.
+    //
+    // Panel layout is a client concern: the client owns PANEL_DEFINITIONS and
+    // DEFAULT_LAYOUT, and it merges saved settings on top of its own defaults.
+    // Omitting layout here means a new user simply gets the current client
+    // default, so this class of drift cannot come back. Nothing server-side
+    // reads settings.layout (verified by grep).
+    //
+    // Existing users are unaffected -- they have their own saved layout.
     home: {
       // Mirrors DEFAULT_HOME_SECTIONS in client/src/config/panels.js.
       sections: [
