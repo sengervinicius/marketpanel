@@ -2832,29 +2832,41 @@ async function getDocumentSummary(documentId, userId) {
     );
     const content = (chunks.rows || []).map(r => r.content).join('\n\n');
     if (!content || content.trim().length === 0) {
-      return 'No content available for summary.';
+      // Return null rather than a sentence: the client owns the empty-state copy.
+      return null;
     }
 
-    // Use Haiku to generate summary
-    if (!process.env.OPENAI_API_KEY) {
-      return 'Summary generation not available.';
+    // Generate with Claude Haiku, the same model the rest of the vault uses.
+    //
+    // This used to call OpenAI's gpt-4o-mini behind OPENAI_API_KEY -- a key this
+    // deployment does not set, because the product runs on Anthropic. The comment
+    // above the call even said "Use Haiku". The result was that EVERY document
+    // summary returned the literal string 'Summary generation not available.',
+    // which the mobile document sheet would then have shown to users verbatim.
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicKey) {
+      logger.warn('vault', 'Summary generation skipped: no ANTHROPIC_API_KEY');
+      return null;
     }
 
     const fetch = require('node-fetch');
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 220,
         messages: [{
           role: 'user',
-          content: `Summarize this document in 2-3 sentences:\n\n${content.slice(0, 2000)}`,
+          content: 'Summarise this research document in 2-3 sentences for a portfolio '
+            + 'manager: what it argues, and what it means for positioning. Be specific '
+            + 'about names and numbers where the document is specific. No preamble.\n\n'
+            + content.slice(0, 4000),
         }],
-        max_tokens: 150,
-        temperature: 0.3,
       }),
     });
 
@@ -2864,7 +2876,9 @@ async function getDocumentSummary(documentId, userId) {
     }
 
     const data = await response.json();
-    const summary = data.choices?.[0]?.message?.content;
+    const summary = Array.isArray(data.content)
+      ? data.content.filter(b => b && b.type === 'text').map(b => b.text).join('').trim()
+      : null;
 
     if (summary) {
       // Cache the summary in metadata
