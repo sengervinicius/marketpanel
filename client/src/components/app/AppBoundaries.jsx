@@ -10,7 +10,7 @@
  *   - InstrumentDetailSkeleton: shimmer placeholder while InstrumentDetail loads
  */
 
-import { useState, useRef, useCallback, Component } from 'react';
+import { useState, useRef, useCallback, useEffect, Component } from 'react';
 
 // ── Terms of Service acceptance modal ──────────────────────────────────────
 export function TermsAcceptanceModal({ onAccept }) {
@@ -23,6 +23,42 @@ export function TermsAcceptanceModal({ onAccept }) {
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 30) {
       setScrolledToBottom(true);
     }
+  }, []);
+
+  // If there is nothing to scroll, there is nothing to wait for.
+  //
+  // This gate used to be satisfiable ONLY from inside handleScroll, so when the
+  // terms box was not taller than its container no scroll event ever fired, the
+  // button stayed disabled forever and the user was permanently locked out of the
+  // app -- unable to accept, unable to continue. It reproduced on any tall window,
+  // at reduced browser zoom, or if the copy ever got shorter.
+  //
+  // Re-checked on mount and via ResizeObserver, because whether the content
+  // overflows depends on the viewport and can change after fonts load or on
+  // rotate/resize.
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return undefined;
+
+    const check = () => {
+      // A 2px tolerance absorbs sub-pixel layout rounding.
+      if (el.scrollHeight <= el.clientHeight + 2) {
+        setScrolledToBottom(true);
+      }
+    };
+
+    check();
+
+    let ro;
+    if (typeof ResizeObserver === 'function') {
+      ro = new ResizeObserver(check);
+      ro.observe(el);
+    }
+    window.addEventListener('resize', check);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener('resize', check);
+    };
   }, []);
 
   return (
