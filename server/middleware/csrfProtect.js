@@ -33,9 +33,19 @@ function csrfProtect(req, res, next) {
   const xrw = req.headers['x-requested-with'];
   const ct  = req.headers['content-type'] || '';
 
-  // Accept if: has custom header, OR content-type is JSON (also triggers preflight),
-  // OR request has our auth cookie/header (proves browser went through our CORS flow)
-  if (xrw || ct.includes('application/json') || ct.includes('multipart/form-data')) {
+  // Accept if the request must have triggered a CORS preflight, which a
+  // cross-origin attacker cannot cause without our server opting in.
+  //
+  //   X-Requested-With  -- not a safelisted header  -> preflight required
+  //   application/json  -- not a safelisted type    -> preflight required
+  //
+  // multipart/form-data used to be accepted here and MUST NOT BE: it is a
+  // CORS-*simple* content type, so a plain cross-origin <form> can POST it with
+  // no preflight at all. Combined with sameSite:'none' cookies, that made every
+  // state-changing multipart endpoint -- including vault upload -- forgeable from
+  // any website the user happened to be visiting. Multipart callers must now send
+  // X-Requested-With, which forces the preflight.
+  if (xrw || ct.includes('application/json')) {
     return next();
   }
 

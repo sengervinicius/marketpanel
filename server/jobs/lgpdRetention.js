@@ -51,8 +51,16 @@ const NON_CASCADE_TABLES = [
 // migration + a change to the trial-claim lookup and is tracked separately.
 
 async function hardDeleteUser(userId) {
-  if (!pg.isConnected) throw new Error('db-unavailable');
-  const client = await pg.pool.connect();
+  // NOTE: isConnected is a function. These guards used to read `pg.isConnected`
+  // without calling it -- always truthy, so they never fired -- and the line
+  // below used `pg.pool`, which the module does not export (it is getPool()).
+  // Net effect: every hard delete threw TypeError on the first line that touched
+  // the pool, so LGPD/GDPR erasure requests sat in dsar_erasure_queue forever
+  // while appearing to be queued correctly. This had never successfully run.
+  if (!pg.isConnected()) throw new Error('db-unavailable');
+  const pool = pg.getPool();
+  if (!pool) throw new Error('db-unavailable');
+  const client = await pool.connect();
   try {
     await client.query('BEGIN');
     // Resolve the email BEFORE deleting the user row so we can also purge
@@ -96,7 +104,7 @@ async function hardDeleteUser(userId) {
 }
 
 async function redactOldDpoTickets() {
-  if (!pg.isConnected) return { redacted: 0 };
+  if (!pg.isConnected()) return { redacted: 0 };
   const r = await pg.query(
     `UPDATE dpo_tickets
         SET email = NULL, name = NULL, ip_hash = NULL
@@ -110,7 +118,7 @@ async function redactOldDpoTickets() {
  * Run the daily retention pass. Exported for manual invocation.
  */
 async function runRetentionOnce() {
-  if (!pg.isConnected) {
+  if (!pg.isConnected()) {
     logger.warn('lgpdRetention', 'skipped: db offline');
     return { purged: 0, failed: 0, redacted: 0 };
   }

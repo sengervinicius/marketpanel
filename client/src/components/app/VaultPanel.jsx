@@ -271,7 +271,13 @@ function VaultPanelInner({ fullScreen = false }) {
       if (selectedDocType && selectedDocType !== 'auto') {
         formData.append('docType', selectedDocType);
       }
-      const uploadHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+      // X-Requested-With is what gets this past csrfProtect now that
+      // multipart/form-data is no longer exempt. It is not a CORS-safelisted
+      // header, so it forces a preflight -- which is exactly the property that
+      // makes the request unforgeable from another origin. Do NOT set
+      // Content-Type here; the browser must add the multipart boundary itself.
+      const uploadHeaders = { 'X-Requested-With': 'XMLHttpRequest' };
+      if (token) uploadHeaders.Authorization = `Bearer ${token}`;
 
       if (import.meta.env?.DEV) {
         // eslint-disable-next-line no-console
