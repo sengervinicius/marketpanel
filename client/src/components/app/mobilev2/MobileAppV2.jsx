@@ -123,7 +123,30 @@ function ChartV2({bars,onScrub,tf,onTf}){
     const mv=(e)=>{e.preventDefault();at(e.touches?e.touches[0].clientX:e.clientX);};
     const end=()=>{xh.style.display='none';const dd=dataRef.current;if(dd)setLegend(dd.cs[dd.N-1]);if(onScrub)onScrub(null);};
     svg.addEventListener('pointerdown',mv);svg.addEventListener('pointermove',(e)=>{if(e.buttons)mv(e);});svg.addEventListener('pointerup',end);svg.addEventListener('pointerleave',end);
-    svg.addEventListener('touchstart',mv,{passive:false});svg.addEventListener('touchmove',mv,{passive:false});svg.addEventListener('touchend',end);};
+
+    // Touch: decide on the FIRST move whether this gesture is a horizontal scrub
+    // or a vertical page scroll, and honour that decision for the rest of the
+    // gesture. The chart is ~280px tall and sits where a thumb naturally lands,
+    // so unconditionally calling preventDefault (which is what we used to do)
+    // meant the page simply could not be scrolled from over the chart.
+    let t0=null,axis=null;
+    svg.addEventListener('touchstart',(e)=>{
+      const t=e.touches[0]; t0={x:t.clientX,y:t.clientY}; axis=null;
+    },{passive:true});
+    svg.addEventListener('touchmove',(e)=>{
+      if(!t0) return;
+      const t=e.touches[0];
+      if(!axis){
+        const dx=Math.abs(t.clientX-t0.x), dy=Math.abs(t.clientY-t0.y);
+        if(dx<6&&dy<6) return;            // too small to classify yet
+        axis = dx>dy ? 'x' : 'y';
+        if(axis==='y') return;            // let the page scroll; never scrub
+      }
+      if(axis==='x'){ e.preventDefault(); at(t.clientX); }
+    },{passive:false});
+    const tend=()=>{ if(axis==='x') end(); t0=null; axis=null; };
+    svg.addEventListener('touchend',tend);
+    svg.addEventListener('touchcancel',tend);};
   useEffect(()=>{render(kind);},[kind,render]);
   return (<>
     <div className="m2-ctabs"><div className="m2-cgroup">
@@ -159,7 +182,9 @@ function Intro({onDone}){
     t2=setTimeout(()=>{const fn=doneRef.current;if(fn)fn();},3400);
     return ()=>{if(raf)cancelAnimationFrame(raf);clearTimeout(t1);clearTimeout(t2);};
   },[]);
-  return (<div className="m2-intro" ref={rootRef}><canvas ref={cvRef}></canvas><div className="m2-iorb"></div><div className="m2-iword">PARTICLE</div><div className="m2-isub">MARKET INTELLIGENCE</div></div>);
+  // Tappable: 3.4s on top of the native splash is a long time to stare at a logo
+  // when you opened the app to check a price.
+  return (<div className="m2-intro" ref={rootRef} onClick={()=>{const fn=doneRef.current;if(fn)fn();}}><canvas ref={cvRef}></canvas><div className="m2-iorb"></div><div className="m2-iword">PARTICLE</div><div className="m2-isub">MARKET INTELLIGENCE</div><div className="m2-iskip">Tap to skip</div></div>);
 }
 
 /* ---------- tour ---------- */
@@ -303,11 +328,13 @@ export default function MobileAppV2(){
   const [tab,setTab]=useState('term');
   const [detail,setDetail]=useState(null);
   const [detailName,setDetailName]=useState(null);
-  const [intro,setIntro]=useState(true);
+  // The intro plays once per install, not on every cold start. Combined with the
+  // native splash it was ~5s before the app was usable.
+  const [intro,setIntro]=useState(()=>{try{return localStorage.getItem('m2intro')!=='1';}catch(e){return true;}});
   const [tour,setTour]=useState(false);
   const tabRefs=useRef({});
   const go=(t)=>{setDetail(null);setTab(t);const sc=document.querySelector('.m2-screen');if(sc)sc.scrollTop=0;};
-  const endIntro=()=>{setIntro(false);let seen=false;try{seen=localStorage.getItem('m2tour')==='1';}catch(e){}if(!seen)setTimeout(()=>setTour(true),250);};
+  const endIntro=()=>{setIntro(false);try{localStorage.setItem('m2intro','1');}catch(e){}let seen=false;try{seen=localStorage.getItem('m2tour')==='1';}catch(e){}if(!seen)setTimeout(()=>setTour(true),250);};
   const endTour=()=>{setTour(false);try{localStorage.setItem('m2tour','1');}catch(e){}};
 
   const { data } = useMarketData();
@@ -336,6 +363,39 @@ export default function MobileAppV2(){
   const COMM=[['GLD','Gold'],['USO','WTI crude'],['SLV','Silver'],['UNG','Nat gas'],['CORN','Corn']];
   const wl=((watchlist&&watchlist.length)?watchlist:['SPY','QQQ','AAPL','NVDA','GLD','BTCUSD','EWZ']).slice(0,8);
   const [vaultDocs,setVaultDocs]=useState(null);
+  // Tapping a vault row used to do nothing at all, even though the summary, ask
+  // and delete endpoints all existed. `doc` holds the open document; `docSum`
+  // caches its AI summary per id so reopening a row does not refetch.
+  const [doc,setDoc]=useState(null);
+  const [docSum,setDocSum]=useState({});
+  const [docBusy,setDocBusy]=useState(false);
+  const [docConfirm,setDocConfirm]=useState(false);
+  const [docErr,setDocErr]=useState(null);
+
+  const openDoc=useCallback((d)=>{
+    setDoc(d); setDocConfirm(false); setDocErr(null);
+    if(!d||docSum[d.id]!==undefined) return;
+    setDocBusy(true);
+    apiFetch(`/api/vault/documents/${d.id}/summary`)
+      .then(r=>r&&r.ok?r.json():null)
+      .then(j=>{ setDocSum(prev=>({...prev,[d.id]: (j&&j.summary) ? j.summary : null})); })
+      .catch(()=>{ setDocSum(prev=>({...prev,[d.id]:null})); })
+      .finally(()=>setDocBusy(false));
+  },[docSum]);
+
+  const deleteDoc=useCallback((d)=>{
+    if(!d) return;
+    setDocBusy(true); setDocErr(null);
+    apiFetch(`/api/vault/documents/${d.id}`,{method:'DELETE'})
+      .then(r=>{
+        if(!r||!r.ok) throw new Error('delete failed');
+        setVaultDocs(prev=>Array.isArray(prev)?prev.filter(x=>x.id!==d.id):prev);
+        setDoc(null); setDocConfirm(false);
+      })
+      .catch(()=>setDocErr('Could not delete that document. Try again.'))
+      .finally(()=>setDocBusy(false));
+  },[]);
+
   useEffect(()=>{let m=true;apiFetch('/api/vault/documents').then(r=>r&&r.ok?r.json():null).then(d=>{if(m&&d&&Array.isArray(d.documents))setVaultDocs(d.documents);}).catch(()=>{});return()=>{m=false;};},[]);
   const relTime=(iso)=>{if(!iso)return '';const t=(Date.now()-new Date(iso).getTime())/1000;if(t<3600)return Math.max(1,Math.round(t/60))+'m ago';if(t<86400)return Math.round(t/3600)+'h ago';return Math.round(t/86400)+'d ago';};
   const docTitle=(f)=>f?f.replace(/\.[^.]+$/,''):'Untitled';
@@ -511,7 +571,11 @@ export default function MobileAppV2(){
       {tab==='ai' && !detail && (<>
         <div className="m2-screen ai-pad">
           <div style={{height:'8px'}}></div>
-          <div className="m2-aihead"><div className="m2-orb"></div><div><b>Particle AI</b><br/><span><span className="m2-dot"></span>Grounded in markets + your vault</span></div></div>
+          <div className="m2-aihead"><div className="m2-orb"></div><div><b>Particle AI</b><br/><span><span className="m2-dot"></span>Grounded in markets + your vault</span></div>
+            {chat.messages.length>0 && (
+              <button className="m2-newchat" onClick={()=>{chat.newConversation&&chat.newConversation();setQ('');}} aria-label="New conversation" title="New conversation">NEW</button>
+            )}
+          </div>
           {chat.messages.length===0 ? (
             <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'0 32px',gap:14}}>
               <div className="m2-orb" style={{width:58,height:58}}></div>
@@ -548,7 +612,11 @@ export default function MobileAppV2(){
             </div>
           )}
         </div>
-        <div className="m2-composer"><div className="m2-cbox"><input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')submitAI();}} placeholder="Ask Particle anything…"/><button className="m2-send" onClick={submitAI}><I d={icons.send} w={18}/></button></div></div>
+        <div className="m2-composer"><div className="m2-cbox"><input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')submitAI();}} placeholder="Ask Particle anything…"/>
+          {chat.isStreaming
+            ? <button className="m2-send m2-stop" onClick={()=>chat.stop&&chat.stop()} aria-label="Stop generating" title="Stop generating"><span className="sq"></span></button>
+            : <button className="m2-send" onClick={submitAI} aria-label="Send"><I d={icons.send} w={18}/></button>}
+        </div></div>
       </>)}
 
       {/* VAULT */}
@@ -558,8 +626,8 @@ export default function MobileAppV2(){
           <div className="m2-sub">Your private research · {vaultDocs?vaultDocs.length:0} document{(vaultDocs&&vaultDocs.length===1)?'':'s'}</div>
           <button className="m2-askvault" onClick={()=>go('ai')} style={{width:'100%',textAlign:'left',fontFamily:'inherit',cursor:'pointer'}}><b>Ask your vault <I d={icons.arrow} w={13}/></b><p>Particle searches every document you’ve saved and answers with citations. Tap to ask.</p></button>
           <div className="m2-sec"><h3>Recent</h3></div>
-          {(vaultDocs&&vaultDocs.length?vaultDocs.slice(0,10):[]).map(doc=>(
-            <div className="m2-vcard" key={doc.id}><div className="m2-vico"><I d={icons.doc} w={19}/></div><div className="nm"><b>{docTitle(doc.filename)}</b><span>{docType(doc.filename)}{doc.chunk_count?(' · '+doc.chunk_count+' chunks'):''} · {relTime(doc.created_at)}</span></div></div>))}
+          {(vaultDocs&&vaultDocs.length?vaultDocs.slice(0,10):[]).map(d=>(
+            <button className="m2-vcard" key={d.id} onClick={()=>openDoc(d)}><div className="m2-vico"><I d={icons.doc} w={19}/></div><div className="nm"><b>{docTitle(d.filename)}</b><span>{docType(d.filename)}{d.chunk_count?(' · '+d.chunk_count+' chunks'):''} · {relTime(d.created_at)}</span></div><span className="m2-vchev"><I d={icons.arrow} w={14}/></span></button>))}
           {vaultDocs&&!vaultDocs.length && (<div className="m2-vcard"><div className="nm"><b>No documents yet</b><span>Add research from the desktop terminal and it appears here</span></div></div>)}
           {!vaultDocs && (<div className="m2-vcard"><div className="nm"><span>Loading your vault…</span></div></div>)}
         </div>
@@ -734,6 +802,48 @@ export default function MobileAppV2(){
         <button className={'m2-tab'+(tab==='term'?' on':'')} ref={el=>tabRefs.current.term=el} onClick={()=>go('term')}><span className="glow"></span><I d={icons.chart} w={23}/><span className="lb">Terminal</span></button>
         <button className={'m2-tab'+(tab==='vault'&&!detail?' on':'')} ref={el=>tabRefs.current.vault=el} onClick={()=>go('vault')}><span className="glow"></span><I d={icons.vault} w={23}/><span className="lb">Vault</span></button>
       </div></div>
+
+      {/* VAULT DOCUMENT SHEET */}
+      {doc && (
+        <div className="m2-sheetwrap" onClick={()=>{setDoc(null);setDocConfirm(false);}}>
+          <div className="m2-sheet" onClick={e=>e.stopPropagation()}>
+            <div className="m2-sheetgrip"></div>
+            <div className="m2-sheethead">
+              <div className="m2-vico"><I d={icons.doc} w={19}/></div>
+              <div className="m2-sheetid">
+                <b>{docTitle(doc.filename)}</b>
+                <span>{docType(doc.filename)}{doc.chunk_count?(' · '+doc.chunk_count+' chunks'):''} · {relTime(doc.created_at)}</span>
+              </div>
+              <button className="m2-sheetx" onClick={()=>{setDoc(null);setDocConfirm(false);}} aria-label="Close"><I d={icons.close} w={17}/></button>
+            </div>
+
+            <div className="m2-docsum">
+              {docBusy&&docSum[doc.id]===undefined ? <span className="mut">Reading the document…</span>
+                : docSum[doc.id] ? renderRich(docSum[doc.id])
+                : <span className="mut">No summary available for this document yet. You can still ask Particle about it.</span>}
+            </div>
+
+            {docErr && <div className="m2-docerr">{docErr}</div>}
+
+            <button className="m2-sheetrow" onClick={()=>{
+              const t=docTitle(doc.filename); setDoc(null); setTab('ai');
+              chat.send(`From my vault document "${t}": summarise the key points and tell me what matters for my positions. Cite the document.`);
+            }}><I d={icons.orb||icons.cite} w={18}/><span>Ask Particle about this</span><span className="m2-chev"><I d={icons.arrow} w={14}/></span></button>
+
+            {!docConfirm ? (
+              <button className="m2-sheetrow danger" onClick={()=>setDocConfirm(true)}><I d={icons.close} w={18}/><span>Delete document</span></button>
+            ) : (
+              <div className="m2-docconfirm">
+                <p>Delete “{docTitle(doc.filename)}” from your vault? Particle will no longer use it in answers. This cannot be undone.</p>
+                <div className="m2-docconfirm-row">
+                  <button className="m2-docbtn" onClick={()=>setDocConfirm(false)} disabled={docBusy}>Keep it</button>
+                  <button className="m2-docbtn danger" onClick={()=>deleteDoc(doc)} disabled={docBusy}>{docBusy?'Deleting…':'Delete'}</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {tour && <Tour tabRefs={tabRefs} onEnd={endTour}/>}
       {intro && <Intro onDone={endIntro}/>}
