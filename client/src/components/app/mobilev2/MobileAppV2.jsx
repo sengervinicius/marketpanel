@@ -338,7 +338,14 @@ export default function MobileAppV2(){
   const endIntro=()=>{setIntro(false);try{localStorage.setItem('m2intro','1');}catch(e){}let seen=false;try{seen=localStorage.getItem('m2tour')==='1';}catch(e){}if(!seen)setTimeout(()=>setTour(true),250);};
   const endTour=()=>{setTour(false);try{localStorage.setItem('m2tour','1');}catch(e){}};
 
-  const { data } = useMarketData();
+  // Take the failures too. The mobile screen used to destructure only `data`, so
+  // when every snapshot endpoint failed the UI simply rendered em-dashes with no
+  // hint of why -- indistinguishable from "markets are closed" or "still loading",
+  // and impossible to diagnose from a screenshot.
+  const { data, loading: mdLoading, error: mdError, endpointErrors, refresh: mdRefresh } = useMarketData();
+  const failedFeeds = Object.entries(endpointErrors || {})
+    .filter(([, v]) => !!v)
+    .map(([k, v]) => `${k}: ${v}`);
   const { watchlist, addTicker, removeTicker, isWatching } = useWatchlist();
   // The canonical store holds provider-prefixed symbols (C:USDBRL, X:BTCUSD, ^N225,
   // GC=F, PETR4.SA). The snapshot is keyed on plainer forms, so try every spelling.
@@ -547,6 +554,13 @@ export default function MobileAppV2(){
           </div>
           <div className="m2-h1">Terminal</div>
           <div className="m2-sub"><span className={'m2-dot'+(online?'':' off')}></span>{online?'Live':'Offline'} · {new Date().toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'})}</div>
+          {(failedFeeds.length>0 || mdError) && !mdLoading && (
+            <div className="m2-feederr">
+              <b>Market data unavailable</b>
+              <span>{failedFeeds.length?failedFeeds.join(' · '):String(mdError)}</span>
+              <button onClick={()=>mdRefresh&&mdRefresh()}>RETRY</button>
+            </div>
+          )}
           <BriefCard label={briefPreview} onOpen={openBrief}/>
           <div className="m2-sec"><h3>Global pulse</h3></div>
           <div className="m2-strip">
