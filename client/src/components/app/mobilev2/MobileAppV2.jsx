@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import './mobilev2.css';
+import { getProducts, productIdFor } from '../../../services/iap';
 import { useMarketData } from '../../../hooks/useMarketData';
 import { useWatchlist } from '../../../context/WatchlistContext';
 import { apiFetch } from '../../../utils/api';
@@ -424,9 +425,31 @@ export default function MobileAppV2(){
     {key:'nuclear_particle',label:'Nuclear Particle',monthly:199, annual:999,  regularAnnual:1990, blurb:'Everything, unlimited AI and priority data.'},
   ];
   const buyPlan=async(tierKey)=>{setBuying(tierKey);setAcctMsg(null);
-    try{ await auth.startCheckout(tierKey,cycle); setAcctMsg('Purchase complete — your plan is active.'); setShowPlans(false); }
+    try{
+      const r=await auth.startCheckout(tierKey,cycle);
+      // Cancelling Apple's sheet must not read as success -- the previous version
+      // announced "Purchase complete" for cancels and failures alike, because
+      // startCheckout never threw.
+      if(r&&r.cancelled){ return; }
+      setAcctMsg('Purchase complete — your plan is active.'); setShowPlans(false);
+    }
     catch(e){ setAcctMsg(e?.message||'Purchase could not be completed.'); }
     finally{ setBuying(null); }};
+
+  // Apple's own localised price strings for the six products. We show these in
+  // preference to the hardcoded numbers below: a price that disagrees with the
+  // App Store payment sheet is both confusing and a 2.3.1 metadata problem.
+  const [storePrices,setStorePrices]=useState(null);
+  useEffect(()=>{
+    if(!showPlans||!isIOS()||storePrices)return;
+    let alive=true;
+    getProducts().then(list=>{
+      if(!alive||!Array.isArray(list)||!list.length)return;
+      const byId={}; list.forEach(p=>{ byId[p.id]=p; });
+      setStorePrices(byId);
+    }).catch(()=>{});
+    return()=>{alive=false;};
+  },[showPlans,storePrices]);
   const [delStep,setDelStep]=useState(0);      // 0 idle · 1 confirm · 2 deleting
   const [acctMsg,setAcctMsg]=useState(null);
   const [online,setOnline]=useState(typeof navigator==='undefined'?true:navigator.onLine!==false);
@@ -701,19 +724,23 @@ export default function MobileAppV2(){
             </div>
             {PLANS.map(pl=>{const price=cycle==='annual'?pl.annual:pl.monthly;const per=cycle==='annual'?'year':'month';
               const promo=cycle==='annual'&&pl.regularAnnual;
+              // Apple's localised string wins when StoreKit has answered.
+              const pid=productIdFor(pl.key,cycle);
+              const sp=storePrices&&pid?storePrices[pid]:null;
+              const shown=sp?sp.price:`$${price}`;
               return (
                 <div className="m2-plan" key={pl.key}>
                   <div className="m2-planhead">
                     <b>{pl.label}</b>
                     <div className="m2-planprice">
-                      {promo&&<s>${pl.regularAnnual}</s>}
-                      <span>${price}</span><i>/{per}</i>
+                      {promo&&!sp&&<s>${pl.regularAnnual}</s>}
+                      <span>{shown}</span><i>/{per}</i>
                     </div>
                   </div>
                   {promo&&<div className="m2-planpromo">LAUNCH PROMO · 50% OFF</div>}
                   <p>{pl.blurb}</p>
                   <button className="m2-planbuy" disabled={!!buying} onClick={()=>buyPlan(pl.key)}>
-                    {buying===pl.key?'Processing…':`Subscribe · $${price}/${per}`}
+                    {buying===pl.key?'Processing…':`Subscribe · ${shown}/${per}`}
                   </button>
                 </div>);})}
             <p className="m2-legal">

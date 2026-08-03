@@ -460,16 +460,20 @@ export function AuthProvider({ children }) {
       const cycle = plan === 'annual' ? 'annual' : 'monthly';
       const productId = productIdFor(tier || 'new_particle', cycle);
       if (!productId) {
-        alert('This plan is not available on iOS.');
-        return;
+        throw new Error('This plan is not available on iOS.');
       }
       const result = await purchase(productId);
       if (result.ok) {
         await refreshSubscription();
-      } else {
-        alert(result.error || 'Purchase failed. Please try again.');
+        return { ok: true };
       }
-      return;
+      // A user cancelling the Apple sheet is not a failure -- report it as such
+      // so the caller can stay quiet instead of showing an error.
+      if (result.cancelled) return { ok: false, cancelled: true };
+      // Throw rather than alert(): callers already render messages inline, and a
+      // native alert on iOS looks like a crash. Swallowing this was why the UI
+      // said "Purchase complete" even when the purchase had failed.
+      throw new Error(result.error || 'Purchase failed. Please try again.');
     }
 
     // Web / Android → Stripe

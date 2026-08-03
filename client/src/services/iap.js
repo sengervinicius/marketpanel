@@ -2,10 +2,23 @@
  * iap.js
  *
  * Apple In-App Purchase service for iOS native builds.
- * Uses the Capacitor Purchases plugin (RevenueCat) or a direct StoreKit bridge.
+ *
+ * Backed by @capgo/native-purchases (StoreKit 2, pure Capacitor -- no Cordova, so
+ * it integrates with this project's SPM setup). The plugin presents Apple's real
+ * payment sheet and returns a Transaction carrying the base64 App Store receipt,
+ * which we forward to the server as `receiptData` for verification against
+ * Apple's verifyReceipt API.
+ *
+ * HISTORY -- worth knowing, because the previous version looked finished and was
+ * not: purchase() used to POST only { productId } to the server while a comment
+ * claimed "StoreKit purchase is handled natively via Capacitor plugin". No such
+ * plugin was installed and there was no StoreKit code anywhere in the iOS target,
+ * so no payment sheet was ever shown. The server (correctly) fails closed without
+ * a receipt, so every purchase attempt returned 400 "Receipt data is required."
+ * An advertised subscription that cannot be bought is an App Review 2.1 rejection.
  *
  * This module provides a unified billing interface:
- *   - On iOS: uses Apple IAP via registerPlugin
+ *   - On iOS: Apple IAP via StoreKit 2
  *   - On web/Android: falls back to Stripe checkout (existing flow)
  *
  * Product IDs must match App Store Connect configuration (six auto-renewable
@@ -15,6 +28,7 @@
  *   nuclear_particle: com.theparticle.app.nuclear.monthly / com.theparticle.app.nuclear.annual
  */
 
+import { NativePurchases, PURCHASE_TYPE } from '@capgo/native-purchases';
 import { isIOS, isWeb } from './platform';
 
 import { apiFetch } from '../utils/api';
@@ -64,13 +78,18 @@ export async function getProducts() {
   if (!isIOS()) return [];
 
   try {
-    const token = localStorage.getItem('token');
-    const res = await apiFetch('/api/billing/iap/products', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error('Failed to fetch products');
-    const data = await res.json();
-    return data.products || [];
+    const ids = Object.values(IAP_PRODUCTS);
+    const { products } = await NativePurchases.getProducts({ productIdentifiers: ids });
+    // Apple's own localised price strings -- never our hardcoded numbers. A price
+    // that disagrees with the App Store sheet is a 2.3.1 problem.
+    return (products || []).map((p) => ({
+      id: p.identifier,
+      title: p.title,
+      description: p.description,
+      price: p.priceString,
+      priceAmount: p.price,
+      currencyCode: p.currencyCode,
+    }));
   } catch (e) {
     console.error('[iap] getProducts error:', e.message);
     return [];
@@ -90,10 +109,34 @@ export async function purchase(productId) {
     return { ok: false, error: 'IAP only available on iOS. Use Stripe checkout.' };
   }
 
+  let tx;
   try {
-    // StoreKit purchase is handled natively via Capacitor plugin
-    // The native plugin will present the Apple payment sheet
-    // After purchase, the receipt is sent to our server for validation
+    // 1. Present Apple's payment sheet. This throws if the user cancels.
+    tx = await NativePurchases.purchaseProduct({
+      productIdentifier: productId,
+      // PURCHASE_TYPE is a STRING enum ('subs' / 'inapp'), not a number. Passing 1
+      // here silently mis-typed every purchase.
+      productType: PURCHASE_TYPE.SUBS,
+    });
+  } catch (e) {
+    const msg = String(e?.message || e || '');
+    // A cancel is not an error worth showing as a failure.
+    if (/cancel/i.test(msg)) return { ok: false, cancelled: true };
+    console.error('[iap] StoreKit purchase error:', msg);
+    return { ok: false, error: msg || 'The App Store could not complete the purchase.' };
+  }
+
+  // 2. Hand the receipt to our server, which verifies it with Apple before
+  //    granting anything. Without receiptData the server rejects by design.
+  const receiptData = tx?.receipt || null;
+  if (!receiptData) {
+    return {
+      ok: false,
+      error: 'The App Store did not return a receipt. If you were charged, use Restore purchases.',
+    };
+  }
+
+  try {
     const token = localStorage.getItem('token');
     const res = await apiFetch('/api/billing/iap/purchase', {
       method: 'POST',
@@ -101,18 +144,28 @@ export async function purchase(productId) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ productId }),
+      body: JSON.stringify({
+        productId,
+        receiptData,
+        transactionId: tx?.transactionId || null,
+      }),
     });
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Purchase failed');
+      throw new Error(data.error || 'We could not verify the purchase.');
     }
 
     return { ok: true };
   } catch (e) {
-    console.error('[iap] purchase error:', e.message);
-    return { ok: false, error: e.message };
+    // The charge succeeded at Apple but our verification failed. Say so plainly
+    // and point at Restore, which re-runs verification -- do not imply the user
+    // was not charged.
+    console.error('[iap] verification error:', e.message);
+    return {
+      ok: false,
+      error: `${e.message} Your purchase went through with Apple — open Restore purchases to finish activating it.`,
+    };
   }
 }
 
@@ -124,6 +177,16 @@ export async function purchase(productId) {
  */
 export async function restorePurchases() {
   try {
+    // Ask StoreKit to restore first so Apple re-issues the receipt for this
+    // Apple ID; then let the server re-verify and reconcile entitlement.
+    if (isIOS()) {
+      try {
+        await NativePurchases.restorePurchases();
+      } catch (e) {
+        console.warn('[iap] StoreKit restore warning:', e?.message || e);
+      }
+    }
+
     const token = localStorage.getItem('token');
     const res = await apiFetch('/api/billing/iap/restore', {
       method: 'POST',
@@ -144,22 +207,15 @@ export async function restorePurchases() {
 }
 
 /**
- * Get the appropriate billing action based on platform.
- * Returns a function that either starts IAP or Stripe checkout.
- *
- * @param {Function} stripeCheckout — Stripe checkout function from AuthContext
- * @returns {{ startPurchase: Function, isAppleIAP: boolean }}
+ * Whether this device can actually transact. Used to hide purchase UI rather
+ * than let a user tap a button that cannot work.
  */
-export function getBillingAction(stripeCheckout) {
-  if (isIOS()) {
-    return {
-      isAppleIAP: true,
-      startPurchase: (productId) => purchase(productId || IAP_PRODUCTS.NEW_MONTHLY),
-    };
+export async function isBillingAvailable() {
+  if (!isIOS()) return false;
+  try {
+    const { isBillingSupported } = await NativePurchases.isBillingSupported();
+    return !!isBillingSupported;
+  } catch {
+    return false;
   }
-
-  return {
-    isAppleIAP: false,
-    startPurchase: stripeCheckout,
-  };
 }
