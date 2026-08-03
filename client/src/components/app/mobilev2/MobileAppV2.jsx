@@ -797,7 +797,7 @@ export default function MobileAppV2(){
                   <b>{ent.vault?(ent.vault.limit==='unlimited'?`${ent.vault.used??0} · unlimited`:`${ent.vault.used??0} / ${ent.vault.limit??'—'}`):'—'}</b>
                 </div>
               </div>
-              <button className="m2-sheetrow" onClick={()=>{setShowPlans(true);setAcctMsg(null);}}><I d={icons.spark} w={17}/><span>Plans &amp; pricing</span><i className="m2-chev"><I d={icons.chev} w={15}/></i></button>
+              <button className="m2-sheetrow" onClick={()=>{setShowAccount(false);setDelStep(0);setShowPlans(true);setAcctMsg(null);}}><I d={icons.spark} w={17}/><span>Plans &amp; pricing</span><i className="m2-chev"><I d={icons.chev} w={15}/></i></button>
               {isIOS() && (
                 <button className="m2-sheetrow" onClick={doRestore}><I d={icons.restore} w={17}/><span>Restore purchases</span><i className="m2-chev"><I d={icons.chev} w={15}/></i></button>
               )}

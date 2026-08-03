@@ -196,8 +196,20 @@ export default function LoginScreen({ children }) {
 
       if (isNative() && isIOS()) {
         try {
-          const pluginId = '@capacitor-community' + '/apple-sign-in';
-          const mod = await import(/* @vite-ignore */ pluginId);
+          // A LITERAL specifier -- this matters.
+          //
+          // This used to build the module id by concatenating strings and pass
+          // /* @vite-ignore */, which told Vite not to resolve it. So the plugin
+          // was never bundled, and at runtime the WebView was asked to resolve a
+          // bare specifier ('@capacitor-community/apple-sign-in') -- something no
+          // browser can do. The import threw every time, was swallowed by the
+          // catch below, and every user saw "Native Apple Sign In failed",
+          // regardless of entitlements or server config. Sign in with Apple has
+          // therefore never worked in a native build.
+          //
+          // With a literal specifier Vite resolves and code-splits it properly,
+          // keeping the import lazy for web users who never call this path.
+          const mod = await import('@capacitor-community/apple-sign-in');
           const SignInWithApple = mod.SignInWithApple || mod.default;
           const result = await SignInWithApple.authorize({
             clientId: import.meta.env.VITE_APPLE_CLIENT_ID || 'com.the-particle.app',
@@ -210,8 +222,17 @@ export default function LoginScreen({ children }) {
             ? { name: { firstName: result.response.givenName, lastName: result.response.familyName }, email: result.response.email }
             : null;
         } catch (nativeErr) {
-          console.warn('[Apple Sign In] Native plugin not available', nativeErr);
-          throw new Error('Native Apple Sign In failed. Please try again.');
+          console.warn('[Apple Sign In] Native sign-in failed', nativeErr);
+          // A user cancelling the Apple sheet is not an error worth shouting about.
+          const raw = String(nativeErr?.message || nativeErr || '');
+          if (/cancel/i.test(raw) || nativeErr?.code === '1001') {
+            setAppleLoading(false);
+            return;
+          }
+          // Keep the real reason visible. The generic message hid a build issue
+          // for weeks -- there was nothing on screen to tell us the plugin had
+          // simply never been bundled.
+          throw new Error(raw ? `Apple Sign In failed: ${raw}` : 'Apple Sign In failed. Please try again.');
         }
       } else {
         if (!window.AppleID) {
