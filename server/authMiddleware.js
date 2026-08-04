@@ -80,6 +80,36 @@ async function populatePlanTier(req, res, next) {
 }
 
 /**
+ * The product rule is simple: every account gets TRIAL_DAYS (default 14) from
+ * signup. `users.trial_ends_at` is meant to encode that, but it is a single
+ * nullable column written at registration time -- if that write ever fails, or
+ * the value is stored in an unexpected shape, the user is silently locked out of
+ * everything behind requireActiveSubscription (which includes ALL market data).
+ * That is what happened: an account two days old was told "Trial expired".
+ *
+ * So we no longer trust that column alone. When it is missing or unusable we
+ * derive the trial window from created_at instead, which cannot disagree with the
+ * product rule. Note this does NOT resurrect old trials -- created_at + 14 days
+ * for an account made months ago is still in the past, so it expires correctly.
+ */
+const TRIAL_MS = (parseInt(process.env.TRIAL_DAYS, 10) || 14) * 24 * 60 * 60 * 1000;
+
+function effectiveTrialEnd(user, ctx) {
+  const raw = user.trialEndsAt;
+  const n = raw == null ? NaN : Number(raw);
+  if (Number.isFinite(n) && n > 0) return n;
+
+  const created = Number(user.createdAt);
+  if (Number.isFinite(created) && created > 0) {
+    // Visible, because a missing trial_ends_at is a data bug worth fixing at the
+    // source even though we now survive it.
+    console.warn(`[authMiddleware] trialEndsAt unusable (${JSON.stringify(raw)}) for user ${user.id}; deriving from createdAt${ctx ? ' via ' + ctx : ''}`);
+    return created + TRIAL_MS;
+  }
+  return null;
+}
+
+/**
  * requireActiveSubscription — must be used after requireAuth.
  * Checks trial or paid status. Returns 402 if subscription inactive.
  *
@@ -94,7 +124,7 @@ async function requireActiveSubscription(req, res, next) {
   if (!user) {
     try {
       const result = await pg.query(
-        'SELECT is_paid, subscription_active, trial_ends_at, plan_tier FROM users WHERE id = $1',
+        'SELECT is_paid, subscription_active, trial_ends_at, plan_tier, created_at FROM users WHERE id = $1',
         [userId]
       );
 
@@ -123,6 +153,7 @@ async function requireActiveSubscription(req, res, next) {
         // rather than what it is: every market-data request for such a user.
         // authStore hydrate/refresh already use Number(); this now matches.
         trialEndsAt: row.trial_ends_at != null ? Number(row.trial_ends_at) : null,
+        createdAt: row.created_at != null ? Number(row.created_at) : null,
         planTier: row.plan_tier || 'trial',
       };
     } catch (dbError) {
@@ -146,7 +177,8 @@ async function requireActiveSubscription(req, res, next) {
   }
 
   // Check if trial is still active (explicit logic)
-  const hasTrial = user.trialEndsAt && now < user.trialEndsAt;
+  const trialEnd = effectiveTrialEnd(user, user.__fromPg ? 'postgres' : 'memory');
+  const hasTrial = trialEnd != null && now < trialEnd;
   const isPaidActive = user.isPaid && user.subscriptionActive;
 
   if (!hasTrial && !isPaidActive) {
@@ -154,7 +186,7 @@ async function requireActiveSubscription(req, res, next) {
     return res.status(402).json({
       error: 'Trial expired. Subscribe to continue.',
       code: 'subscription_required',
-      trialEndsAt: user.trialEndsAt,
+      trialEndsAt: trialEnd,
     });
   }
 
