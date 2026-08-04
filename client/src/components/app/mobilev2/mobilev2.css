@@ -275,7 +275,11 @@ button.m2-askvault{border:1px solid var(--hair);color:inherit;-webkit-appearance
 
 /* ---------- vault document sheet ---------- */
 /* Rows are buttons now, so reset the UA button styling back to the card look. */
-button.m2-vcard{width:calc(100% - 40px);font-family:inherit;color:#fff;text-align:left;cursor:pointer;}
+/* Buttons inside the padded screen: let the 20px side margins define the
+   inset. A width of 100% on top of those margins overflowed by 40px, which
+   is why the vault cards ran off the right edge. */
+button.m2-vcard{width:auto;align-self:stretch;box-sizing:border-box;font-family:inherit;color:#fff;text-align:left;cursor:pointer;}
+.m2-askvault{width:auto;align-self:stretch;box-sizing:border-box;display:block;}
 button.m2-vcard:active{background:rgba(255,255,255,.06);}
 .m2-vchev{margin-left:auto;color:var(--mut2);display:flex;flex:none;}
 .m2-docsum{font-size:13px;line-height:1.6;color:#e8e8ee;padding:4px 2px 14px;border-bottom:1px solid rgba(255,255,255,.06);}

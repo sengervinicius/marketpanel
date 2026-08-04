@@ -661,7 +661,7 @@ export default function MobileAppV2(){
         <div className="m2-screen">
           <div className="m2-h1" style={{paddingTop:'6px'}}>Vault</div>
           <div className="m2-sub">Your private research · {vaultDocs?vaultDocs.length:0} document{(vaultDocs&&vaultDocs.length===1)?'':'s'}</div>
-          <button className="m2-askvault" onClick={()=>go('ai')} style={{width:'100%',textAlign:'left',fontFamily:'inherit',cursor:'pointer'}}><b>Ask your vault <I d={icons.arrow} w={13}/></b><p>Particle searches every document you’ve saved and answers with citations. Tap to ask.</p></button>
+          <button className="m2-askvault" onClick={()=>go('ai')} style={{textAlign:'left',fontFamily:'inherit',cursor:'pointer'}}><b>Ask your vault <I d={icons.arrow} w={13}/></b><p>Particle searches every document you’ve saved and answers with citations. Tap to ask.</p></button>
           <div className="m2-sec"><h3>Recent</h3></div>
           {(vaultDocs&&vaultDocs.length?vaultDocs.slice(0,10):[]).map(d=>(
             <button className="m2-vcard" key={d.id} onClick={()=>openDoc(d)}><div className="m2-vico"><I d={icons.doc} w={19}/></div><div className="nm"><b>{docTitle(d.filename)}</b><span>{docType(d.filename)}{d.chunk_count?(' · '+d.chunk_count+' chunks'):''} · {relTime(d.created_at)}</span></div><span className="m2-vchev"><I d={icons.arrow} w={14}/></span></button>))}

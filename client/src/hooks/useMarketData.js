@@ -59,7 +59,17 @@ async function fetchEndpoint(path) {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const res = await apiFetch(path);
-      if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+      if (!res.ok) {
+        // Carry the server's own explanation. 'HTTP 402' alone cannot tell us
+        // whether the account has no trial, an expired one, or was not found --
+        // three different fixes behind one status code.
+        let detail = '';
+        try {
+          const body = await res.clone().json();
+          detail = body?.code ? ` (${body.code}${body.error ? ': ' + body.error : ''})` : '';
+        } catch { /* non-JSON body */ }
+        throw new Error(`${path}: HTTP ${res.status}${detail}`);
+      }
       return res.json();
     } catch (e) {
       if (attempt < maxRetries) {
