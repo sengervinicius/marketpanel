@@ -241,6 +241,15 @@ export function SettingsProvider({ children, isAuthenticated }) {
   const [settings, setSettingsState] = useState(defaultSettings);
   const [subscription, setSubscription] = useState(null);
   const [loaded, setLoaded] = useState(false);
+  // Distinct from `loaded`. A FAILED load also has to end the loading state --
+  // otherwise the app hangs on a spinner -- but it must never be mistaken for
+  // "we know this user's settings". Without this flag the catch below left
+  // `settings` at the pristine defaults, the UI rendered them as if they were the
+  // user's own, and the debounced autosave then wrote those defaults back over
+  // the real saved config. That is how a live account lost its chart grid and
+  // watchlist: 12 default chart symbols and a truncated watchlist appeared out of
+  // nowhere after a server restart made this fetch fail.
+  const [loadFailed, setLoadFailed] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const debounceTimerRef = useRef(null);
 
@@ -248,7 +257,9 @@ export function SettingsProvider({ children, isAuthenticated }) {
   useEffect(() => {
     let mounted = true;
     if (!isAuthenticated) {
+      // Defaults ARE correct for a signed-out visitor, so this is not a failure.
       setSettingsState(defaultSettings());
+      setLoadFailed(false);
       setLoaded(true);
       return;
     }
@@ -306,14 +317,29 @@ export function SettingsProvider({ children, isAuthenticated }) {
           } catch (e) { swallow(e, 'context.settings.ls_hydrate'); }
         }
         if (data.subscription) setSubscription(data.subscription);
+        setLoadFailed(false);
         setLoaded(true);
       })
-      .catch(() => { if (mounted) setLoaded(true); });
+      .catch(() => {
+        if (!mounted) return;
+        // Loading finished, but we do NOT know this user's settings. Say so, and
+        // refuse to write anything until a load succeeds.
+        setLoadFailed(true);
+        setLoaded(true);
+      });
     return () => { mounted = false; };
   }, [isAuthenticated]);
 
   const persistSettings = useCallback(async (partial) => {
     if (!isAuthenticated) return false;
+    // THE GUARD. If we never successfully read this user's settings, whatever is
+    // in memory is the defaults, not theirs -- writing it would destroy their real
+    // configuration. Refuse, loudly, and wait for a successful load.
+    if (loadFailed) {
+      // eslint-disable-next-line no-console
+      console.warn('[settings] refusing to save: settings were never loaded for this session');
+      return false;
+    }
     try {
       const res = await apiFetch('/api/settings', {
         method: 'POST',
@@ -326,7 +352,7 @@ export function SettingsProvider({ children, isAuthenticated }) {
       setSettingsDirty(false);
       return true;
     } catch (e) { swallow(e, 'context.settings.persist'); return false; }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadFailed]);
 
   // Debounced server save (500ms delay) to batch rapid setting changes
   const debouncedPersist = useCallback((partial) => {
@@ -540,7 +566,7 @@ export function SettingsProvider({ children, isAuthenticated }) {
 
   return (
     <SettingsContext.Provider value={{
-      settings, subscription, loaded, settingsDirty,
+      settings, subscription, loaded, loadFailed, settingsDirty,
       updateSettings, updatePanelConfig, applyPreset, applyTemplate, completeOnboarding,
       updateLayout, updateHomeSection, addToHomeSection, updateChartsConfig,
       markTourCompleted, resetTour, resetToDefaults, acceptTerms, completeParticleOnboarding,
