@@ -111,7 +111,18 @@ async function requireActiveSubscription(req, res, next) {
         id: userId,
         isPaid: row.is_paid,
         subscriptionActive: row.subscription_active,
-        trialEndsAt: row.trial_ends_at ? new Date(row.trial_ends_at).getTime() : null,
+        // trial_ends_at is BIGINT (epoch ms). node-postgres returns BIGINT as a
+        // STRING to avoid precision loss, and `new Date('1786953600000')` does not
+        // parse an epoch-ms string -- it tries to read it as a date string, fails,
+        // and yields Invalid Date, so .getTime() was NaN. hasTrial then evaluated
+        // falsy and this middleware answered 402 'Trial expired' to users with
+        // almost two weeks of trial left.
+        //
+        // It only bit users NOT in the in-memory map (that path uses Number(),
+        // correctly), which is why it looked intermittent and platform-specific
+        // rather than what it is: every market-data request for such a user.
+        // authStore hydrate/refresh already use Number(); this now matches.
+        trialEndsAt: row.trial_ends_at != null ? Number(row.trial_ends_at) : null,
         planTier: row.plan_tier || 'trial',
       };
     } catch (dbError) {
