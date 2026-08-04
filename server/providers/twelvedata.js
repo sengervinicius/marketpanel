@@ -94,7 +94,9 @@ const TTL = {
 // Conservative limit prevents 429 errors from the API.
 let _requestsThisMinute = 0;
 let _minuteStart = Date.now();
-const MAX_RPM = 28; // leave headroom below ~30/min pro plan limit
+// Configurable so a plan upgrade does not need a code change. Keep a little
+// headroom below the real plan ceiling.
+const MAX_RPM = parseInt(process.env.TWELVEDATA_MAX_RPM, 10) || 28;
 
 function _checkRateLimit() {
   const now = Date.now();
@@ -103,7 +105,10 @@ function _checkRateLimit() {
     _minuteStart = now;
   }
   if (_requestsThisMinute >= MAX_RPM) {
-    throw new Error('[TwelveData] Rate limit reached — 750 req/min');
+    // Report the ACTUAL cap. This said "750 req/min" for months while the cap
+    // was 28, so every log line understated the problem by 27x and the real
+    // constraint stayed invisible.
+    throw new Error(`[TwelveData] local rate cap reached — ${MAX_RPM} req/min (set TWELVEDATA_MAX_RPM to raise after a plan upgrade)`);
   }
   _requestsThisMinute++;
 }
@@ -210,30 +215,93 @@ const YAHOO_TO_TD_EXCHANGE = {
 };
 
 /**
- * Parse a Yahoo-style symbol into Twelve Data symbol + exchange.
- * e.g. 'SAP.DE' → { symbol: 'SAP', exchange: 'XETR' }
- *      'AAPL'   → { symbol: 'AAPL', exchange: undefined }
- *      'CL=F'   → { symbol: 'CL', exchange: undefined }
+ * Parse a symbol from our internal vocabulary into what Twelve Data expects.
+ *
+ * Our symbols come from three different providers' conventions (Yahoo, Polygon
+ * and our own), and Twelve Data agrees with none of them. Only Yahoo exchange
+ * suffixes and bare futures roots were handled here, so indices, FX and crypto
+ * were sent through verbatim and rejected with HTTP 404 — each rejection still
+ * costing a request against the rate cap. That is why AAPL could be starved of
+ * budget by ^N225 failing.
+ *
+ * Mappings:
+ *   SAP.DE      -> { symbol: 'SAP', exchange: 'XETR' }   (unchanged)
+ *   ^GDAXI      -> { symbol: 'GDAXI' }                    caret stripped
+ *   C:USDBRL    -> { symbol: 'USD/BRL' }                  Polygon FX prefix
+ *   EURUSD      -> { symbol: 'EUR/USD' }                  bare 6-letter FX
+ *   X:BTCUSD    -> { symbol: 'BTC/USD' }                  Polygon crypto prefix
+ *   BTCUSD      -> { symbol: 'BTC/USD' }                  bare crypto
+ *   GC=F        -> unsupported                            see below
+ *   US10Y       -> unsupported
+ *
+ * `unsupported` exists so callers can skip the request entirely rather than
+ * spend a credit discovering a 404 again. Twelve Data does not carry CME futures
+ * or benchmark bond yields on these plans; those come from other providers.
  */
+
+// Fiat currencies we may see in a 6-character pair. Deliberately explicit --
+// pattern-matching any 6 letters would turn tickers like GOOGL. into FX.
+const FIAT = new Set([
+  'USD','EUR','GBP','JPY','CHF','AUD','CAD','NZD',
+  'BRL','MXN','CNY','CNH','JPYY','SEK','NOK','DKK','PLN','ZAR','TRY','INR','KRW','SGD','HKD','ILS',
+]);
+const CRYPTO_BASES = new Set([
+  'BTC','ETH','SOL','XRP','BNB','DOGE','ADA','AVAX','DOT','MATIC','LTC','LINK','TRX','SHIB','TON',
+]);
+
+// Symbols Twelve Data will never answer on these plans. Requesting them wastes
+// a slot in the rate window and returns nothing.
+const TD_UNSUPPORTED = new Set(['US10Y', 'US02Y', 'US30Y', 'DEFI.CN']);
+
+function splitPair(body) {
+  if (body.length !== 6) return null;
+  const a = body.slice(0, 3);
+  const b = body.slice(3);
+  if (CRYPTO_BASES.has(a) && FIAT.has(b)) return `${a}/${b}`;
+  if (FIAT.has(a) && FIAT.has(b)) return `${a}/${b}`;
+  return null;
+}
+
 function parseTicker(yahooSymbol) {
-  // Handle futures: CL=F → CL, BZ=F → BZ, GC=F → GC, etc.
-  if (yahooSymbol.toUpperCase().includes('=F')) {
-    return { symbol: yahooSymbol.replace(/=F$/i, ''), exchange: undefined };
+  const raw = String(yahooSymbol || '').trim();
+  const up = raw.toUpperCase();
+
+  if (TD_UNSUPPORTED.has(up)) return { symbol: raw, exchange: undefined, unsupported: true };
+
+  // CME/ICE futures — not carried by Twelve Data on these plans. Previously we
+  // stripped '=F' and asked for the bare root ('GC', 'BZ'), which 404s.
+  if (up.endsWith('=F')) return { symbol: raw, exchange: undefined, unsupported: true };
+
+  // Polygon prefixes.
+  if (up.startsWith('C:') || up.startsWith('X:')) {
+    const body = up.slice(2);
+    const pair = splitPair(body);
+    if (pair) return { symbol: pair, exchange: undefined };
+    return { symbol: body, exchange: undefined };
   }
 
+  // Index caret: ^GDAXI -> GDAXI, ^N225 -> N225.
+  if (up.startsWith('^')) return { symbol: up.slice(1), exchange: undefined };
+
+  // Bare 6-character FX / crypto pairs.
+  const bare = splitPair(up);
+  if (bare) return { symbol: bare, exchange: undefined };
+
   for (const [suffix, exchange] of Object.entries(YAHOO_TO_TD_EXCHANGE)) {
-    if (yahooSymbol.toUpperCase().endsWith(suffix.toUpperCase())) {
-      return {
-        symbol: yahooSymbol.slice(0, -suffix.length),
-        exchange,
-      };
+    if (up.endsWith(suffix.toUpperCase())) {
+      return { symbol: raw.slice(0, -suffix.length), exchange };
     }
   }
-  return { symbol: yahooSymbol, exchange: undefined };
+  return { symbol: raw, exchange: undefined };
 }
 
 function buildParams(yahooSymbol, extra = {}) {
-  const { symbol, exchange } = parseTicker(yahooSymbol);
+  const { symbol, exchange, unsupported } = parseTicker(yahooSymbol);
+  if (unsupported) {
+    const err = new Error(`[TwelveData] ${yahooSymbol} is not carried by this provider`);
+    err.code = 'td_unsupported';
+    throw err;
+  }
   const params = { symbol, ...extra };
   if (exchange) params.exchange = exchange;
   return params;

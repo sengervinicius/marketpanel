@@ -106,6 +106,16 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
     }
   }, THROTTLE_MS);
 
+  // Did this socket ever get past auth? Polygon accepts the TCP connection and
+  // then drops it with 1006 -- no close frame, no auth_success AND no auth_failed
+  // -- when the API key's plan does not include WebSocket streaming. Without
+  // tracking this we simply reconnected forever: 183 attempts, never one tick,
+  // and a log full of "connected" lines that looked healthy.
+  let _authOk = false;
+  let _authFailures = 0;
+  const AUTH_FAIL_LIMIT = 5;
+  const COLD_RETRY_MS = 15 * 60_000;
+
   function connect() {
     console.log(`[Polygon] Connecting to ${feedName} feed...`);
     ws = new WebSocket(wsUrl);
@@ -113,6 +123,7 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
     ws.on('open', () => {
       console.log(`[Polygon] ${feedName} connected`);
       reconnectDelay = 2000;
+      _authOk = false;
       if (marketState.feedMeta?.[feedName]) {
         marketState.feedMeta[feedName].lastStatusAt = Date.now();
         marketState.feedMeta[feedName].lastError = null;
@@ -132,6 +143,8 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
             break;
 
           case 'auth_success':
+            _authOk = true;
+            _authFailures = 0;
             console.log(`[Polygon] ${feedName} authenticated ✓`);
             ws.send(JSON.stringify({
               action: 'subscribe',
@@ -252,18 +265,50 @@ function connectFeed(feedName, wsUrl, marketState, broadcast) {
 
     ws.on('close', (code) => {
       clearInterval(pingInterval);
-      console.warn(`[Polygon] ${feedName} closed (${code}). Reconnecting in ${reconnectDelay}ms...`);
-      broadcast({ type: 'status', feed: feedName, level: 'degraded', message: `${feedName} reconnecting` });
+
+      // Dropped before auth ever succeeded. Count it: this is the entitlement
+      // signature, not a transient network blip, and hammering it does not help.
+      if (!_authOk) _authFailures += 1;
+
+      const entitlementSuspected = !_authOk && _authFailures >= AUTH_FAIL_LIMIT;
+      const nextDelay = entitlementSuspected
+        ? COLD_RETRY_MS
+        : Math.round(reconnectDelay + Math.random() * reconnectDelay * 0.3);
+
+      if (entitlementSuspected) {
+        // Say the diagnosis out loud ONCE per cold cycle rather than emitting a
+        // cheerful "connected" line every two seconds forever.
+        console.error(
+          `[Polygon] ${feedName}: socket accepted then closed with ${code} on ` +
+          `${_authFailures} consecutive attempts, with neither auth_success nor ` +
+          `auth_failed. That is what Polygon does when the API key's plan has no ` +
+          `WebSocket entitlement. Live streaming is unavailable for this feed; ` +
+          `REST polling still supplies prices. Backing off to ` +
+          `${COLD_RETRY_MS / 60000} min instead of retrying every 2s.`
+        );
+      } else {
+        console.warn(`[Polygon] ${feedName} closed (${code}). Reconnecting in ${nextDelay}ms...`);
+      }
+
+      broadcast({
+        type: 'status',
+        feed: feedName,
+        level: entitlementSuspected ? 'unavailable' : 'degraded',
+        message: entitlementSuspected
+          ? `${feedName} live stream unavailable (plan) — prices still update on refresh`
+          : `${feedName} reconnecting`,
+      });
+
       if (marketState.feedMeta?.[feedName]) {
         marketState.feedMeta[feedName].reconnects += 1;
         marketState.feedMeta[feedName].lastStatusAt = Date.now();
-        marketState.feedMeta[feedName].lastError = `Closed with code ${code}`;
+        marketState.feedMeta[feedName].lastError = entitlementSuspected
+          ? `closed ${code} before auth on ${_authFailures} attempts — WebSocket not entitled on this plan`
+          : `Closed with code ${code}`;
       }
-      // Phase 5: Jittered backoff to avoid thundering herd on reconnect
-      const jitter = Math.random() * reconnectDelay * 0.3; // up to 30% jitter
-      const delayWithJitter = Math.round(reconnectDelay + jitter);
-      setTimeout(connect, delayWithJitter);
-      reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+
+      setTimeout(connect, nextDelay);
+      reconnectDelay = entitlementSuspected ? 2000 : Math.min(reconnectDelay * 2, 30000);
     });
 
     ws.on('error', (err) => {
