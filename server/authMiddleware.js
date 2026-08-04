@@ -119,6 +119,7 @@ function effectiveTrialEnd(user, ctx) {
 async function requireActiveSubscription(req, res, next) {
   const userId = req.user?.id;
   let user = getUserById(userId);
+  let source = user ? 'memory' : 'postgres';
 
   // User not in memory — query Postgres
   if (!user) {
@@ -183,8 +184,21 @@ async function requireActiveSubscription(req, res, next) {
 
   if (!hasTrial && !isPaidActive) {
     // Neither trial nor paid subscription is active
+    // TEMPORARY DIAGNOSTIC (remove once the trial data issue is closed).
+    // The client surfaces `error` verbatim, so putting the deciding values here
+    // means we can see them on a device without shipping a new app build. These
+    // are the requester's own subscription facts, not anyone else's.
+    const diag = [
+      `src=${source}`,
+      `id=${userId}`,
+      `raw=${JSON.stringify(user.trialEndsAt)}`,
+      `created=${user.createdAt ? new Date(Number(user.createdAt)).toISOString().slice(0, 10) : 'null'}`,
+      `end=${trialEnd ? new Date(trialEnd).toISOString().slice(0, 10) : 'null'}`,
+      `paid=${user.isPaid ? 1 : 0}/${user.subscriptionActive ? 1 : 0}`,
+      `tier=${user.planTier || '-'}`,
+    ].join(' ');
     return res.status(402).json({
-      error: 'Trial expired. Subscribe to continue.',
+      error: `Trial expired. Subscribe to continue. [${diag}]`,
       code: 'subscription_required',
       trialEndsAt: trialEnd,
     });
