@@ -555,11 +555,21 @@ export default function MobileAppV2(){
           <div className="m2-h1">Terminal</div>
           <div className="m2-sub"><span className={'m2-dot'+(online?'':' off')}></span>{online?'Live':'Offline'} · {new Date().toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'})}</div>
           {(failedFeeds.length>0 || mdError) && !mdLoading && (
-            <div className="m2-feederr">
+            /* The whole card is the button. A small RETRY control inside a div was
+               apparently not reliably tappable on device, and there is no good
+               reason to make someone aim at a 36px target to recover from an error.
+               Note the feed also re-polls itself every 30s, so this is a shortcut,
+               not the only way out. */
+            <button
+              type="button"
+              className="m2-feederr"
+              onClick={()=>mdRefresh&&mdRefresh()}
+              aria-label="Retry loading market data"
+            >
               <b>Market data unavailable</b>
               <span>{failedFeeds.length?failedFeeds.join(' · '):String(mdError)}</span>
-              <button onClick={()=>mdRefresh&&mdRefresh()}>RETRY</button>
-            </div>
+              <i>TAP TO RETRY · retries automatically every 30s</i>
+            </button>
           )}
           <BriefCard label={briefPreview} onOpen={openBrief}/>
           <div className="m2-sec"><h3>Global pulse</h3></div>
