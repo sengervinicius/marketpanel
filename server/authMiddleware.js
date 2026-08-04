@@ -170,6 +170,26 @@ async function requireActiveSubscription(req, res, next) {
   // Attach plan tier to req.user for downstream route handlers
   req.user.planTier = user.planTier || 'trial';
 
+  // Admins are never paywalled out of their own product.
+  //
+  // isAdminUser is this codebase's canonical admin predicate and TWO other
+  // middlewares already use it to exempt admins -- aiQuotaGate and dailyAILimit.
+  // This one did not, so an admin whose 14-day trial had lapsed (i.e. the owner,
+  // who has no reason to ever pay) was 402'd out of ALL market data while still
+  // being exempt from AI quotas. That inconsistency is the actual reason the
+  // terminal went blank on the vsenger account, and no amount of trial-date
+  // repair would have fixed it.
+  const adminCheck = isAdminUser({
+    id: user.id != null ? user.id : userId,
+    email: user.email || req.user?.email || null,
+    username: user.username || req.user?.username || null,
+  });
+  if (adminCheck.ok) {
+    req.user.isAdmin = true;
+    if (!req.user.planTier || req.user.planTier === 'trial') req.user.planTier = 'nuclear';
+    return next();
+  }
+
   const now = Date.now();
 
   // Paid subscriber — always allow
