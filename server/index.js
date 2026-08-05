@@ -719,6 +719,11 @@ app.use('/api/risk', requireAuth,
   requestTimeout(30000),
   riskRoutes);
 
+// Self-test: no auth required. Returns only shapes, counts and booleans -- never
+// user data, prices or secrets -- so it is safe to expose and can be polled after
+// every deploy without anyone's credentials. See routes/selftest.js for why.
+app.use('/api/selftest', require('./routes/selftest'));
+
 // Feed health: no auth required (public endpoint for monitoring)
 app.use('/api/feed', feedRouter);
 

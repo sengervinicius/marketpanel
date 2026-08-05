@@ -110,6 +110,36 @@ function effectiveTrialEnd(user, ctx) {
 }
 
 /**
+ * decideSubscription(user, now) -> { allow, reason }
+ *
+ * The access decision, extracted as a PURE function so it can be exercised
+ * without a database, a request or a live account. It was previously inlined in
+ * the middleware, which meant the only way to find out what it did for a given
+ * user was to log in as them in production -- which is exactly how a type bug on
+ * trial_ends_at and a missing admin bypass both survived to reach real users.
+ *
+ * The middleware below and /api/selftest both call this, so what the self-test
+ * reports cannot drift from what actually gates traffic.
+ */
+function decideSubscription(user, now = Date.now()) {
+  if (!user) return { allow: false, reason: 'no_user' };
+
+  const adminCheck = isAdminUser({
+    id: user.id,
+    email: user.email || null,
+    username: user.username || null,
+  });
+  if (adminCheck.ok) return { allow: true, reason: 'admin' };
+
+  if (user.isPaid && user.subscriptionActive) return { allow: true, reason: 'paid' };
+
+  const trialEnd = effectiveTrialEnd(user, user.__ctx || null);
+  if (trialEnd != null && now < trialEnd) return { allow: true, reason: 'trial', trialEnd };
+
+  return { allow: false, reason: trialEnd == null ? 'no_trial' : 'trial_expired', trialEnd };
+}
+
+/**
  * requireActiveSubscription — must be used after requireAuth.
  * Checks trial or paid status. Returns 402 if subscription inactive.
  *
@@ -170,59 +200,35 @@ async function requireActiveSubscription(req, res, next) {
   // Attach plan tier to req.user for downstream route handlers
   req.user.planTier = user.planTier || 'trial';
 
-  // Admins are never paywalled out of their own product.
-  //
-  // isAdminUser is this codebase's canonical admin predicate and TWO other
-  // middlewares already use it to exempt admins -- aiQuotaGate and dailyAILimit.
-  // This one did not, so an admin whose 14-day trial had lapsed (i.e. the owner,
-  // who has no reason to ever pay) was 402'd out of ALL market data while still
-  // being exempt from AI quotas. That inconsistency is the actual reason the
-  // terminal went blank on the vsenger account, and no amount of trial-date
-  // repair would have fixed it.
-  const adminCheck = isAdminUser({
-    id: user.id != null ? user.id : userId,
-    email: user.email || req.user?.email || null,
+  // Single source of truth for the decision -- see decideSubscription above.
+  // The logic used to be inlined here, which is why /api/selftest could not
+  // report on it and why two bugs in it reached real users.
+  const decision = decideSubscription({ ...user, id: user.id != null ? user.id : userId,
     username: user.username || req.user?.username || null,
+    email: user.email || req.user?.email || null,
+    __ctx: source }, Date.now());
+
+  if (decision.allow) {
+    if (decision.reason === 'admin') {
+      req.user.isAdmin = true;
+      if (!req.user.planTier || req.user.planTier === 'trial') req.user.planTier = 'nuclear';
+    }
+    return next();
+  }
+
+  const trialEnd = decision.trialEnd || null;
+  const diag = [
+    `src=${source}`, `id=${userId}`, `reason=${decision.reason}`,
+    `raw=${JSON.stringify(user.trialEndsAt)}`,
+    `created=${user.createdAt ? new Date(Number(user.createdAt)).toISOString().slice(0, 10) : 'null'}`,
+    `end=${trialEnd ? new Date(trialEnd).toISOString().slice(0, 10) : 'null'}`,
+    `paid=${user.isPaid ? 1 : 0}/${user.subscriptionActive ? 1 : 0}`,
+  ].join(' ');
+  return res.status(402).json({
+    error: `Subscription required. [${diag}]`,
+    code: 'subscription_required',
+    trialEndsAt: trialEnd,
   });
-  if (adminCheck.ok) {
-    req.user.isAdmin = true;
-    if (!req.user.planTier || req.user.planTier === 'trial') req.user.planTier = 'nuclear';
-    return next();
-  }
-
-  const now = Date.now();
-
-  // Paid subscriber — always allow
-  if (user.isPaid && user.subscriptionActive) {
-    return next();
-  }
-
-  // Check if trial is still active (explicit logic)
-  const trialEnd = effectiveTrialEnd(user, user.__fromPg ? 'postgres' : 'memory');
-  const hasTrial = trialEnd != null && now < trialEnd;
-  const isPaidActive = user.isPaid && user.subscriptionActive;
-
-  if (!hasTrial && !isPaidActive) {
-    // Neither trial nor paid subscription is active
-    // TEMPORARY DIAGNOSTIC (remove once the trial data issue is closed).
-    // The client surfaces `error` verbatim, so putting the deciding values here
-    // means we can see them on a device without shipping a new app build. These
-    // are the requester's own subscription facts, not anyone else's.
-    const diag = [
-      `src=${source}`,
-      `id=${userId}`,
-      `raw=${JSON.stringify(user.trialEndsAt)}`,
-      `created=${user.createdAt ? new Date(Number(user.createdAt)).toISOString().slice(0, 10) : 'null'}`,
-      `end=${trialEnd ? new Date(trialEnd).toISOString().slice(0, 10) : 'null'}`,
-      `paid=${user.isPaid ? 1 : 0}/${user.subscriptionActive ? 1 : 0}`,
-      `tier=${user.planTier || '-'}`,
-    ].join(' ');
-    return res.status(402).json({
-      error: `Trial expired. Subscribe to continue. [${diag}]`,
-      code: 'subscription_required',
-      trialEndsAt: trialEnd,
-    });
-  }
 
   // User has an active trial or paid subscription
   return next();
@@ -317,4 +323,4 @@ function requireAdmin(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireActiveSubscription, populatePlanTier, requireAdmin, isAdminUser };
+module.exports = { requireAuth, requireActiveSubscription, populatePlanTier, requireAdmin, isAdminUser, decideSubscription, effectiveTrialEnd };
