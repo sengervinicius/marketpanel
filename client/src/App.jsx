@@ -26,30 +26,13 @@ import { WatchlistProvider } from './context/WatchlistContext';
 import { PanelProvider } from './context/PanelContext';
 import { ScreenProvider } from './context/ScreenContext';
 import { ParticleChatProvider } from './context/ParticleChatContext';
-import NotificationPrefs from './components/common/NotificationPrefs';
 import HeaderSearchBar from './components/common/HeaderSearchBar';
 import KeyboardShortcutsModal from './components/common/KeyboardShortcutsModal';
 import CommandPalette from './components/common/CommandPalette';
 import { PANEL_DEFINITIONS } from './config/panels';
 import FeedbackButton from './components/common/FeedbackButton';
-import { SearchPanel } from './components/panels/SearchPanel';
 // #253 P3.1 — lazy chunks moved to lazyPanels.js so App.jsx stays focused on shell composition.
 import {
-  ETFPanel,
-  AlertCenterPanel,
-  NewsPanel,
-  ScreenerPanel,
-  MacroPanel,
-  ChatPanel,
-  PredictionPanel,
-  PortfolioMobile,
-  HomePanelMobile,
-  ChartsPanelMobile,
-  MobileMoreScreen,
-  MarketsMobile,
-  WatchlistMobile,
-  BriefPanelMobile,
-  WelcomeTour,
   VaultPanel,
   AdminDashboard,
   InstrumentDetail,
@@ -87,15 +70,7 @@ import {
   DataErrorBanner,
   TrialBanner,
   SubscriptionExpiredScreen,
-  WelcomeSubscriptionModal,
 } from './components/app/AppStatusBanners';
-import {
-  MOBILE_TABS,
-  MobileTabBar,
-  MobileClockCompact,
-  ParticleModeBar,
-  TerminalSubNav,
-} from './components/app/AppMobile';
 import MobileAppV2 from './components/app/mobilev2/MobileAppV2';
 // Perf (#bundle): ParticleScreen pulls three.js (~490 kB min) via useParticleCanvas —
 // lazy-load it so the three chunk is only fetched when Particle mode mounts.
@@ -118,13 +93,12 @@ import './App.css';
 import './components/panels/Chat.css';
 // react-joyride v2+ uses inline styles — no separate CSS import needed
 
-const LS_TAB          = 'activeTab_m3';
 const LS_CHART_TICKER = 'chartTicker';
 
 export default function App() {
   const { data, loading, isRefreshing, lastUpdated, error: feedError, endpointErrors } = useMarketData();
   const { user, token, subscription, startCheckout, logout, authReady, openBillingPortal, refreshSubscription, restorePurchases, billingPlatform } = useAuth();
-  const { settings, loaded: settingsLoaded, updateLayout, resetToDefaults, acceptTerms } = useSettings();
+  const { settings, loaded: settingsLoaded, resetToDefaults, acceptTerms } = useSettings();
 
   // ── Boot sequence ────────────────────────────────────────────────────────
   const { isReady: bootReady } = useBootSequence({ authReady, user, settingsLoaded });
@@ -186,24 +160,6 @@ export default function App() {
     }
   }, [refreshSubscription]);
 
-  const [activeTab, setActiveTab] = useState(() => {
-    let saved;
-    try { saved = localStorage.getItem(LS_TAB); } catch { saved = null; }
-    // Wave 1: migrate retired top-level tabs to Home
-    if (saved === 'charts' || saved === 'search') return 'home';
-    // Use saved tab if valid, otherwise fall back to defaultStartTab from settings
-    if (MOBILE_TABS.find(t => t.id === saved)) return saved;
-    const startTab = settings?.defaultStartTab;
-    if (startTab && ['home','markets','brief','watchlist'].includes(startTab)) return startTab;
-    return 'home';
-  });
-  // ── 2-state mobile mode: 'particle' (AI screen) or 'terminal' (classic tabs) ──
-  // #288 / FIX-008 — when the URL has ?c=... it specifies the CHARTS-grid
-  // ticker list, which only applies in terminal mode. Honour the URL by
-  // forcing terminal mode on initial mount, even if the user last left
-  // the app on VAULT or PARTICLE. Without this, sharing the audit URL
-  // (or any deep link with ?c=) lands the recipient on whichever screen
-  // they last saw — not on the terminal the URL was scoped for.
   const [mobileMode, setMobileMode] = useState(() => {
     try {
       const urlHasC = typeof window !== 'undefined'
@@ -214,9 +170,17 @@ export default function App() {
   });
   const setMobileModePersist = (m) => { setMobileMode(m); try { localStorage.setItem('mobileMode', m); } catch (e) { swallow(e, 'App.ls.mobileMode'); } syncSettingToServer('mobileMode', m); };
 
-  // Secondary view inside "more" tab (charts, news, etf, chat)
-  const [moreView, setMoreView] = useState(null);
-  const [chatOpen, setChatOpen] = useState(false);
+  // #292 W4 — `chatOpen` state used to live here, but the only thing that
+  // ever READ it was the mobile-v1 chat overlay (now deleted). On desktop,
+  // InstrumentDetail's "Ask AI" and the command palette's chat action set
+  // it and nothing happened. The desktop chat surface is ParticleSidebar;
+  // open = expand it and focus its composer.
+  const openDesktopChat = useCallback(() => {
+    setSidebarCollapsed(false);
+    try { localStorage.setItem('particleSidebarCollapsed', 'false'); } catch (e) { swallow(e, 'App.ls.sidebarCollapsed'); }
+    syncSettingToServer('sidebarCollapsed', false);
+    setTimeout(() => { document.querySelector('.psb-search-input')?.focus(); }, 60);
+  }, []);
   // Wave 13: Desktop Particle sidebar + Spotlight
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('particleSidebarCollapsed') === 'true'; } catch { return false; }
@@ -229,8 +193,6 @@ export default function App() {
       return next;
     });
   }, []);
-  // spotlightOpen removed — spotlight replaced by header search focus
-  const setActiveTabPersist = (t) => { setActiveTab(t); localStorage.setItem(LS_TAB, t); syncSettingToServer('activeTab', t); };
 
   const [chartTicker, setChartTickerState] = useState(
     () => { try { return localStorage.getItem(LS_CHART_TICKER) || 'SPY'; } catch { return 'SPY'; } }
@@ -281,7 +243,7 @@ export default function App() {
     handleLayoutMove, handlePanelSwap,
     rowSizes, startRowResize,
     colSizesPerRow, startResizePerRow,
-    chartGridCount, setChartGridCount,
+    setChartGridCount,
     panelVisible, togglePanel, isPanelVisible, addPanel,
   } = useLayoutManager();
 
@@ -441,19 +403,7 @@ export default function App() {
     return () => window.removeEventListener('particle-prefill', handler);
   }, []);
 
-  const goChart = useCallback((t) => {
-    const sym = typeof t === 'object' ? (t.symbol || t) : t;
-    setChartTicker(sym);
-    // Wave 1: Charts lives under the More menu now.
-    setActiveTabPersist('more');
-    setMoreView('charts');
-  }, [setChartTicker]);
 
-  const goDetail = useCallback((t) => {
-    const sym = typeof t === 'object' ? (t.symbol || t.ticker || t) : t;
-    if (!sym) return;
-    setDetailTicker(sym);
-  }, []);
 
   // Listen for particle:action events from AI chat action buttons
   // Routes button clicks to appropriate terminal actions
@@ -577,7 +527,7 @@ export default function App() {
                 detail: { message: err.message || 'Could not update preferences', variant: 'error' },
               }));
             });
-        } catch (err) {
+        } catch {
           window.dispatchEvent(new CustomEvent('particle:toast', {
             detail: { message: 'Could not parse preferences', variant: 'error' },
           }));
@@ -608,7 +558,7 @@ export default function App() {
                 detail: { message: err.message || 'Could not delete alerts', variant: 'error' },
               }));
             });
-        } catch (err) {
+        } catch {
           window.dispatchEvent(new CustomEvent('particle:toast', {
             detail: { message: 'Could not delete alerts', variant: 'error' },
           }));
@@ -647,8 +597,6 @@ export default function App() {
           break;
         case 'chart_open':
           setChartTicker(ticker);
-          setActiveTabPersist('more');
-          setMoreView('charts');
           break;
         case 'watchlist_add':
           // Dispatch a secondary event that the WatchlistProvider child can pick up,
@@ -684,7 +632,7 @@ export default function App() {
     };
     window.addEventListener('particle:action', handler);
     return () => window.removeEventListener('particle:action', handler);
-  }, [setChartTicker, setActiveTabPersist]);
+  }, [setChartTicker]);
 
   // ── Onboarding check ─────────────────────────────────────────────────────
   // Only show onboarding AFTER settings are fully loaded from the server (not the
@@ -730,25 +678,6 @@ export default function App() {
     }
   }, [startCheckout]);
 
-  // ── Mobile-specific hooks (must be before any early return) ─────────────
-  const handleMoreNavigate = useCallback((view) => {
-    // Phase 4: Vault navigates to vault mode instead of a sub-view
-    if (view === 'vault') {
-      setMobileModePersist('vault');
-      return;
-    }
-    setMoreView(view);
-  }, []);
-  const handleMoreBack = useCallback(() => {
-    setMoreView(null);
-  }, []);
-  const mobileScreenTitle = useMemo(() => {
-    if (activeTab === 'more' && moreView) {
-      const titles = { news: 'News Feed', etf: 'ETF Screener', screener: 'Fundamental Screener', macro: 'Macro Panel', predictions: 'Prediction Markets', charts: 'Charts', search: 'Search', holdings: 'Holdings' };
-      return titles[moreView] || moreView;
-    }
-    return null;
-  }, [activeTab, moreView]);
 
   // ── Boot screen ─────────────────────────────────────────────────────────
   if (!bootReady) {
@@ -852,8 +781,7 @@ export default function App() {
               if (cmd.target === 'home') handleGoHome();
               else if (cmd.target === 'admin') { if (isAdmin) setMobileModePersist('admin'); }
             } else if (cmd.action === 'chat') {
-              if (isMobile) setChatOpen(true);
-              else { const el = document.querySelector('[data-tour="header"] input, .search-panel input'); if (el) el.focus(); }
+              openDesktopChat();
             } else if (cmd.action === 'ai-action') {
               if (cmd.target === 'morning-brief') setMobileModePersist('particle');
               else if (cmd.target === 'deep-analysis') setMobileModePersist('particle');
@@ -1097,6 +1025,21 @@ export default function App() {
           </div>
         )}
 
+        {/* ── Desktop Admin Mode ── */}
+        {/* #292 W4 — the ADMIN mode-bar button has set mobileMode='admin' since
+            #283, but the only <AdminDashboard> mount lived in the (now deleted)
+            mobile-v1 branch. On desktop the button highlighted and the content
+            area went blank. */}
+        {mobileMode === 'admin' && isAdmin && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'auto' }}>
+            <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Loading Admin...</div>}>
+              <PanelErrorBoundary name="AdminDashboard">
+                <AdminDashboard />
+              </PanelErrorBoundary>
+            </Suspense>
+          </div>
+        )}
+
         {/* ── Desktop Terminal Mode ── */}
         {mobileMode === 'terminal' && (<>
         {/* Search command strip — full width */}
@@ -1293,7 +1236,7 @@ export default function App() {
         )}
         </>)}
 
-        {detailTicker && !subscriptionExpired && <Suspense fallback={<InstrumentDetailSkeleton />}><PanelErrorBoundary name="InstrumentDetail"><InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} onOpenChat={() => setChatOpen(true)} /></PanelErrorBoundary></Suspense>}
+        {detailTicker && !subscriptionExpired && <Suspense fallback={<InstrumentDetailSkeleton />}><PanelErrorBoundary name="InstrumentDetail"><InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} onOpenChat={openDesktopChat} /></PanelErrorBoundary></Suspense>}
 
         {/* Global alert composer (invoked via particle:action → alert_set) */}
         {alertComposerTicker && (
@@ -1326,375 +1269,10 @@ export default function App() {
     );
   }
 
-  // ── MOBILE ───────────────────────────────────────────────────────────────
-  return (
-    <AppErrorBoundary>
-    <ScreenProvider>
-    <OpenDetailProvider externalTicker={detailTicker} externalSetTicker={setDetailTicker}>
-    <DragProvider>
-    <PortfolioProvider>
-    <WatchlistProvider>
-    <AlertsProvider>
-    <FeedStatusProvider status={feedStatus}>
-    <MarketProvider restData={mergedData}>
-    <MarketTickBridge batchTicks={batchTicks} />
-    <PriceProvider marketData={mergedData}>
-    <PanelProvider value={panelCtx}>
-    <ParticleChatProvider>
-    <OverlayProvider>
-    <div className="m-app-shell">
-
-      {/* Terms of Service acceptance (first login, mobile) */}
-      {showTermsModal && <TermsAcceptanceModal onAccept={handleAcceptTerms} />}
-
-      {/* Welcome tour rendered via portal from desktop branch — no duplicate needed */}
-
-      {/* Particle first-launch arrival sequence (mobile) */}
-      {/* Tier pricing modal (mobile) */}
-      <PricingModal
-        visible={showPricingModal}
-        onDismiss={() => setShowPricingModal(false)}
-        onSelectTier={handleTierCheckout}
-        currentTier={subscription?.tier || (subscription?.status === 'active' ? 'new_particle' : 'trial')}
-      />
-
-      {/* Keyboard shortcuts modal (mobile) */}
-      {showShortcuts && <KeyboardShortcutsModal onClose={() => setShowShortcuts(false)} />}
-
-      {/* Command Palette (mobile) */}
-      <CommandPalette
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        extraCommands={panelCommands}
-        initialQuery={paletteQuery}
-        onCommand={(cmd) => {
-          setCommandPaletteOpen(false);
-          if (cmd.action === 'panel-toggle') {
-            if (mobileMode !== 'terminal') setMobileModePersist('terminal');
-            togglePanel(cmd.target);
-            return;
-          }
-          if (cmd.action === 'overlay') {
-            window.dispatchEvent(new CustomEvent('particle-open-overlay', { detail: { id: cmd.target } }));
-            return;
-          }
-          if (cmd.action === 'navigate') {
-            if (cmd.target === 'home') handleGoHome();
-          } else if (cmd.action === 'chat') {
-            setChatOpen(true);
-          }
-        }}
-      />
-
-      {/* Global feedback pill (mobile) */}
-      <FeedbackButton />
-
-      {/* ── Mobile header ── */}
-      <div className="m-header" style={mobileMode === 'particle' ? { borderBottom: 'none' } : undefined}>
-        {/* Back button for secondary views or active sector screen (terminal only) */}
-        {mobileMode === 'terminal' && activeTab === 'more' && moreView ? (
-          <button className="btn m-header-back"
-            onClick={handleMoreBack}
-            aria-label="Back"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
-        ) : null}
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ParticleLogo size={22} /><span style={{ color: 'var(--accent)', fontWeight: 700, fontSize: 13, letterSpacing: '2.5px' }}>PARTICLE</span></span>
-        {/* Feed status dot */}
-        <div className="m-feed-dot" data-status={
-          Object.values(feedStatus).every(s => s === 'live') ? 'live'
-          : Object.values(feedStatus).some(s => s === 'live') ? 'partial' : 'off'
-        } />
-        <div className="flex-1" />
-        {/* Chat icon */}
-        <button className="chat-icon-btn" onClick={() => setChatOpen(true)} aria-label="Open chat">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-        </button>
-        {/* Mini clock */}
-        <MobileClockCompact />
-      </div>
-
-      {/* Settings drawer overlay */}
-      {settingsOpen && (
-        <div className="app-modal-overlay">
-          <div className="app-modal-drawer">
-            <SettingsDrawer mobile panelVisible={panelVisible} togglePanel={togglePanel} onClose={() => setSettingsOpen(false)} />
-          </div>
-        </div>
-      )}
-
-      {/* Trial banner (mobile) */}
-      <TrialBanner
-        subscription={subscription}
-        onUpgrade={handleCheckout}
-        onManageBilling={openBillingPortal}
-        billingState={billingState}
-      />
-
-      {/* Data feed error banner */}
-      <DataErrorBanner error={feedError} endpointErrors={endpointErrors} />
-
-      {/* Subscription expired screen */}
-      {subscriptionExpired ? (
-        <SubscriptionExpiredScreen
-          onUpgrade={handleCheckout}
-          onLogout={logout}
-          onManageBilling={openBillingPortal}
-          checkoutState={billingState}
-          subscription={subscription}
-        />
-      ) : (
-        <>
-          {/* ── Terminal sub-nav (compact pills) — shown only in terminal mode ── */}
-          {mobileMode === 'terminal' && (
-            <TerminalSubNav
-              activeTab={activeTab}
-              onTabChange={(tabId) => {
-                if (tabId === 'more' && activeTab === 'more') {
-                  setMoreView(null);
-                }
-                setActiveTabPersist(tabId);
-                if (tabId !== 'more') setMoreView(null);
-              }}
-            />
-          )}
-
-          {/* ── Tab content area ── */}
-          <div className="m-app-content">
-
-            {/* ── Particle AI screen (shown when mobileMode === 'particle') ── */}
-            <div style={{ flex: 1, display: mobileMode !== 'particle' ? 'none' : 'flex' }}>
-              <Suspense fallback={null}>
-                <ParticleScreen />
-              </Suspense>
-            </div>
-
-            {/* ── Vault screen (shown when mobileMode === 'vault') ── */}
-            <div style={{ flex: 1, display: mobileMode !== 'vault' ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Loading Vault...</div>}>
-                <VaultPanel fullScreen />
-              </Suspense>
-            </div>
-
-            {/* ── Admin Dashboard (shown when mobileMode === 'admin') ── */}
-            <div style={{ flex: 1, display: mobileMode !== 'admin' ? 'none' : 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Loading admin dashboard...</div>}>
-                <PanelErrorBoundary name="AdminDashboard">
-                  <AdminDashboard />
-                </PanelErrorBoundary>
-              </Suspense>
-            </div>
-
-            {/* Mobile tabs — ALWAYS mounted, hidden via display:none when not active or in particle mode */}
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'home' ? 'none' : 'flex' }}>
-              <PanelErrorBoundary name="Home">
-                <HomePanelMobile />
-              </PanelErrorBoundary>
-            </div>
-
-            {/* Markets — segmented Indexes / FX / Commodities / Rates / Sectors */}
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'markets' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
-              <PanelErrorBoundary name="Markets">
-                <Suspense fallback={null}>
-                  <MarketsMobile />
-                </Suspense>
-              </PanelErrorBoundary>
-            </div>
-
-            {/* Brief — the Daily Brief, finally on mobile */}
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'brief' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
-              <PanelErrorBoundary name="Brief">
-                <Suspense fallback={null}>
-                  <BriefPanelMobile onTickerClick={goDetail} />
-                </Suspense>
-              </PanelErrorBoundary>
-            </div>
-
-            {/* Watchlist — the real watchlist (not holdings) */}
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'watchlist' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
-              <PanelErrorBoundary name="Watchlist">
-                <Suspense fallback={null}>
-                  <WatchlistMobile />
-                </Suspense>
-              </PanelErrorBoundary>
-            </div>
-
-            {/* Charts — reachable from the More menu */}
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'charts' ? 'none' : 'flex' }}>
-              <PanelErrorBoundary name="Charts">
-                <ChartsPanelMobile />
-              </PanelErrorBoundary>
-            </div>
-
-            {/* Search — reachable from the More menu */}
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'search' ? 'none' : 'flex' }}>
-              <PanelErrorBoundary name="Search">
-                <SearchPanel onTickerSelect={goDetail} />
-              </PanelErrorBoundary>
-            </div>
-
-            {/* Holdings — reachable from the More menu (was the old Watchlist tab) */}
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'holdings' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
-              <PanelErrorBoundary name="Portfolio">
-                <PortfolioMobile
-                  onManage={() => { setMoreView('search'); }}
-                />
-              </PanelErrorBoundary>
-            </div>
-
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'alerts' ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
-              <PanelErrorBoundary name="Alerts">
-                <Suspense fallback={null}>
-                  <AlertCenterPanel />
-                </Suspense>
-              </PanelErrorBoundary>
-            </div>
-
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView ? 'none' : 'flex', flexDirection: 'column', minWidth: 0, width: '100%' }}>
-              <MobileMoreScreen
-                onNavigate={handleMoreNavigate}
-                onOpenChat={() => setChatOpen(true)}
-                user={user}
-                onSettings={() => setSettingsOpen(true)}
-                onLogout={logout}
-                onBilling={openBillingPortal}
-                isPaid={subscription?.status === 'active'}
-                subscription={subscription}
-              />
-            </div>
-
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'news' ? 'none' : 'flex' }}>
-              <PanelErrorBoundary name="News">
-                <Suspense fallback={null}>
-                  <NewsPanel />
-                </Suspense>
-              </PanelErrorBoundary>
-            </div>
-
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'etf' ? 'none' : 'flex' }}>
-              <PanelErrorBoundary name="ETF">
-                <ETFPanel />
-              </PanelErrorBoundary>
-            </div>
-
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'screener' ? 'none' : 'flex' }}>
-              <PanelErrorBoundary name="Screener">
-                <Suspense fallback={null}>
-                  <ScreenerPanel />
-                </Suspense>
-              </PanelErrorBoundary>
-            </div>
-
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'macro' ? 'none' : 'flex' }}>
-              <PanelErrorBoundary name="Macro">
-                <Suspense fallback={null}>
-                  <MacroPanel />
-                </Suspense>
-              </PanelErrorBoundary>
-            </div>
-
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'notification-prefs' ? 'none' : 'flex' }}>
-              <NotificationPrefs onClose={() => setMoreView(null)} />
-            </div>
-
-            {/* Phase 4: Prediction Markets mobile view */}
-            <div style={{ flex: 1, display: mobileMode !== 'terminal' || activeTab !== 'more' || moreView !== 'predictions' ? 'none' : 'flex' }}>
-              <PanelErrorBoundary name="Predictions">
-                <Suspense fallback={null}>
-                  <PredictionPanel />
-                </Suspense>
-              </PanelErrorBoundary>
-            </div>
-
-          </div>
-
-          {/* ── Bottom 2-state mode bar (Particle | Terminal) ── */}
-          <ParticleModeBar
-            mode={mobileMode}
-            onModeChange={(m) => {
-              setMobileModePersist(m);
-            }}
-          />
-        </>
-      )}
-
-
-      {/* ── Chat overlay (mobile full-screen / desktop slide-over) ── */}
-      {chatOpen && (
-        <>
-          <div className="chat-overlay-backdrop" onClick={() => setChatOpen(false)} />
-          <div className="chat-overlay">
-            <div className="chat-overlay-header">
-              <button className="chat-overlay-header-btn" onClick={() => setChatOpen(false)} aria-label="Close chat">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-              </button>
-              <span className="chat-overlay-header-title">Conversations</span>
-            </div>
-            <ChatPanel mobile />
-          </div>
-        </>
-      )}
-      {/* ── Instrument Detail bottom-sheet overlay ── */}
-      {detailTicker && !subscriptionExpired && (
-        <div className="m-detail-overlay">
-          <div className="m-detail-backdrop" onClick={() => setDetailTicker(null)} />
-          <div className="m-detail-sheet">
-            {/* Handle bar */}
-            <div className="m-detail-handle-row">
-              <div className="m-detail-handle" />
-            </div>
-            {/* Sheet header */}
-            <div className="m-detail-header">
-              <button
-                className="m-detail-close-btn"
-                onClick={() => setDetailTicker(null)}
-                aria-label="Close"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-                Back
-              </button>
-            </div>
-            {/* Scrollable content */}
-            <div className="m-detail-content">
-              <Suspense fallback={<InstrumentDetailSkeleton />}><PanelErrorBoundary name="InstrumentDetail"><InstrumentDetail ticker={detailTicker} onClose={() => setDetailTicker(null)} asPage onOpenChat={() => setChatOpen(true)} /></PanelErrorBoundary></Suspense>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Global alert composer (invoked via particle:action → alert_set) */}
-      {alertComposerTicker && (
-        <Suspense fallback={null}>
-          <AlertEditor
-            alert={null}
-            defaultSymbol={alertComposerTicker}
-            onClose={() => setAlertComposerTicker(null)}
-            mobile
-          />
-        </Suspense>
-      )}
-
-      <TickerTooltip />
-      <ToastContainer />
-    </div>
-    <OverlayHost />
-    </OverlayProvider>
-    </ParticleChatProvider>
-    </PanelProvider>
-    </PriceProvider>
-    </MarketProvider>
-    </FeedStatusProvider>
-    </AlertsProvider>
-    </WatchlistProvider>
-    </PortfolioProvider>
-    </DragProvider>
-    </OpenDetailProvider>
-    </ScreenProvider>
-    </AppErrorBoundary>
-  );
+  // #292 W4 — the mobile v1 shell that used to live here (~370 lines of
+  // activeTab/moreView JSX over PortfolioMobile, MobileMoreScreen,
+  // HomePanelMobile, ChartsPanelMobile, etc.) was unreachable: both the
+  // `if (isMobile)` and `if (!isMobile)` branches above return. Deleted
+  // along with the orphaned components it referenced.
+  return null;
 }
