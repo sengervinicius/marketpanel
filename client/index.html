@@ -25,19 +25,20 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
     <!-- SEO / Social -->
-    <meta name="description" content="Professional market data terminal — real-time prices, portfolio tracking, alerts, and analysis." />
+    <meta name="description" content="The Particle is an AI-native market terminal: live stocks, FX, crypto, commodities, bonds and options flow in one screen, with an AI analyst that uses real data. Deep Brazil B3 coverage. From US$29/month." />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
 
     <!-- Open Graph Meta Tags -->
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Particle — Professional Market Intelligence" />
+    <meta property="og:title" content="The Particle — AI-Native Market Terminal" />
     <meta property="og:description" content="AI-first market terminal — real-time prices, portfolio tracking, AI insights, and a private research vault. Built for investors who think differently." />
     <meta property="og:image" content="https://the-particle.com/og-image.png" />
     <meta property="og:url" content="https://the-particle.com/" />
-    <meta property="og:site_name" content="Particle" />
+    <meta property="og:site_name" content="The Particle" />
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Particle — Professional Market Intelligence" />
+    <meta name="twitter:title" content="The Particle — AI-Native Market Terminal" />
     <meta name="twitter:description" content="Real-time market data terminal with live prices, portfolio tracking, AI insights, and professional analysis tools." />
     <meta name="twitter:image" content="https://the-particle.com/og-image.png" />
 
@@ -49,7 +50,7 @@
     <!-- Display font for hero text — editorial serif -->
     <!-- Playfair Display self-hosted in /fonts/fonts.css (audit M11) -->
 
-    <title>Particle</title>
+    <title>The Particle — AI-Native Market Terminal for Stocks, FX, Crypto &amp; Bonds</title>
 
     <style>
       /* Prevent FOUC */
@@ -67,9 +68,82 @@
       /* Loading animation */
       @keyframes loader { 0%{transform:translateX(-100%)} 50%{transform:translateX(150%)} 100%{transform:translateX(-100%)} }
     </style>
+
+    <!-- #292 SEO — structured data so Google can render a software-product
+         result (name, category, price, rating slot, OS). -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://the-particle.com/#org",
+          "name": "Algotex Ltd",
+          "url": "https://the-particle.com/",
+          "logo": "https://the-particle.com/icon-512.png",
+          "email": "vinicius@arccapital.com.br"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://the-particle.com/#app",
+          "name": "The Particle",
+          "alternateName": "Particle Market Terminal",
+          "url": "https://the-particle.com/",
+          "image": "https://the-particle.com/og-image.png",
+          "description": "AI-native multi-asset market terminal. Live equities, FX, crypto, commodities, sovereign and corporate bonds, options flow and prediction markets, with an AI analyst that calls real data tools. Deep Brazil B3 coverage.",
+          "applicationCategory": "FinanceApplication",
+          "operatingSystem": "Web, iOS",
+          "publisher": { "@id": "https://the-particle.com/#org" },
+          "offers": [
+            { "@type": "Offer", "name": "New Particle", "price": "29", "priceCurrency": "USD", "category": "subscription", "url": "https://the-particle.com/" },
+            { "@type": "Offer", "name": "Dark Particle", "price": "79", "priceCurrency": "USD", "category": "subscription", "url": "https://the-particle.com/" },
+            { "@type": "Offer", "name": "Nuclear Particle", "price": "199", "priceCurrency": "USD", "category": "subscription", "url": "https://the-particle.com/" }
+          ],
+          "featureList": [
+            "Particle AI — LLM analyst with live data tools",
+            "US, European, Asian and Brazil B3 equities",
+            "FX, crypto, commodities, futures",
+            "Sovereign yield curves and corporate bonds",
+            "Options flow and prediction-market odds",
+            "Morning brief, watchlist, alerts",
+            "Private research vault with AI citations"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://the-particle.com/#site",
+          "url": "https://the-particle.com/",
+          "name": "The Particle",
+          "publisher": { "@id": "https://the-particle.com/#org" }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root">
+      <!-- #292 SEO — indexable content. React replaces everything in #root on
+           mount; until then (and for crawlers) this is the page. Off-canvas so
+           it never paints over the loader. -->
+      <main id="seo-content" style="position:absolute;left:-10000px;top:0;width:1px;height:1px;overflow:hidden;" aria-hidden="true">
+        <h1>The Particle — the AI-native market terminal</h1>
+        <p>The Particle is a multi-asset market terminal for investors, portfolio managers and analysts. Live prices for US, European, Asian and Brazilian equities, FX, crypto, commodities, futures, sovereign and corporate bonds, options flow and prediction markets — in one dark, fast screen. Built by Algotex Ltd.</p>
+        <h2>Particle AI: an analyst that uses real data</h2>
+        <p>Ask in plain language and get desk-analyst answers backed by live quotes, fundamentals, forward estimates, market movers, macro series, filings and web research. Particle AI builds comparables tables, runs scenarios and explains what is moving and why. Six investor personas route the same question through different lenses.</p>
+        <h2>Coverage</h2>
+        <ul>
+          <li>US, European and Asian equities</li>
+          <li>Brazil B3 with deep small-cap and FII coverage, BCB macro series and CVM filings</li>
+          <li>Major and emerging-market FX, crypto, energy, metals and agricultural commodities</li>
+          <li>US, Brazil DI, ECB and Swiss sovereign yield curves; corporate bonds</li>
+          <li>Options flow with expiry grouping; prediction-market odds on policy and macro events</li>
+        </ul>
+        <h2>Morning brief, watchlist, alerts, research vault</h2>
+        <p>A CIO-style top-three briefing every market morning, in-app and by email. A watchlist with freshness indicators. Price, volatility and news-spike alerts. Upload PDFs and broker notes to a private vault and have Particle AI cite from them.</p>
+        <h2>Pricing</h2>
+        <p>New Particle US$29/month. Dark Particle US$79/month adds Particle AI, the vault and deeper analytics. Nuclear Particle US$199/month: everything, unlimited AI and priority data. Annual billing available. iPhone app on the App Store.</p>
+        <p><a href="/privacy.html">Privacy policy</a> · <a href="/terms.html">Terms of service</a></p>
+      </main>
       <div id="app-loader" style="position:fixed;inset:0;background:#0a0a0f;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;font-family:'IBM Plex Mono',monospace;">
         <div style="font-size:32px;font-weight:600;color:#fff;letter-spacing:8px;margin-bottom:8px;">PARTICLE</div>
         <div style="font-size:12px;color:#666;letter-spacing:4px;margin-bottom:32px;">MARKET TERMINAL</div>
