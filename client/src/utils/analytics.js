@@ -67,6 +67,16 @@ function getApiHost() {
 export async function initAnalytics() {
   if (_initialised) return;
   if (typeof window === 'undefined') return;
+  // #292 W6 — never load PostHog inside the native iOS/Android shell. The
+  // app's PrivacyInfo.xcprivacy and App Store Connect privacy answers
+  // declare no analytics SDK and no tracking; because the shell remote-
+  // loads the-particle.com, a user who accepts the web cookie banner would
+  // otherwise pull the SDK in and make that declaration false. Web keeps
+  // the consent-gated behaviour below.
+  try {
+    const { isNative } = await import('../services/platform');
+    if (isNative()) return;
+  } catch (_) { /* platform module unavailable (tests) — fall through */ }
   const key = getApiKey();
   if (!key) return;                     // no PostHog key configured
   if (!hasConsent()) return;            // user hasn't opted in

@@ -1,97 +1,194 @@
-# Senger Market — App Store Readiness Assessment
+# The Particle — App Store Readiness
 
-Last updated: Phase 5E (April 2026)
+Last updated: 2026-10-15 (commit series #292 W1–W6). Supersedes the April
+"Senger Market" version of this file.
 
-## What Is Ready
+This is the honest state of the iOS (and Android) native wrapper as it sits
+in `main`. Section 1 is what is done and verified in code. Section 2 is
+what remains, split into (a) things that need a Mac + Xcode + App Store
+Connect — i.e. Vinicius — and (b) product decisions. Section 3 is the
+submission runbook in order.
 
-- **Core mobile UX**: 5-tab navigation (Home, Search, Portfolio, Alerts, More) with clean touch targets, safe-area handling, and app-like navigation patterns.
-- **PWA manifest**: standalone display mode, theme colors, app name/short name consistent, orientation support, categories declared.
-- **Key flows working**: search → instrument detail → add to portfolio/create alert, portfolio management with P&L, alerts with triggered badges, settings/account/billing access.
-- **Mobile-first components**: HomePanelMobile, PortfolioMobile, AlertsMobile, ChartsPanelMobile, MobileMoreScreen all use tokenized CSS primitives.
-- **iOS PWA tags**: apple-mobile-web-app-capable, status bar style, apple-touch-icon.
-- **Safe-area handling**: env(safe-area-inset-*) applied to header, tab bar, content areas, and toast notifications.
-- **Input zoom prevention**: font-size: 16px on mobile inputs prevents iOS auto-zoom.
-- **Overscroll behavior**: disabled rubber-banding for native feel.
-- **Capacitor native wrapper**: configured with `com.senger.market` bundle ID, iOS/Android platform settings, and remote server hostname.
-- **App icons**: all required sizes generated (192, 512, maskable-192, maskable-512, 1024) via `scripts/generate-icons.js`.
-- **Privacy policy**: publicly accessible at `/privacy.html`, covering data collection, storage, third-party services, deletion rights, and children's privacy.
-- **Account deletion**: `DELETE /api/auth/account` endpoint removes user account plus all portfolio, alert, and settings data. Two-step confirmation dialog in MobileMoreScreen. Satisfies Apple's account deletion requirement.
-- **Offline fallback**: service worker with stale-while-revalidate for static assets, network-first for API calls with cache fallback, and a dedicated `/offline.html` page for navigation failures.
-- **App Store screenshots**: Generated at all required App Store sizes (iPhone 6.7", 6.5", iPad 12.9") plus manifest screenshots (1080x1920 mobile, 2560x1440 desktop).
-- **App Store metadata**: Complete `APPSTORE_METADATA.md` with App Store Connect fields, description, keywords, review notes, screenshot captions.
-- **iOS and Android native projects**: Capacitor iOS (`ios/`) and Android (`android/`) platforms initialized, web assets synced, app icon in Xcode asset catalog.
-- **Apple IAP integration**: Server-side IAP routes (`/api/billing/iap/*`) for product listing, purchase validation, restore, and Apple webhook. Client-side platform detection (`services/platform.js`), IAP service (`services/iap.js`), platform-aware checkout in AuthContext, "Restore Purchases" button on iOS subscription screen.
+---
 
-## What Blocks App Store Submission
+## 1. Done and verified in code
 
-### Required Before Submission
+### Identity + branding
+- Bundle ID `com.the-particle.app` (iOS). Android `applicationId`
+  `com.the_particle.app` — Android forbids hyphens, so the two diverge by
+  one character; this is normal.
+- Display name "The Particle" on both platforms. Capacitor `appName`,
+  `ios.scheme`, Android `strings.xml`, Java package all match.
+- iOS AppIcon is the orange Particle orb (regenerated Oct 15).
+- Android launcher (legacy + round + adaptive foreground, all 5 densities)
+  and splash (port + land, all densities) regenerated from
+  `public/icon-1024.png` on the `#07070b` app background. Adaptive-icon
+  background colour switched from `#FFFFFF` to `#07070B` (no white ring
+  on masked launchers).
+- No "Senger" strings remain in user-visible surfaces. The
+  `senger-market-server` / `senger-market-client` Render service names
+  and matching CORS/CSP origins are live infrastructure identifiers and
+  are intentionally untouched.
+- `public/terms.html` pricing paragraph now lists the three USD tiers and
+  notes Apple IAP billing on iOS (was "£29 per month").
 
-1. **Xcode build and TestFlight**: Open `client/ios/App/App.xcworkspace` in Xcode, configure signing, build, test in Simulator, submit to TestFlight.
-2. **Apple Developer account setup**: Create app in App Store Connect, configure IAP products, upload screenshots.
-3. **Replace placeholder screenshots**: The generated screenshots are programmatic mockups. Capture final screenshots from Xcode Simulator at required resolutions.
-4. **Configure Apple IAP shared secret**: Set `APPLE_IAP_SHARED_SECRET` env var on Render for receipt validation.
+### Capacitor / native project
+- `npx cap sync ios` run: `CapApp-SPM/Package.swift` links 8 plugins
+  including `CapgoNativePurchases` (StoreKit) and
+  `CapacitorCommunityAppleSignIn`. iOS uses SPM — open `App.xcodeproj`
+  directly; there is no Podfile and none is needed on Capacitor 7.
+- `npx cap sync android` run: `capacitor.settings.gradle` now includes
+  all 8 plugin modules (was 1); `capacitor-cordova-android-plugins/`
+  exists so the project configures.
+- `@capacitor/push-notifications` REMOVED (plugin + config block). Nothing
+  in the client registered for push and `App.entitlements` has no
+  `aps-environment`; shipping the capability unused invites a review
+  question. Re-add when push is wired end-to-end (APNs + server sender).
+- `Info.plist`: `ITSAppUsesNonExemptEncryption=false` (kills the export-
+  compliance prompt on every upload), iPhone-only
+  (`TARGETED_DEVICE_FAMILY=1`), portrait-only, `arm64`.
+- `App.entitlements`: Sign in with Apple only. Correct for current scope.
+- `PrivacyInfo.xcprivacy` present: `NSPrivacyTracking=false`, UserDefaults
+  CA92.1, eight collected-data types all "linked, not tracking". Sentry
+  runs with `sendDefaultPii:false`. PostHog is now hard-gated OFF inside
+  the native shell (`utils/analytics.js`) so the "no analytics SDK"
+  declaration stays true even though the shell remote-loads the website.
 
-### Resolved Blockers (Phase 5D + 5E)
+### Billing (Guideline 3.1)
+- Six auto-renewable products, ids identical on client
+  (`services/iap.js IAP_PRODUCTS`), server (`config/tiers.js
+  appleProductId`) and the `/products` endpoint:
+  `com.theparticle.app.{new,dark,nuclear}.{monthly,annual}`.
+- Purchase: `NativePurchases.purchaseProduct` → receipt → POST
+  `/api/billing/iap/purchase` → server verifies with Apple (prod, sandbox
+  on 21007) → activates with Apple-verified expiry. Fails closed in
+  production without `APPLE_IAP_SHARED_SECRET` or a receipt. Cancel on
+  the Apple sheet is reported as `{cancelled:true}` and shows no success
+  message.
+- Restore (3.1.1): REAL as of W5. Client runs `AppStore.sync()`, reads
+  the device's subscription transactions via `getPurchases()`, sends the
+  receipt of the active/latest Particle product; server verifies, picks
+  the furthest-expiry entitlement for any of our product ids, and
+  activates it on the signed-in account if unexpired. Replies
+  distinguish restored / lapsed / none. `MobileAppV2.doRestore` refreshes
+  the entitlement on success and shows the honest message otherwise.
+  Restore button is on both the account sheet and the plans sheet.
+- Subscription screen (3.1.2): title, period, price, auto-renew
+  disclosure, cancel instructions, Terms (EULA) + Privacy links on the
+  SAME sheet as the Subscribe button. Apple's localised price string is
+  shown once StoreKit answers; the "LAUNCH PROMO · 50% OFF" badge and
+  the strikethrough are both suppressed in that case (2.3.1).
+- Manage subscription on iOS deep-links to
+  `apps.apple.com/account/subscriptions` via `UIApplication.open`.
 
-| Blocker | Resolution |
-|---|---|
-| Native wrapper | Capacitor configured + iOS/Android platforms added |
-| App icons | 5 PNG files generated at all required sizes, 1024px in Xcode assets |
-| Privacy policy | `/privacy.html` — publicly accessible |
-| Account deletion | `DELETE /api/auth/account` + MobileMoreScreen UI |
-| Offline fallback | Service worker v2 + `/offline.html` page |
-| App Store screenshots | Generated at iPhone 6.7", 6.5", iPad 12.9", mobile, desktop |
-| App Store metadata | `APPSTORE_METADATA.md` with description, keywords, review notes |
-| iOS/Android platforms | `npx cap add ios` + `npx cap add android` complete |
-| Apple IAP integration | Server routes `/api/billing/iap/*`, client platform detection, Restore Purchases |
+### Account (Guideline 5.1.1)
+- Sign in with Apple via the native plugin (no web redirect inside the
+  webview). Email/password also offered.
+- Account deletion: account sheet → "Delete account" → two-step confirm →
+  `DELETE /api/auth/account` → local wipe + reload.
+- Logout on the account sheet.
+- Terms-acceptance gate now mounted on mobile too (was desktop-only).
 
-## Apple In-App Purchase Strategy
+### UX verified for review screenshots
+- Safe-area insets on header, tab bar, composer, search, sheets.
+- Offline: header dot + "Offline" label; feed failures render a tappable
+  "Market data unavailable · TAP TO RETRY" card.
+- Empty states: watchlist (CTA into search), vault, AI chat.
+- 44pt touch targets across the v2 shell (upstream "pre-submission pass").
 
-### Current Billing Architecture
-Senger Market currently uses **Stripe** for subscription billing via web checkout. Payment information is handled entirely by Stripe and never touches our servers.
+---
 
-### iOS Billing Options
+## 2. What remains
 
-**Option A — Apple IAP for iOS (Recommended for Launch)**
-- Implement `@capacitor-community/in-app-purchases` or RevenueCat SDK.
-- Create subscription products in App Store Connect matching current tiers.
-- Detect platform at runtime: iOS native → Apple IAP; web/Android → Stripe.
-- Apple takes a 15-30% commission depending on revenue tier (15% for Small Business Program if under $1M/year).
-- Pros: full App Store compliance, no review risk.
-- Cons: revenue share, maintaining two billing systems.
+### (a) Needs a Mac + Xcode + App Store Connect — Vinicius
 
-**Option B — Reader App Exemption**
-- If Senger qualifies as a "reader app" (users consume previously purchased content), it may be exempt from IAP requirements.
-- Financial data apps can sometimes qualify, but Apple's interpretation is narrow.
-- Pros: avoid Apple's commission.
-- Cons: uncertain eligibility, possible rejection.
+1. **Signing.** `DEVELOPMENT_TEAM` is not set in `project.pbxproj`. Open
+   `client/ios/App/App.xcodeproj`, select the App target → Signing &
+   Capabilities → pick the Algotex team. Xcode will register the bundle
+   id and generate the provisioning profile. Confirm "Sign in with Apple"
+   shows as an enabled capability (it reads `App.entitlements`).
+2. **App Store Connect record.** Create the app with bundle id
+   `com.the-particle.app`, SKU `particle-market-001`. Paste listing copy
+   from `APPSTORE_METADATA.md` (rewritten — no competitor trademarks in
+   keywords or description).
+3. **Six IAP products.** Features → In-App Purchases → one subscription
+   group "Particle Terminal", six auto-renewables with the exact ids
+   above, ranked nuclear > dark > new. Prices per `APPSTORE_METADATA.md`.
+   Nuclear annual is 999 (Apple caps at 999.99) and the app frames it as
+   a launch promo — if you want the badge to show on the live sheet, add
+   a matching introductory offer in ASC; otherwise the app hides it.
+4. **Shared secret.** ASC → App → App Information → App-Specific Shared
+   Secret → copy into Render env `APPLE_IAP_SHARED_SECRET` on
+   `senger-market-server`. Without it production `/purchase` and
+   `/restore` return 503 by design.
+5. **Sign in with Apple server config.** `APPLE_CLIENT_ID` on Render must
+   equal the NATIVE bundle id (`com.the-particle.app`) for the
+   `identityToken` audience check. If web SIWA also needs to work, the
+   server must accept an array (web Services ID + native bundle id) —
+   see `server/routes/auth.js` Apple route; currently a single value.
+6. **Server-to-server notifications.** ASC → App Information → App Store
+   Server Notifications → Production URL
+   `https://<server>/api/billing/iap/webhook`. The handler currently
+   acknowledges but does not verify Apple's JWS or act on
+   renewal/cancellation — see decision (b)3.
+7. **Build + TestFlight.** `cd client && npm run cap:build:ios`, then in
+   Xcode Product → Archive → Distribute → App Store Connect. Test in a
+   sandbox-tester account: purchase each tier, cancel on the sheet,
+   restore on a second account, delete account.
+8. **Screenshots.** Capture from the Simulator at 6.7" and 6.5" (iPhone
+   only — iPad is not targeted). Captions in `APPSTORE_METADATA.md`.
+9. **App Privacy questionnaire.** Answers must match
+   `PrivacyInfo.xcprivacy`: the listed data types, all linked, none used
+   for tracking, no third-party advertising. Say NO to "Unrestricted Web
+   Access" and NO to gambling (Predictions is read-only odds).
+10. **Support URL.** `https://the-particle.com/support` does not exist
+    yet. Either create the page or point the field at a `mailto:`.
+    Apple requires it be distinct from the privacy policy URL.
+11. **Test account for review.** Provision one on Nuclear tier and put the
+    credentials in the "Sign-in required" section of the submission.
 
-**Option C — External Purchase Links (EU / US Regulatory)**
-- Under EU DMA and US court rulings, apps can link to external payment pages with proper disclosures.
-- Implement `StoreKit External Purchase Link` entitlement.
-- Pros: use existing Stripe flow, lower fees.
-- Cons: region-specific, requires Apple-approved disclosure UI.
+### (b) Product / architecture decisions
 
-### Recommended Approach
-Start with **Option A** for initial launch to ensure smooth App Store approval. Revenue under $1M/year qualifies for Apple's 15% Small Business Program rate. Evaluate Option C as regulations mature.
+1. **Remote-loading wrapper (Guideline 4.2 risk).** `capacitor.config.json`
+   has `server.hostname: "the-particle.com"`, so the native app is a
+   webview around the live site; `dist/` is bundled but ignored. Every
+   web deploy changes the reviewed app, and Apple can reject "web
+   wrappers" under minimum-functionality. Mitigation today: native SIWA,
+   native StoreKit, native share/haptics/keyboard — enough to argue it
+   is not a thin wrapper. The alternative is to remove `server.hostname`
+   and ship bundled assets (then each native release is a Xcode archive,
+   and `apiFetch`'s `API_BASE` must point at the server origin, which it
+   already does). Recommend: ship v1 remote-loading, move to bundled
+   assets for v1.1 once the review outcome is known.
+2. **Android / Google Play.** Not in scope for this submission, but the
+   project now configures. Android currently falls through to Stripe
+   hosted checkout via `window.location.href`, which violates Play
+   Billing policy for digital subscriptions — do not submit to Play
+   until `@capgo/native-purchases` is wired for Google Play Billing on
+   that path.
+3. **Webhook verification.** `/api/billing/iap/webhook` does not verify
+   Apple's JWS signature or process renewals/expirations. The daily IAP
+   reconciler (W5.1) re-verifies stored receipts, which covers lapses
+   within ~24h. Acceptable for launch; implement JWS verification +
+   event handling before scale.
+4. **Push.** Removed. If you want price-alert push on day one, that is a
+   separate piece of work: APNs key in ASC, `aps-environment`
+   entitlement, client registration + token POST, server sender.
 
-### Implementation Steps
-1. Create subscription products in App Store Connect.
-2. Add `@capacitor-community/in-app-purchases` to the project.
-3. Implement platform detection in the billing flow.
-4. Add receipt validation on the server (verify with Apple's `/verifyReceipt` endpoint).
-5. Map Apple subscription events to existing user subscription fields (`isPaid`, `subscriptionActive`, `trialEndsAt`).
+---
 
-## Recommended Next Steps (In Order)
+## 3. Submission runbook (in order)
 
-1. **Open in Xcode** — `cd client && npx cap open ios`. Configure signing with your Apple Developer team.
-2. **Create App Store Connect app** — Bundle ID `com.senger.market`, add IAP subscription products matching `IAP_PRODUCTS` in `services/iap.js`.
-3. **Set env vars on Render** — `APPLE_IAP_SHARED_SECRET` for receipt validation, `APPLE_CLIENT_ID` for Sign In with Apple.
-4. **Capture final screenshots** — Replace the generated placeholder screenshots with real captures from Xcode Simulator at required resolutions.
-5. **Test in Simulator** — Verify all flows: login, portfolio, alerts, charts, account deletion, offline fallback.
-6. **Submit to TestFlight** — Upload build, invite testers, validate IAP sandbox purchases.
-7. **Submit to App Store Review** — Use metadata from `APPSTORE_METADATA.md`.
-
-## Architecture Note
-
-The app is a React 18 + Vite SPA with an Express.js backend. The entire frontend builds to a static `dist/` folder, making it straightforward to wrap with Capacitor. No React Native migration is needed — the PWA is already optimized for mobile viewports and touch interactions.
+1. `git pull` on the Mac; `cd client && npm ci && npm run cap:build:ios`.
+2. Open `client/ios/App/App.xcodeproj`. Set team. Confirm capabilities.
+3. Product → Archive. Fix any signing errors. Upload to App Store Connect.
+4. In ASC: create the app, the six IAP products, the shared secret,
+   server notification URL. Put the shared secret in Render.
+5. TestFlight internal test: full purchase / cancel / restore / delete
+   cycle in sandbox on two accounts.
+6. Screenshots, listing copy, privacy answers, support URL, review notes
+   + test account.
+7. Submit. Expect one round of questions; the likely ones are 4.2 (web
+   wrapper — answer with the native features list above) and 3.1.2
+   (confirm the Terms/Privacy links are on the purchase sheet — they
+   are).
