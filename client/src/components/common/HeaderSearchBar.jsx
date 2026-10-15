@@ -107,11 +107,12 @@ export default function HeaderSearchBar({ onSelectTicker }) {
     selectedIdx, setSelectedIdx, clearSearch,
   } = useInstrumentSearch({ debounceMs: 200, registryLimit: 20 });
 
-  // Open on "/" or Cmd+K
+  // Open on "/". (#292 W3-D4 — Cmd/Ctrl+K was ALSO bound here, so the chord
+  // opened both this dropdown and App.jsx's CommandPalette at once. Cmd+K
+  // belongs to the palette; "/" is the search shortcut.)
   useEffect(() => {
     const handleKey = (e) => {
-      if ((e.key === '/' && !e.ctrlKey && !e.metaKey && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') ||
-          (e.key === 'k' && (e.metaKey || e.ctrlKey))) {
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault();
         setOpen(true);
         setTimeout(() => inputRef.current?.focus(), 50);

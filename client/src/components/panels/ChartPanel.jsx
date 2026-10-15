@@ -163,6 +163,15 @@ function AiInsightPopover({ insight, loading, error, onClose }) {
 const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, onSwap }) {
   const openDetail = useOpenDetail();
   const shared = useTickerPrice(ticker);
+  // #292 W3-D2 — LSE main-market equities (.L) are quoted in pence (GBX) by
+  // the chart/quote providers. InstrumentDetail already divides the hero
+  // price by 100; this panel rendered raw pence ("VOD 7250.00"). Scale bars,
+  // price, hi/lo and hover consistently and label as GBP. (The rare .L
+  // instrument quoted in whole pounds — some ETFs — will read 100x low; the
+  // provider doesn't expose the unit, so the suffix heuristic is the best
+  // available signal and matches tickerNormalize's CCY_SUFFIX map.)
+  const isGBX = /\.L$/i.test(String(ticker || ''));
+  const gbxScale = isGBX ? 0.01 : 1;
   // #247 P2.5 — HTML5 drag-and-drop is a no-op on touch devices and
   // hijacks scroll. Disable drag on mobile; users still get double-tap
   // to open the detail page.
@@ -175,6 +184,9 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
   const [high,    setHigh]    = useState(null);
   const [low,     setLow]     = useState(null);
   const [loading, setLoading] = useState(true);
+  // #292 W3-D1 — distinguish "fetch failed" from "no bars" so the panel can
+  // show a message + retry instead of an infinite shimmer.
+  const [fetchError, setFetchError] = useState(null);
   const [isDragOver,  setIsDragOver]  = useState(false);
   const [isDragging,  setIsDragging]  = useState(false);
   const [rangeIdx, setRangeIdx] = useState(0);
@@ -193,6 +205,7 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
 
   const fetchData = useCallback(async (rIdx) => {
     if (!ticker) return;
+    setFetchError(null);
     const range = RANGES[rIdx];
     if (mountedRef.current) setLoading(true);
     try {
@@ -228,6 +241,7 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
         const tod = bars.filter(b => b.t >= d0.getTime());
         if (tod.length > 0) bars = tod;
       }
+      if (gbxScale !== 1) bars = bars.map(b => ({ ...b, v: b.v * gbxScale }));
       setRawBars(bars);
       setData(bars);
       if (bars.length >= 2) {
@@ -246,12 +260,20 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
       }
       // Invalidate indicator cache on new data
       indCacheRef.current.clear();
-    } catch (_) {
-      if (mountedRef.current) { setRawBars([]); setData([]); }
+    } catch (err) {
+      if (mountedRef.current) {
+        setRawBars([]); setData([]);
+        // #292 W3-D1 — surface the failure; the render gate previously
+        // treated data.length===0 as "still loading" forever.
+        const msg = (err && err.name === 'AbortError')
+          ? 'Request timed out'
+          : (err && err.message) ? String(err.message).slice(0, 80) : 'Chart data unavailable';
+        setFetchError(msg);
+      }
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, [ticker]);
+  }, [ticker, gbxScale]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -394,7 +416,7 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
   }, [showAi, rawBars, fetchAiInsight]);
 
 
-  const dispPrice  = shared?.price ?? price;
+  const dispPrice  = (shared?.price != null ? shared.price * gbxScale : null) ?? price;
   const dispChg    = rangeIdx === 0 ? (shared?.change    ?? chg) : chg;
   const dispChgPct = rangeIdx === 0 ? (shared?.changePct ?? chgPct) : chgPct;
 
@@ -462,8 +484,8 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           {(hoverPrice ?? dispPrice) != null && (
-            <span className={`mc-price${hoverPrice != null ? ' mc-price--hover' : ''}`}>
-              {fmtPrice(hoverPrice ?? dispPrice)}
+            <span className={`mc-price${hoverPrice != null ? ' mc-price--hover' : ''}`} title={isGBX ? 'Quoted in pence (GBX); shown in pounds' : undefined}>
+              {fmtPrice(hoverPrice ?? dispPrice)}{isGBX && <span style={{ fontSize: 8, marginLeft: 3, color: 'var(--text-muted)', fontWeight: 400 }}>GBP</span>}
             </span>
           )}
           {dispChgPct != null && (
@@ -509,8 +531,25 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
 
       {/* Chart */}
       <div style={{ flex: 1, minHeight: 0, pointerEvents: isDragOver ? 'none' : 'auto', position: 'relative' }}>
-        {loading || data.length === 0 ? (
+        {/* #292 W3-D1 — three states: loading → shimmer; fetch error → message
+            + retry; empty-but-ok → "No data"; otherwise the chart. Previously
+            any failure left data=[] and the gate read that as loading forever. */}
+        {loading ? (
           <div className="mc-msg mc-skeleton-shimmer" style={{ opacity: 0.4 }}>&nbsp;</div>
+        ) : fetchError ? (
+          <div className="mc-msg" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, height: '100%', color: 'var(--text-muted)', fontSize: 10 }}>
+            <span style={{ color: 'var(--accent-danger, #d54a3f)' }}>{fetchError}</span>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => fetchData(rangeIdx)}
+              style={{ padding: '3px 10px', fontSize: 10, border: '1px solid var(--border-default)', borderRadius: 3, background: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+            >Retry</button>
+          </div>
+        ) : data.length === 0 ? (
+          <div className="mc-msg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 10 }}>
+            No chart data for this range
+          </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartBars} margin={{ top: 4, right: 2, bottom: 2, left: 0 }}

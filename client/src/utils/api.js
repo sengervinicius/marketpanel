@@ -57,7 +57,70 @@ function dedupeKey(path, options) {
   return `${options?.method || 'GET'}:${path}`;
 }
 
-let _refreshing = false;
+// #292 W3-D5 — single-flight refresh. Was a boolean: a second request that
+// 401'd while a refresh was in progress skipped the refresh and handed the
+// raw 401 back to its caller. Now every concurrent 401 awaits the SAME
+// refresh promise and retries once it settles.
+let _refreshPromise = null;
+
+/**
+ * Run (or join) the token-refresh sequence. Resolves to true if a new
+ * access token was obtained, false if the refresh token is dead (caller
+ * should surface the 401), and rethrows nothing — transient failures just
+ * resolve false after the retry schedule is exhausted.
+ */
+function refreshAccessToken() {
+  if (_refreshPromise) return _refreshPromise;
+  _refreshPromise = (async () => {
+    const RETRY_DELAYS = [500, 2000, 8000];
+    for (let attempt = 0; attempt < RETRY_DELAYS.length; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt - 1]));
+
+      const refreshHeaders = { 'Content-Type': 'application/json' };
+      if (_accessToken) refreshHeaders['Authorization'] = `Bearer ${_accessToken}`;
+      // ITP/Safari parity with AuthContext.refreshTokenFn: when the cookie is
+      // blocked, the stored refresh token in the body is the only credential.
+      let storedRefresh = null;
+      try { storedRefresh = localStorage.getItem('arc_refresh'); } catch (_) { /* storage may be disabled */ }
+
+      let refreshRes;
+      try {
+        refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, {
+          method: 'POST',
+          headers: refreshHeaders,
+          body: JSON.stringify({ refreshToken: storedRefresh }),
+          credentials: 'include',
+        });
+      } catch (netErr) {
+        console.warn(`[apiFetch] Refresh attempt ${attempt + 1} network error:`, netErr.message);
+        continue;
+      }
+
+      if (refreshRes.ok) {
+        const data = await refreshRes.json().catch(() => ({}));
+        if (data.token) {
+          _accessToken = data.token;
+          try { localStorage.setItem('arc_token', data.token); } catch (_) { /* ignore */ }
+        }
+        if (data.refreshToken) {
+          try { localStorage.setItem('arc_refresh', data.refreshToken); } catch (_) { /* ignore */ }
+        }
+        return true;
+      }
+      if (refreshRes.status === 401 || refreshRes.status === 403) {
+        // Refresh token is genuinely dead. Tell AuthContext NOW rather than
+        // letting the app sit on failing requests until its 13-min poll.
+        console.warn('[apiFetch] Refresh token invalid — giving up');
+        _accessToken = null;
+        try { window.dispatchEvent(new CustomEvent('particle:auth-expired')); } catch (_) { /* SSR/no window */ }
+        return false;
+      }
+      console.warn(`[apiFetch] Refresh attempt ${attempt + 1} returned ${refreshRes.status}, will retry`);
+    }
+    return false;
+  })().finally(() => { _refreshPromise = null; });
+  return _refreshPromise;
+}
 
 /**
  * Build headers including Authorization if we have a token.
@@ -109,73 +172,18 @@ export async function apiFetch(path, options = {}) {
         credentials: 'include',
       });
 
-      // #291 Wave 1.1 — exponential backoff for 401 retry, plus
-      // transient-error retry. Previously: ONE refresh attempt; if it
-      // failed for any reason (transient 5xx, refresh-token race with
-      // another tab) the user was logged out. Now: up to 3 attempts at
-      // 500ms / 2s / 8s with refresh-aware logic.
-      if (res.status === 401 && !_refreshing && path !== '/api/auth/refresh') {
-        _refreshing = true;
-        const RETRY_DELAYS = [500, 2000, 8000];
-        let refreshed = false;
-        let giveUp = false;
-        try {
-          for (let attempt = 0; attempt < RETRY_DELAYS.length && !refreshed && !giveUp; attempt++) {
-            if (attempt > 0) {
-              await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt - 1]));
-            }
-            const refreshHeaders = { 'Content-Type': 'application/json' };
-            if (_accessToken) refreshHeaders['Authorization'] = `Bearer ${_accessToken}`;
-
-            let refreshRes;
-            try {
-              refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, {
-                method: 'POST',
-                headers: refreshHeaders,
-                credentials: 'include',
-              });
-            } catch (netErr) {
-              // Network error — likely transient. Retry.
-              console.warn(`[apiFetch] Refresh attempt ${attempt + 1} network error:`, netErr.message);
-              continue;
-            }
-
-            if (refreshRes.ok) {
-              const refreshData = await refreshRes.json().catch(() => ({}));
-              if (refreshData.token) _accessToken = refreshData.token;
-              refreshed = true;
-              break;
-            }
-            // 401 from the refresh endpoint itself means the refresh
-            // token is genuinely invalid — no amount of retries will
-            // help. Stop immediately so AuthContext logs the user out
-            // cleanly rather than spinning for 10+ seconds.
-            if (refreshRes.status === 401 || refreshRes.status === 403) {
-              giveUp = true;
-              console.warn('[apiFetch] Refresh token invalid — giving up');
-              break;
-            }
-            // 5xx or 429 — transient. Retry.
-            console.warn(`[apiFetch] Refresh attempt ${attempt + 1} returned ${refreshRes.status}, will retry`);
-          }
-
-          if (refreshed) {
-            // Retry original request with the new token
-            const retryHeaders = buildHeaders(options.headers);
-            res = await fetch(`${API_BASE}${path}`, {
-              ...options,
-              signal: controller.signal,
-              headers: retryHeaders,
-              credentials: 'include',
-            });
-          }
-        } catch (e) {
-          // Defensive — should be unreachable because each fetch is
-          // wrapped above, but if it fires we want the user to fall
-          // through cleanly rather than be stuck.
-          console.error('[apiFetch] Token refresh chain failed:', e);
-        } finally {
-          _refreshing = false;
+      // #291 Wave 1.1 / #292 W3-D5 — on 401, join the single-flight refresh
+      // and retry the original request once if it succeeded.
+      if (res.status === 401 && path !== '/api/auth/refresh') {
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          const retryHeaders = buildHeaders(options.headers);
+          res = await fetch(`${API_BASE}${path}`, {
+            ...options,
+            signal: controller.signal,
+            headers: retryHeaders,
+            credentials: 'include',
+          });
         }
       }
 

@@ -270,6 +270,29 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener('storage', handler);
   }, []);
 
+  // #292 W3-D5 — apiFetch dispatches this when the refresh endpoint itself
+  // returns 401/403 (refresh token dead). Previously nothing listened, so
+  // the app sat on failing requests until the 13-minute subscription poll
+  // happened to 401 and log the user out. Clearing LS_TOKEN here also
+  // fires the `storage` handler above in sibling tabs.
+  useEffect(() => {
+    const onExpired = () => {
+      if (!tokenRef.current) return; // already logged out
+      console.warn('[AuthContext] refresh token rejected — logging out');
+      setUser(null);
+      setToken(null);
+      setSubscription(null);
+      clearAuthToken();
+      try {
+        localStorage.removeItem(LS_TOKEN);
+        localStorage.removeItem(LS_REFRESH);
+        localStorage.removeItem(LS_USER);
+      } catch (e) { swallow(e, 'auth.ls.clear.expired'); }
+    };
+    window.addEventListener('particle:auth-expired', onExpired);
+    return () => window.removeEventListener('particle:auth-expired', onExpired);
+  }, []);
+
   // W0.3 — Keep Sentry scope in sync with auth state (id + tier only, no PII)
   useEffect(() => {
     syncSentryUser(user, subscription);
