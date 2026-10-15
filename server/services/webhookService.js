@@ -69,7 +69,7 @@ function buildDiscordPayload(payload) {
   const appUrl = process.env.CLIENT_URL || 'https://senger-client.onrender.com';
 
   return {
-    username: 'Senger Alerts',
+    username: 'Particle Alerts',
     embeds: [{
       title: `Alert Triggered — ${payload.symbol}`,
       color: 0xff6600,
@@ -78,7 +78,7 @@ function buildDiscordPayload(payload) {
         { name: 'Condition', value: payload.condition || '—', inline: true },
         { name: 'Actual', value: payload.actualValue || '—', inline: true },
       ],
-      footer: { text: 'Senger Market Terminal' },
+      footer: { text: 'The Particle' },
       timestamp: payload.triggeredAt || new Date().toISOString(),
       url: appUrl,
     }],
@@ -123,7 +123,7 @@ async function sendAlertWebhook(webhookUrl, payload, opts = {}) {
   try {
     const res = await fetch(webhookUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': 'SengerMarketTerminal/1.0' },
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'TheParticle/1.0' },
       body: JSON.stringify(body),
       signal: controller.signal,
     });

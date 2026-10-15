@@ -78,7 +78,7 @@ function pctColor(v) {
 
 function brandHeader(y = 40) {
   return `
-    <text x="48" y="${y}" fill="${C.accent}" font-family="${C.fontUI}" font-size="16" font-weight="700" letter-spacing="4">SENGER</text>
+    <text x="48" y="${y}" fill="${C.accent}" font-family="${C.fontUI}" font-size="16" font-weight="700" letter-spacing="4">PARTICLE</text>
     <text x="132" y="${y}" fill="${C.faint}" font-family="${C.fontUI}" font-size="12" font-weight="500" letter-spacing="2">MARKET TERMINAL</text>
   `;
 }
@@ -211,12 +211,12 @@ async function generateCard(type, data) {
     case 'portfolio':
       svg = portfolioCardSVG(data);
       shareText = data.totalReturnPct != null
-        ? `${fmtPct(data.totalReturnPct)} on my portfolio. Tracking on Senger Market Terminal.`
-        : 'Check out my portfolio on Senger Market Terminal.';
+        ? `${fmtPct(data.totalReturnPct)} on my portfolio. Tracking on The Particle.`
+        : 'Check out my portfolio on The Particle.';
       break;
     case 'ticker':
       svg = tickerCardSVG(data);
-      shareText = `${data.symbol} at $${Number(data.price || 0).toFixed(2)} (${fmtPct(data.changePct)} today). Via Senger Market Terminal.`;
+      shareText = `${data.symbol} at $${Number(data.price || 0).toFixed(2)} (${fmtPct(data.changePct)} today). Via The Particle.`;
       break;
     default:
       throw new Error(`Unknown card type: ${type}`);

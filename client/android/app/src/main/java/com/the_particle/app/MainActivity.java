@@ -1,4 +1,4 @@
-package com.senger.market;
+package com.the_particle.app;
 
 import com.getcapacitor.BridgeActivity;
 

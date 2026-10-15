@@ -6,7 +6,7 @@
   "ios": {
     "contentInset": "never",
     "allowsLinkPreview": true,
-    "scheme": "Senger",
+    "scheme": "TheParticle",
     "backgroundColor": "#07070b",
     "scrollEnabled": true,
     "preferredContentMode": "mobile"

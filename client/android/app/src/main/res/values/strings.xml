@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Senger Market</string>
-    <string name="title_activity_main">Senger Market</string>
-    <string name="package_name">com.senger.market</string>
-    <string name="custom_url_scheme">com.senger.market</string>
+    <string name="app_name">The Particle</string>
+    <string name="title_activity_main">The Particle</string>
+    <string name="package_name">com.the_particle.app</string>
+    <string name="custom_url_scheme">com.the_particle.app</string>
 </resources>
