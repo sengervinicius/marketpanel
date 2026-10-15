@@ -100,52 +100,67 @@ submission runbook in order.
 
 ## 2. What remains
 
-### (a) Needs a Mac + Xcode + App Store Connect — Vinicius
+### (a) Build + upload — Codemagic (no Mac needed)
 
-1. **Signing.** `DEVELOPMENT_TEAM` is not set in `project.pbxproj`. Open
-   `client/ios/App/App.xcodeproj`, select the App target → Signing &
-   Capabilities → pick the Algotex team. Xcode will register the bundle
-   id and generate the provisioning profile. Confirm "Sign in with Apple"
-   shows as an enabled capability (it reads `App.entitlements`).
-2. **App Store Connect record.** Create the app with bundle id
-   `com.the-particle.app`, SKU `particle-market-001`. Paste listing copy
-   from `APPSTORE_METADATA.md` (rewritten — no competitor trademarks in
-   keywords or description).
-3. **Six IAP products.** Features → In-App Purchases → one subscription
-   group "Particle Terminal", six auto-renewables with the exact ids
-   above, ranked nuclear > dark > new. Prices per `APPSTORE_METADATA.md`.
-   Nuclear annual is 999 (Apple caps at 999.99) and the app frames it as
-   a launch promo — if you want the badge to show on the live sheet, add
-   a matching introductory offer in ASC; otherwise the app hides it.
-4. **Shared secret.** ASC → App → App Information → App-Specific Shared
-   Secret → copy into Render env `APPLE_IAP_SHARED_SECRET` on
-   `senger-market-server`. Without it production `/purchase` and
-   `/restore` return 503 by design.
-5. **Sign in with Apple server config.** `APPLE_CLIENT_ID` on Render must
-   equal the NATIVE bundle id (`com.the-particle.app`) for the
-   `identityToken` audience check. If web SIWA also needs to work, the
-   server must accept an array (web Services ID + native bundle id) —
-   see `server/routes/auth.js` Apple route; currently a single value.
-6. **Server-to-server notifications.** ASC → App Information → App Store
-   Server Notifications → Production URL
-   `https://<server>/api/billing/iap/webhook`. The handler currently
-   acknowledges but does not verify Apple's JWS or act on
-   renewal/cancellation — see decision (b)3.
-7. **Build + TestFlight.** `cd client && npm run cap:build:ios`, then in
-   Xcode Product → Archive → Distribute → App Store Connect. Test in a
-   sandbox-tester account: purchase each tier, cancel on the sheet,
-   restore on a second account, delete account.
-8. **Screenshots.** Capture from the Simulator at 6.7" and 6.5" (iPhone
-   only — iPad is not targeted). Captions in `APPSTORE_METADATA.md`.
-9. **App Privacy questionnaire.** Answers must match
-   `PrivacyInfo.xcprivacy`: the listed data types, all linked, none used
-   for tracking, no third-party advertising. Say NO to "Unrestricted Web
-   Access" and NO to gambling (Predictions is read-only odds).
-10. **Support URL.** `https://the-particle.com/support` does not exist
-    yet. Either create the page or point the field at a `mailto:`.
-    Apple requires it be distinct from the privacy policy URL.
-11. **Test account for review.** Provision one on Nuclear tier and put the
-    credentials in the "Sign-in required" section of the submission.
+`codemagic.yaml` (workflow `Particle iOS Release`) runs on a cloud Mac
+mini M2 with Xcode 26: `npm ci && npm run build` → `cap sync ios` →
+mints an Apple Distribution certificate + App Store provisioning profile
+via the `CodemagicASCKey` App Store Connect API-key integration → builds
+the IPA from `App.xcodeproj` (SPM, no Pods) → uploads to TestFlight.
+`VITE_API_URL` / `VITE_WS_URL` are baked in as the live
+`senger-server.onrender.com` origin. No `triggering:` block, so builds
+are started by hand in the Codemagic UI (or wire push-to-main there).
+
+To ship a build: codemagic.io → app → Start new build → `main` →
+`Particle iOS Release`. ~15 min. If it fails, read the log for the step
+name; the last ten commits on this file were exactly that loop.
+
+Known risk in the signing step: `fetch-signing-files --create` makes the
+bundle-id + profile, but the **Sign in with Apple capability must be
+enabled on the bundle id in the Apple Developer portal** (Identifiers →
+`com.the-particle.app` → Capabilities → Sign In with Apple) or the
+profile won't carry the `applesignin` entitlement and signing fails.
+Do that once, by hand, before the first build.
+
+### (a′) App Store Connect — web forms, can be done in the Claude browser pane
+
+Sign in to appstoreconnect.apple.com yourself in the pane; the forms can
+then be filled from the metadata file. Steps:
+
+1. **App record.** My Apps → + → iOS, name "The Particle", bundle id
+   `com.the-particle.app`, SKU `particle-market-001`. Listing copy from
+   `APPSTORE_METADATA.md` (no competitor trademarks).
+2. **Six IAP products.** Features → In-App Purchases → one subscription
+   group "Particle Terminal", six auto-renewables with the exact ids in
+   §1 (Billing), ranked nuclear > dark > new. Nuclear annual is 999
+   (Apple caps at 999.99); the app hides its "launch promo" badge unless
+   ASC also carries a matching introductory offer.
+3. **Shared secret.** App Information → App-Specific Shared Secret →
+   copy into Render → `senger-server` → `APPLE_IAP_SHARED_SECRET`.
+   Production `/purchase` and `/restore` return 503 without it, by
+   design. **Only Vinicius can set Render env vars.**
+4. **Sign in with Apple server config.** Render `APPLE_CLIENT_ID` must
+   equal the native bundle id `com.the-particle.app` for the
+   `identityToken` audience check. (If web SIWA must also work, the
+   server needs to accept an array — see `server/routes/auth.js`.)
+5. **Server notifications URL** (optional for v1): App Information →
+   App Store Server Notifications → `https://senger-server.onrender.com/api/billing/iap/webhook`.
+6. **Screenshots.** iPhone 6.7" (1290×2796) required; 6.5" optional.
+   Can be captured from the live site at a mobile viewport — Apple
+   checks dimensions, not provenance. Captions in `APPSTORE_METADATA.md`.
+7. **App Privacy questionnaire.** Must match `PrivacyInfo.xcprivacy`:
+   email, user id, user content, customer support — linked, not
+   tracking, no ads. "Unrestricted Web Access" NO. Gambling NO.
+8. **Support URL.** `https://the-particle.com/support` doesn't exist yet;
+   create it or use a `mailto:`. Must differ from the privacy URL.
+9. **Review test account.** Provision one on Nuclear tier; put it in the
+   "Sign-in required" section.
+
+### (a″) TestFlight check — on an iPhone (Vinicius)
+
+Install TestFlight, open the build, and run the four flows Apple will:
+subscribe (sandbox Apple ID) → cancel on the sheet → Restore on a
+second account → Delete account. All four must behave before Submit.
 
 ### (b) Product / architecture decisions
 
@@ -179,16 +194,14 @@ submission runbook in order.
 
 ## 3. Submission runbook (in order)
 
-1. `git pull` on the Mac; `cd client && npm ci && npm run cap:build:ios`.
-2. Open `client/ios/App/App.xcodeproj`. Set team. Confirm capabilities.
-3. Product → Archive. Fix any signing errors. Upload to App Store Connect.
-4. In ASC: create the app, the six IAP products, the shared secret,
-   server notification URL. Put the shared secret in Render.
-5. TestFlight internal test: full purchase / cancel / restore / delete
-   cycle in sandbox on two accounts.
-6. Screenshots, listing copy, privacy answers, support URL, review notes
-   + test account.
-7. Submit. Expect one round of questions; the likely ones are 4.2 (web
-   wrapper — answer with the native features list above) and 3.1.2
-   (confirm the Terms/Privacy links are on the purchase sheet — they
-   are).
+1. Apple Developer portal: enable Sign In with Apple on
+   `com.the-particle.app` (one-time).
+2. Codemagic: Start new build on `main`. Wait for the TestFlight email.
+3. App Store Connect: app record, six IAP products, shared secret →
+   Render, `APPLE_CLIENT_ID` → Render.
+4. TestFlight on a phone: purchase / cancel / restore / delete.
+5. ASC: screenshots, listing copy, privacy answers, support URL, review
+   notes + test account.
+6. Submit. Expect one round of questions; the likely ones are 4.2 (web
+   wrapper — answer with the native features list in §2(b)1) and 3.1.2
+   (confirm Terms/Privacy links are on the purchase sheet — they are).
