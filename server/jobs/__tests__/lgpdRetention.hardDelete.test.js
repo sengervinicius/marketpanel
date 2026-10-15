@@ -57,9 +57,13 @@ const fakeClient = {
   release() {},
 };
 
+// Shape must match db/postgres.js's real exports: isConnected() and getPool()
+// are FUNCTIONS. (221b822 fixed lgpdRetention.js to call them — the previous
+// property-style fake was the exact bug that commit removed, and kept this
+// test red on every CI run since.)
 const fakePg = {
-  isConnected: true,
-  pool: { connect: async () => fakeClient },
+  isConnected: () => true,
+  getPool: () => ({ connect: async () => fakeClient }),
   query: async (sql, params) => fakeClient.query(sql, params),
 };
 
