@@ -5,10 +5,13 @@
  * Fetches personalized smart chips from /api/behavior/chips.
  */
 import { useCallback, useState, useEffect, useRef } from 'react';
-import { API_BASE } from '../utils/api';
+// #292 W2 — was reading localStorage 'token', a key nothing writes. Every
+// !token guard fired, so behaviour events were never sent and smart chips
+// never loaded. getAuthToken() is the sanctioned in-memory read.
+import { API_BASE, getAuthToken } from '../utils/api';
 
 function getAuthHeaders() {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   return token
     ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
     : { 'Content-Type': 'application/json' };
@@ -18,7 +21,7 @@ function getAuthHeaders() {
  * Fire-and-forget behavior event sender.
  */
 function sendEvent(eventType, payload = {}) {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   if (!token) return; // Not logged in
 
   fetch(`${API_BASE}/api/behavior/track`, {
@@ -79,7 +82,7 @@ export function useSmartChips() {
 
   const fetchChips = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) return;
 
       const resp = await fetch(`${API_BASE}/api/behavior/chips`, {

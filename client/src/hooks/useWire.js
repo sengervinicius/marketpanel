@@ -5,13 +5,17 @@
  * Also fetches the latest single entry for the Particle welcome screen.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { API_BASE } from '../utils/api';
+// #292 W2 — was reading localStorage 'token', a key nothing writes (AuthContext
+// stores 'arc_token' and pushes it in-memory via setAuthToken). The !token
+// guard below therefore always fired, so the Wire feed and the brief inbox
+// never polled for logged-in users. getAuthToken() is the sanctioned read.
+import { API_BASE, getAuthToken } from '../utils/api';
 import { swallow } from '../utils/swallow';
 
 const REFRESH_INTERVAL = 2 * 60 * 1000; // 2 minutes
 
 function getAuthHeaders() {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -160,7 +164,7 @@ export function useBriefInbox({ pollMs = 5 * 60 * 1000 } = {}) {
   useEffect(() => {
     // Don't fetch if there's no auth token — avoids spamming 401s for
     // anonymous visitors on the landing page.
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (!token) { setLoading(false); return; }
 
     fetchInbox();

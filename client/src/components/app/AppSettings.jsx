@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useEntitlement } from '../../hooks/useEntitlement';
-import { apiFetch } from '../../utils/api';
+import { apiFetch, getAuthToken } from '../../utils/api';
 import { useSettings } from '../../context/SettingsContext';
 import { useAlerts } from '../../context/AlertsContext';
 import { useFeatureFlags } from '../../hooks/useFeatureFlags';
@@ -372,9 +372,10 @@ export function DiscordLinkRow() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    // #292 W2 — was localStorage 'token' (never written) so this row never mounted.
+    const token = getAuthToken();
     if (!token) { setLoading(false); return; }
-    apiFetch('/api/discord/status', { headers: { Authorization: `Bearer ${token}` } })
+    apiFetch('/api/discord/status')
       .then(r => r.json())
       .then(d => { setStatus(d); setLoading(false); })
       .catch(() => setLoading(false));
@@ -384,17 +385,14 @@ export function DiscordLinkRow() {
   if (!status?.configured) return null;
 
   const handleLink = async () => {
-    const token = localStorage.getItem('token');
-    const res = await apiFetch('/api/discord/link', { headers: { Authorization: `Bearer ${token}` } });
+    const res = await apiFetch('/api/discord/link');
     const data = await res.json();
     if (data.url) window.open(data.url, '_blank');
   };
 
   const handleUnlink = async () => {
-    const token = localStorage.getItem('token');
     await apiFetch('/api/discord/unlink', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     });
     setStatus(s => ({ ...s, linked: false, discordUsername: null }));
   };
@@ -533,10 +531,7 @@ export function InboundEmailRow() {
   const load = async () => {
     setState(s => ({ ...s, loading: true, error: null }));
     try {
-      const token = localStorage.getItem('token');
-      const res = await apiFetch('/api/settings/vault-inbound', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch('/api/settings/vault-inbound');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load');
       setState({ loading: false, error: null, data });
@@ -548,10 +543,8 @@ export function InboundEmailRow() {
   useEffect(() => { load(); }, []);
 
   const post = async (path) => {
-    const token = localStorage.getItem('token');
     const res = await apiFetch(`/api/settings/vault-inbound${path}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Request failed');
@@ -718,10 +711,7 @@ export function ParticleMemoryPanel() {
   const load = async () => {
     setState(s => ({ ...s, loading: true, error: null }));
     try {
-      const token = localStorage.getItem('token');
-      const res = await apiFetch('/api/memory', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await apiFetch('/api/memory');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load memories');
       setState({
@@ -752,10 +742,8 @@ export function ParticleMemoryPanel() {
     if (!trimmed) { cancelEdit(); return; }
     setBusy(id);
     try {
-      const token = localStorage.getItem('token');
       const res = await apiFetch(`/api/memory/${id}`, {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: trimmed }),
       });
       const data = await res.json();
@@ -776,10 +764,8 @@ export function ParticleMemoryPanel() {
     if (!window.confirm('Forget this memory?\n\nParticle will no longer reference this fact in future replies.')) return;
     setBusy(id);
     try {
-      const token = localStorage.getItem('token');
       const res = await apiFetch(`/api/memory/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -797,10 +783,8 @@ export function ParticleMemoryPanel() {
     if (!window.confirm('Forget EVERYTHING Particle remembers about you?\n\nThis cannot be undone. The model will start fresh on your next turn.')) return;
     setBusy('forget-all');
     try {
-      const token = localStorage.getItem('token');
       const res = await apiFetch('/api/memory', {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));

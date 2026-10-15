@@ -137,13 +137,8 @@ export async function purchase(productId) {
   }
 
   try {
-    const token = localStorage.getItem('token');
     const res = await apiFetch('/api/billing/iap/purchase', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
       body: JSON.stringify({
         productId,
         receiptData,
@@ -187,10 +182,8 @@ export async function restorePurchases() {
       }
     }
 
-    const token = localStorage.getItem('token');
     const res = await apiFetch('/api/billing/iap/restore', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
     });
 
     if (!res.ok) {
