@@ -37,13 +37,6 @@
       "resize": "native",
       "resizeOnFullScreen": true
     },
-    "PushNotifications": {
-      "presentationOptions": [
-        "badge",
-        "sound",
-        "alert"
-      ]
-    },
     "CapacitorHttp": {
       "enabled": true
     }

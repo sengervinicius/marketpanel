@@ -63,6 +63,74 @@ router.get('/products', requireAuth, (req, res) => {
 });
 
 /**
+ * #292 W5-B2 — verifyAppleReceipt(receiptData)
+ *
+ * Shared by /purchase and /restore. POSTs the base64 app receipt to Apple's
+ * verifyReceipt endpoint (production first, sandbox on status 21007) and
+ * returns the parsed response. Throws on transport failure; returns
+ * { status, latest_receipt_info, latest_receipt } otherwise — callers decide
+ * what a non-zero status means for them.
+ */
+async function verifyAppleReceipt(receiptData, sharedSecret) {
+  const payload = JSON.stringify({
+    'receipt-data': receiptData,
+    'password': sharedSecret,
+    'exclude-old-transactions': true,
+  });
+  const post = async (url) => {
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
+    return r.json();
+  };
+  let data = await post('https://buy.itunes.apple.com/verifyReceipt');
+  if (data.status === 21007) data = await post('https://sandbox.itunes.apple.com/verifyReceipt');
+  return data;
+}
+
+/**
+ * #292 W5-B2 — pick the entitlement that should win from latest_receipt_info.
+ * Prefers an unexpired entry for one of OUR product ids with the furthest
+ * expiry; falls back to the most-recently-expired one so callers can tell
+ * "had a sub, lapsed" from "never had one". Returns null if nothing matches.
+ */
+function pickLatestEntitlement(latestReceiptInfo, knownProductIds) {
+  const mine = (latestReceiptInfo || []).filter(r => knownProductIds.has(r.product_id));
+  if (mine.length === 0) return null;
+  mine.sort((a, b) => parseInt(b.expires_date_ms || 0) - parseInt(a.expires_date_ms || 0));
+  return mine[0];
+}
+
+/**
+ * #292 W5-B2 — write-through to iap_receipts (best-effort; never blocks the
+ * entitlement). Extracted from /purchase so /restore shares it.
+ */
+async function recordReceipt({ userId, productId, tierKey, latestReceipt, transactionId, verifiedExpiry, storedReceipt }) {
+  try {
+    const pg = require('../db/postgres');
+    if (!(pg.isConnected && pg.isConnected())) return;
+    const otx = latestReceipt?.original_transaction_id || transactionId || `user-${userId}-${productId}`;
+    const expiresAtIso = verifiedExpiry ? new Date(verifiedExpiry) : null;
+    await pg.query(
+      `INSERT INTO iap_receipts
+         (original_transaction_id, user_id, store, product_id,
+          expires_at, auto_renew, last_validated_at, latest_receipt, tier, status)
+       VALUES ($1, $2, 'apple', $3, $4, TRUE, NOW(), $5, $6, 'active')
+       ON CONFLICT (original_transaction_id) DO UPDATE
+         SET expires_at        = EXCLUDED.expires_at,
+             auto_renew        = EXCLUDED.auto_renew,
+             last_validated_at = EXCLUDED.last_validated_at,
+             latest_receipt    = EXCLUDED.latest_receipt,
+             status            = EXCLUDED.status`,
+      [otx, userId, productId, expiresAtIso, storedReceipt, tierKey],
+    );
+  } catch (ledgerErr) {
+    logger.error('iap', 'iap_receipts write-through failed (entitlement still honoured)', {
+      userId, productId, error: ledgerErr.message,
+    });
+  }
+}
+
+
+/**
  * POST /api/billing/iap/purchase
  * Validate an Apple receipt and activate the subscription.
  *
@@ -122,31 +190,7 @@ router.post('/purchase', requireAuth, async (req, res) => {
     }
 
     if (receiptData && APPLE_SHARED_SECRET) {
-      // Try production first, fall back to sandbox (status 21007)
-      let verifyUrl = 'https://buy.itunes.apple.com/verifyReceipt';
-      const payload = JSON.stringify({
-        'receipt-data': receiptData,
-        'password': APPLE_SHARED_SECRET,
-        'exclude-old-transactions': true,
-      });
-
-      let appleRes = await fetch(verifyUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload,
-      });
-      let appleData = await appleRes.json();
-
-      // Status 21007 = sandbox receipt sent to production — retry with sandbox
-      if (appleData.status === 21007) {
-        verifyUrl = 'https://sandbox.itunes.apple.com/verifyReceipt';
-        appleRes = await fetch(verifyUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: payload,
-        });
-        appleData = await appleRes.json();
-      }
+      const appleData = await verifyAppleReceipt(receiptData, APPLE_SHARED_SECRET);
 
       if (appleData.status !== 0) {
         console.warn(`[iap] Apple receipt status: ${appleData.status}`);
@@ -162,36 +206,10 @@ router.post('/purchase', requireAuth, async (req, res) => {
         verifiedExpiry = parseInt(latestReceipt.expires_date_ms);
       }
 
-      // W5.1 — write-through to iap_receipts so the daily reconciler can
-      // re-verify this subscription tomorrow. Safe-ignore any DB errors so
-      // the purchase flow never blocks on audit-ledger hiccups.
-      try {
-        const pg = require('../db/postgres');
-        if (pg.isConnected && pg.isConnected()) {
-          const otx = latestReceipt?.original_transaction_id
-            || transactionId
-            || `user-${userId}-${productId}`;
-          const expiresAtIso = verifiedExpiry ? new Date(verifiedExpiry) : null;
-          const storedReceipt = appleData.latest_receipt || receiptData;
-          await pg.query(
-            `INSERT INTO iap_receipts
-               (original_transaction_id, user_id, store, product_id,
-                expires_at, auto_renew, last_validated_at, latest_receipt, tier, status)
-             VALUES ($1, $2, 'apple', $3, $4, TRUE, NOW(), $5, $6, 'active')
-             ON CONFLICT (original_transaction_id) DO UPDATE
-               SET expires_at        = EXCLUDED.expires_at,
-                   auto_renew        = EXCLUDED.auto_renew,
-                   last_validated_at = EXCLUDED.last_validated_at,
-                   latest_receipt    = EXCLUDED.latest_receipt,
-                   status            = EXCLUDED.status`,
-            [otx, userId, productId, expiresAtIso, storedReceipt, tierKey],
-          );
-        }
-      } catch (ledgerErr) {
-        logger.error('iap', 'iap_receipts write-through failed (purchase still honoured)', {
-          userId, productId, error: ledgerErr.message,
-        });
-      }
+      await recordReceipt({
+        userId, productId, tierKey, latestReceipt, transactionId,
+        verifiedExpiry, storedReceipt: appleData.latest_receipt || receiptData,
+      });
     }
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -232,32 +250,104 @@ router.post('/purchase', requireAuth, async (req, res) => {
 
 /**
  * POST /api/billing/iap/restore
- * Restore previous Apple purchases for the current user.
- * Checks if the user has an existing Apple subscription.
+ *
+ * #292 W5-B2 — was a stub that returned restored:true only if the account was
+ * ALREADY active and otherwise "No previous purchases found" without ever
+ * looking at a receipt. A reviewer who buys, reinstalls, and taps Restore on
+ * a second account saw a false "Purchases restored." and no entitlement
+ * (Guideline 3.1.1). Now: the client (after StoreKit AppStore.sync) sends the
+ * receipt of its most relevant subscription transaction; we verify with
+ * Apple, pick the furthest-expiry entry for one of our product ids, and
+ * activate it on THIS account if it is unexpired.
+ *
+ * Body: { receiptData: string (base64 app receipt), productId?: string,
+ *         transactionId?: string }
+ * Reply: { ok: true, restored: boolean, tier?, expiresAt?, message }
  */
 router.post('/restore', requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
     const user = getUserById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found', code: 'not_found' });
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found', code: 'not_found' });
+    const { receiptData, productId: hintedProductId, transactionId } = req.body || {};
+    const APPLE_SHARED_SECRET = process.env.APPLE_IAP_SHARED_SECRET;
+
+    // Fail-closed in production — same reasoning as /purchase.
+    if (IS_PROD && !APPLE_SHARED_SECRET) {
+      logger.error('iap', 'APPLE_IAP_SHARED_SECRET not configured — refusing restore', { userId });
+      return res.status(503).json({ error: 'IAP is not configured on the server. Please contact support.', code: 'iap_not_configured' });
     }
 
-    // Check if user has an active Apple subscription
-    if (user.billingPlatform === 'apple' && user.subscriptionActive && user.isPaid) {
-      return res.json({ ok: true, restored: true, message: 'Subscription is already active.' });
+    // No receipt from the device = nothing to restore. Still a 200 so the
+    // client can show "no active subscription found" rather than an error.
+    if (!receiptData) {
+      const alreadyActive = user.billingPlatform === 'apple' && user.subscriptionActive && user.isPaid;
+      return res.json({
+        ok: true,
+        restored: alreadyActive,
+        message: alreadyActive ? 'Subscription is already active.' : 'No App Store subscription found for this Apple ID.',
+      });
     }
 
-    // In production, you would:
-    // 1. Request the receipt from the iOS client
-    // 2. Validate with Apple
-    // 3. Check for active subscriptions in the receipt
-    // 4. Reactivate if found
+    if (!APPLE_SHARED_SECRET) {
+      // Dev-only path (prod is gated above).
+      logger.warn('iap', 'Restore without shared secret (dev-only path)', { userId });
+      return res.json({ ok: true, restored: false, message: 'Receipt verification unavailable in this environment.' });
+    }
 
-    res.json({ ok: true, restored: false, message: 'No previous purchases found.' });
+    const appleData = await verifyAppleReceipt(receiptData, APPLE_SHARED_SECRET);
+    if (appleData.status !== 0) {
+      logger.warn('iap', 'Restore: Apple receipt status non-zero', { userId, status: appleData.status });
+      return res.status(400).json({ error: 'Receipt validation failed', code: 'invalid_receipt', appleStatus: appleData.status });
+    }
+
+    const knownIds = new Set(PRODUCTS.map(p => p.productId));
+    const best = pickLatestEntitlement(appleData.latest_receipt_info, knownIds);
+    if (!best) {
+      return res.json({ ok: true, restored: false, message: 'No Particle subscription found on this Apple ID.' });
+    }
+
+    const expiresAt = parseInt(best.expires_date_ms || 0);
+    const now = Date.now();
+    const productId = best.product_id;
+    const tierKey = tierFromAppleProductId(productId);
+    if (!tierKey) {
+      return res.json({ ok: true, restored: false, message: 'Subscription product is no longer offered.' });
+    }
+
+    if (!(expiresAt > now)) {
+      // Had one, lapsed. Tell the user plainly; don't flip the account.
+      return res.json({
+        ok: true,
+        restored: false,
+        lapsed: true,
+        tier: tierKey,
+        expiresAt,
+        message: 'Your previous subscription has expired. Resubscribe to continue.',
+      });
+    }
+
+    await recordReceipt({
+      userId, productId, tierKey, latestReceipt: best, transactionId,
+      verifiedExpiry: expiresAt, storedReceipt: appleData.latest_receipt || receiptData,
+    });
+
+    await updateSubscription(userId, {
+      isPaid: true,
+      subscriptionActive: true,
+      planTier: tierKey,
+      trialEndsAt: expiresAt,
+      appleProductId: productId,
+      appleTransactionId: best.original_transaction_id || transactionId || null,
+      appleReceiptData: receiptData.slice(0, 100) + '...',
+      billingPlatform: 'apple',
+    });
+
+    logger.info('iap', 'Restore activated', { userId, productId, tierKey, expiresAt });
+    res.json({ ok: true, restored: true, tier: tierKey, expiresAt, message: 'Subscription restored.' });
   } catch (e) {
-    console.error('[iap] Restore error:', e.message);
+    logger.error('iap', 'Restore error', { error: e.message });
     res.status(500).json({ error: 'Restore failed. Please try again.', code: 'restore_failed' });
   }
 });

@@ -464,9 +464,25 @@ export default function MobileAppV2(){
     window.addEventListener('online',up);window.addEventListener('offline',down);
     return()=>{window.removeEventListener('online',up);window.removeEventListener('offline',down);};},[]);
   const closeAccount=()=>{setShowAccount(false);setDelStep(0);setAcctMsg(null);};
+  // #292 W5-B2 — used to announce "Purchases restored." unconditionally
+  // (restorePurchases never throws; it returns {ok,restored}). Now reads the
+  // result, refreshes the entitlement so the UI unlocks without a relaunch,
+  // and says plainly when nothing was found or the sub has lapsed.
   const doRestore=async()=>{setAcctMsg('Restoring…');
-    try{ await auth.restorePurchases(); setAcctMsg('Purchases restored.'); }
-    catch(e){ setAcctMsg(e?.message||'Nothing to restore.'); }};
+    try{
+      const r=await auth.restorePurchases();
+      if(r&&r.ok&&r.restored){
+        try{ await auth.refreshSubscription?.(); }catch(e){}
+        setAcctMsg('Subscription restored — your plan is active.');
+      } else if(r&&r.lapsed){
+        setAcctMsg(r.message||'Your previous subscription has expired. Resubscribe to continue.');
+      } else if(r&&r.ok){
+        setAcctMsg(r.message||'No App Store subscription found for this Apple ID.');
+      } else {
+        setAcctMsg((r&&r.error)||'Restore could not be completed. Try again.');
+      }
+    }
+    catch(e){ setAcctMsg(e?.message||'Restore could not be completed. Try again.'); }};
   const doManage=async()=>{
     if(isIOS()){ try{ window.open('https://apps.apple.com/account/subscriptions','_blank'); }catch(e){ setAcctMsg('Open Settings › Apple ID › Subscriptions.'); } return; }
     try{ await auth.openBillingPortal(); }catch(e){ setAcctMsg(e?.message||'Billing portal unavailable.'); }};
@@ -579,6 +595,14 @@ export default function MobileAppV2(){
           </div>
           <div className="m2-sec"><h3>Watchlist</h3></div>
           <div className="m2-card">
+            {/* #292 W5-L1 — a new user saw a bare "Watchlist" header over an
+                empty card with no way out. Point them at search. */}
+            {wlFull.length===0&&(
+              <button type="button" className="m2-row m2-wlempty" onClick={()=>setShowSearch(true)} aria-label="Search for an instrument to add">
+                <div className="nm"><b>Your watchlist is empty</b><span>Tap to search — then use the star on any instrument to add it here.</span></div>
+                <span className="m2-chev"><I d={icons.chev} w={15}/></span>
+              </button>
+            )}
             {wlGroups.flatMap(([grp,syms])=>[
               <div className="m2-wlgrp2" key={'g-'+grp}>{grp}</div>,
               ...syms.map(sym=>{const q=look(sym);const nm=NAMES[sym]||sym;return (
@@ -761,7 +785,7 @@ export default function MobileAppV2(){
                       <span>{shown}</span><i>/{per}</i>
                     </div>
                   </div>
-                  {promo&&<div className="m2-planpromo">LAUNCH PROMO · 50% OFF</div>}
+                  {promo&&!sp&&<div className="m2-planpromo">LAUNCH PROMO · 50% OFF</div>}
                   <p>{pl.blurb}</p>
                   <button className="m2-planbuy" disabled={!!buying} onClick={()=>buyPlan(pl.key)}>
                     {buying===pl.key?'Processing…':`Subscribe · ${shown}/${per}`}

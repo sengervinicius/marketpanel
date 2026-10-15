@@ -172,27 +172,59 @@ export async function purchase(productId) {
  */
 export async function restorePurchases() {
   try {
-    // Ask StoreKit to restore first so Apple re-issues the receipt for this
-    // Apple ID; then let the server re-verify and reconcile entitlement.
+    // #292 W5-B2 — the server used to be a stub, so this only called
+    // AppStore.sync() and posted an empty body. Now: sync, then read the
+    // device's subscription transactions via getPurchases() and send the
+    // receipt of the most relevant one. The server verifies with Apple and
+    // activates on THIS account if the entitlement is unexpired.
+    let receiptData = null;
+    let productId = null;
+    let transactionId = null;
+
     if (isIOS()) {
       try {
-        await NativePurchases.restorePurchases();
+        await NativePurchases.restorePurchases(); // AppStore.sync()
       } catch (e) {
         console.warn('[iap] StoreKit restore warning:', e?.message || e);
+      }
+      try {
+        const { purchases } = await NativePurchases.getPurchases({ productType: PURCHASE_TYPE.SUBS });
+        const known = new Set(Object.values(IAP_PRODUCTS));
+        const mine = (purchases || []).filter(t => t && known.has(t.productIdentifier));
+        // Prefer an active one; otherwise the latest by expiration so the
+        // server can tell "lapsed" from "never subscribed".
+        mine.sort((a, b) => {
+          if (!!a.isActive !== !!b.isActive) return a.isActive ? -1 : 1;
+          return new Date(b.expirationDate || 0) - new Date(a.expirationDate || 0);
+        });
+        const best = mine[0];
+        if (best) {
+          receiptData = best.receipt || null;
+          productId = best.productIdentifier || null;
+          transactionId = best.transactionId || null;
+        }
+      } catch (e) {
+        console.warn('[iap] getPurchases warning:', e?.message || e);
       }
     }
 
     const res = await apiFetch('/api/billing/iap/restore', {
       method: 'POST',
+      body: JSON.stringify({ receiptData, productId, transactionId }),
     });
 
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
       throw new Error(data.error || 'Restore failed');
     }
 
-    const data = await res.json();
-    return { ok: true, restored: data.restored || false };
+    return {
+      ok: true,
+      restored: !!data.restored,
+      lapsed: !!data.lapsed,
+      tier: data.tier || null,
+      message: data.message || null,
+    };
   } catch (e) {
     console.error('[iap] restore error:', e.message);
     return { ok: false, restored: false, error: e.message };

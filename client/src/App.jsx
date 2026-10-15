@@ -698,6 +698,10 @@ export default function App() {
         <PortfolioProvider>
           <WatchlistProvider>
             <ParticleChatProvider>
+              {/* #292 W5-M1 — the terms-acceptance gate only existed in the
+                  desktop branch, so mobile users never set termsAccepted. Same
+                  modal, same handler (persists only after the server confirms). */}
+              {showTermsModal && <TermsAcceptanceModal onAccept={handleAcceptTerms} />}
               <MobileAppV2 />
             </ParticleChatProvider>
           </WatchlistProvider>
