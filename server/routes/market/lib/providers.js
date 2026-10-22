@@ -351,7 +351,7 @@ async function _yahooChartRaw(ticker, period1, period2, interval, crumb, cookie)
   const chartCtrl = new AbortController();
   const chartTmout = setTimeout(() => chartCtrl.abort(), 10000);
   let r;
-  providerBudget.observe('yahoo', 'attempt');
+  providerBudget.observe('yahoo', 'attempt', 'chart', ticker);
   try {
     r = await fetch(yfUrl, {
       headers: {
@@ -362,23 +362,23 @@ async function _yahooChartRaw(ticker, period1, period2, interval, crumb, cookie)
     });
   } catch (e) {
     clearTimeout(chartTmout);
-    providerBudget.observe('yahoo', 'error');
+    providerBudget.observe('yahoo', 'error', 'chart');
     throw e;
   } finally {
     clearTimeout(chartTmout);
   }
   if (r.status === 429) {
-    providerBudget.observe('yahoo', 'rate_limited');
+    providerBudget.observe('yahoo', 'rate_limited', 'chart');
     const error = new Error('Yahoo chart HTTP 429');
     error.code = 'rate_limit';
     throw error;
   }
   if (!r.ok) {
-    providerBudget.observe('yahoo', 'error');
+    providerBudget.observe('yahoo', 'error', 'chart');
     if (r.status === 401 || r.status === 403) { _yfCrumb = null; _yfCrumbExpiry = 0; }
     throw new Error(`Yahoo chart HTTP ${r.status} for ${ticker}`);
   }
-  providerBudget.observe('yahoo', 'ok');
+  providerBudget.observe('yahoo', 'ok', 'chart');
   return r.json();
 }
 
@@ -395,7 +395,7 @@ async function _yahooSymbolSearch(query, opts = {}) {
   const ctrl = new AbortController();
   const tmout = setTimeout(() => ctrl.abort(), 8000);
   let r;
-  providerBudget.observe('yahoo', 'attempt');
+  providerBudget.observe('yahoo', 'attempt', 'search', query);
   try {
     r = await fetch(url, {
       headers: {
@@ -408,20 +408,20 @@ async function _yahooSymbolSearch(query, opts = {}) {
     });
   } catch (e) {
     clearTimeout(tmout);
-    providerBudget.observe('yahoo', 'error');
+    providerBudget.observe('yahoo', 'error', 'search');
     throw e;
   } finally {
     clearTimeout(tmout);
   }
   if (r.status === 429) {
-    providerBudget.observe('yahoo', 'rate_limited');
+    providerBudget.observe('yahoo', 'rate_limited', 'search');
     throw new Error(`Yahoo search HTTP 429 for ${query}`);
   }
   if (!r.ok) {
-    providerBudget.observe('yahoo', 'error');
+    providerBudget.observe('yahoo', 'error', 'search');
     throw new Error(`Yahoo search HTTP ${r.status} for ${query}`);
   }
-  providerBudget.observe('yahoo', 'ok');
+  providerBudget.observe('yahoo', 'ok', 'search');
   const json = await r.json();
   return Array.isArray(json?.quotes) ? json.quotes : [];
 }
@@ -443,7 +443,7 @@ async function _yahooQuoteRaw(symbols) {
     const quoteController = new AbortController();
     const quoteTimeout = setTimeout(() => quoteController.abort(), 10000);
     let r;
-    providerBudget.observe('yahoo', 'attempt');
+    providerBudget.observe('yahoo', 'attempt', 'quote', symbols);
     try {
       r = await fetch(url, {
         headers: {
@@ -457,28 +457,28 @@ async function _yahooQuoteRaw(symbols) {
       });
     } catch (e) {
       clearTimeout(quoteTimeout);
-      providerBudget.observe('yahoo', 'error');
+      providerBudget.observe('yahoo', 'error', 'quote');
       throw e;
     } finally {
       clearTimeout(quoteTimeout);
     }
     if (r.status === 401 || r.status === 403) {
-      providerBudget.observe('yahoo', 'error');
+      providerBudget.observe('yahoo', 'error', 'quote');
       _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
       if (attempt === 0) { console.warn(`[Yahoo] ${r.status} on ${host}, retrying with fresh crumb`); continue; }
       throw new Error(`Yahoo Finance HTTP ${r.status}`);
     }
     if (r.status === 429) {
-      providerBudget.observe('yahoo', 'rate_limited');
+      providerBudget.observe('yahoo', 'rate_limited', 'quote');
       const error = new Error(`Yahoo Finance HTTP 429 — rate limited`);
       error.code = 'rate_limit';
       throw error;
     }
     if (!r.ok) {
-      providerBudget.observe('yahoo', 'error');
+      providerBudget.observe('yahoo', 'error', 'quote');
       throw new Error(`Yahoo Finance HTTP ${r.status}`);
     }
-    providerBudget.observe('yahoo', 'ok');
+    providerBudget.observe('yahoo', 'ok', 'quote');
     const json = await r.json();
     return json?.quoteResponse?.result || [];
   }
@@ -502,7 +502,7 @@ async function _yahooQuoteSummaryRaw(symbol) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 10000);
     let r;
-    providerBudget.observe('yahoo', 'attempt');
+    providerBudget.observe('yahoo', 'attempt', 'summary', symbol);
     try {
       r = await fetch(url, {
         headers: {
@@ -515,24 +515,24 @@ async function _yahooQuoteSummaryRaw(symbol) {
       });
     } catch (e) {
       clearTimeout(t);
-      providerBudget.observe('yahoo', 'error');
+      providerBudget.observe('yahoo', 'error', 'summary');
       throw e;
     } finally { clearTimeout(t); }
     if (r.status === 401 || r.status === 403) {
-      providerBudget.observe('yahoo', 'error');
+      providerBudget.observe('yahoo', 'error', 'summary');
       _yfCrumb = null; _yfCookie = null; _yfCrumbExpiry = 0;
       if (attempt === 0) { console.warn(`[Yahoo QS] ${r.status} on ${host}, retrying`); continue; }
       throw new Error(`Yahoo quoteSummary HTTP ${r.status}`);
     }
     if (r.status === 429) {
-      providerBudget.observe('yahoo', 'rate_limited');
+      providerBudget.observe('yahoo', 'rate_limited', 'summary');
       const e = new Error('Yahoo quoteSummary 429'); e.code = 'rate_limit'; throw e;
     }
     if (!r.ok) {
-      providerBudget.observe('yahoo', 'error');
+      providerBudget.observe('yahoo', 'error', 'summary');
       throw new Error(`Yahoo quoteSummary HTTP ${r.status}`);
     }
-    providerBudget.observe('yahoo', 'ok');
+    providerBudget.observe('yahoo', 'ok', 'summary');
     const json = await r.json();
     const result = json?.quoteSummary?.result?.[0];
     if (!result) return null;

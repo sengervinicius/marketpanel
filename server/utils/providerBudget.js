@@ -76,11 +76,39 @@ function trimOldBuckets(s, now, windowMs) {
  * Record a provider observation. Outcomes: 'attempt', 'ok', 'rate_limited', 'error'.
  * Unknown outcomes are recorded as 'error' so we don't lose the signal.
  */
-function observe(provider, outcome) {
+// #292 grid — per-call-site attribution so the selftest can say WHICH code
+// path is burning a provider's budget, not just that it is burnt. `site` is
+// a short tag (quote/chart/search/summary); `label` is a sample (symbols).
+const _sites = new Map();   // provider → Map(site → { attempt, ok, error, rate_limited, recent: [] })
+function _siteState(provider, site) {
+  let m = _sites.get(provider);
+  if (!m) { m = new Map(); _sites.set(provider, m); }
+  let st = m.get(site);
+  if (!st) { st = { attempt: 0, ok: 0, error: 0, rate_limited: 0, recent: [] }; m.set(site, st); }
+  return st;
+}
+function sites(provider) {
+  const m = _sites.get(String(provider || '').toLowerCase());
+  if (!m) return {};
+  const out = {};
+  for (const [site, st] of m) out[site] = { attempt: st.attempt, ok: st.ok, error: st.error, rate_limited: st.rate_limited, recent: st.recent.slice(-8) };
+  return out;
+}
+
+function observe(provider, outcome, site, label) {
   if (!provider) return;
   const key = String(provider).toLowerCase();
   const now = Date.now();
   const s = getProviderState(key);
+  if (site) {
+    const st = _siteState(key, String(site));
+    const o = ['attempt', 'ok', 'rate_limited', 'error'].includes(outcome) ? outcome : 'error';
+    st[o] += 1;
+    if (o === 'attempt' && label) {
+      st.recent.push(String(label).slice(0, 60));
+      if (st.recent.length > 40) st.recent.splice(0, st.recent.length - 40);
+    }
+  }
   const idx = bucketIndex(now);
   let bucket = s.buckets.get(idx);
   if (!bucket) {
@@ -157,6 +185,7 @@ function _resetForTests() {
 }
 
 module.exports = {
+  sites, // #292 grid
   PROVIDER_BUDGETS,
   observe,
   usage,

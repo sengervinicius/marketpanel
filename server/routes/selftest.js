@@ -144,7 +144,9 @@ router.get('/', async (req, res) => {
   checks.push(await check('yahoo.budget', async () => {
     const u = providerBudget.usage('yahoo');
     if (!u) return { ok: true, warn: true, detail: 'no budget declared' };
-    return { ok: u.pct < 0.95, warn: u.pct >= 0.8, used: u.used, limit: u.limit, pct: Math.round(u.pct * 100) / 100, windowMs: u.windowMs };
+    return { ok: u.pct < 0.95, warn: u.pct >= 0.8, used: u.used, limit: u.limit, pct: Math.round(u.pct * 100) / 100, windowMs: u.windowMs,
+             // #292 grid — which code path is spending it (since process start)
+             bySite: providerBudget.sites('yahoo') };
   }));
 
   const STALE_MS = 36 * 60 * 60 * 1000; // > 36h = older than any weekend close
