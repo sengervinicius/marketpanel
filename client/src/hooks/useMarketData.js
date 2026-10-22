@@ -52,8 +52,12 @@ function normalizePolygon(data, stripPrefix) {
   return result;
 }
 
-async function fetchEndpoint(path) {
-  const maxRetries = 3;
+async function fetchEndpoint(path, { retries = 3 } = {}) {
+  // #292 grid — background polls pass retries:0. Retrying a silent refresh
+  // 4× with 2/4/8s backoff on top of apiFetch's 35s timeout meant one slow
+  // endpoint could hold a poll cycle open for minutes while the next cycles
+  // stacked behind it.
+  const maxRetries = retries;
   const delays = [2000, 4000, 8000];
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -94,15 +98,37 @@ export function useMarketData() {
   const isMountedRef   = useRef(true);
   const prevPricesRef  = useRef({});
 
+  const inFlightRef = useRef(false);
   const fetchAll = useCallback(async (silent = false) => {
     if (!isMountedRef.current) return;
+    // #292 grid — one cycle at a time. The 15s interval used to start a new
+    // fetchAll regardless of whether the last one had settled, so under a
+    // slow provider the cycles piled up and the UI sat on skeletons.
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     if (silent) setIsRefreshing(true);
     else setLoading(true);
 
     try {
+      // #292 grid — progressive: each feed is merged into state as it
+      // arrives instead of waiting for all five (previously a single slow
+      // feed blanked the whole grid until it settled). The final
+      // allSettled below still drives the error/degraded bookkeeping.
+      const entries = Object.entries(ENDPOINTS);
       const results = await Promise.allSettled(
-        Object.entries(ENDPOINTS).map(async ([key, path]) => {
-          const d = await fetchEndpoint(path);
+        entries.map(async ([key, path]) => {
+          const d = await fetchEndpoint(path, { retries: silent ? 0 : 3 });
+          if (isMountedRef.current && d && (d.status === 'OK' || d.status === 'PARTIAL')) {
+            // Early merge for the primary price maps. Brazil/rates are
+            // merged in the final pass (they depend on stocks being present).
+            if (key === 'stocks' || key === 'forex' || key === 'crypto') {
+              const norm = key === 'stocks' ? normalizePolygon(d)
+                         : key === 'forex'  ? normalizePolygon(d, 'C:')
+                         :                    normalizePolygon(d, 'X:');
+              setData(prev => ({ ...(prev || {}), [key]: norm, ...(key === 'stocks' ? { indices: norm } : {}) }));
+              if (!silent) setLoading(false);
+            }
+          }
           return { key, d };
         })
       );
@@ -209,6 +235,7 @@ export function useMarketData() {
     } catch (err) {
       if (isMountedRef.current) setError(err.message);
     } finally {
+      inFlightRef.current = false;
       if (isMountedRef.current) {
         setLoading(false);
         setIsRefreshing(false);
