@@ -265,7 +265,10 @@ function toSnapshot(q) {
 // stay under Yahoo's burst limit, and the result carries what failed so the
 // route can report PARTIAL + missing symbols + the provider error instead
 // of pretending.
-async function batchYahooQuoteDetailed(tickers, batchSize = 15, concurrency = 2) {
+// Default batch 50: Yahoo's v7 quote endpoint handles 50 symbols per call
+// comfortably (the Brazil board has used 50 since it shipped). The old 15
+// turned the 90-ticker default list into six calls per cache cycle.
+async function batchYahooQuoteDetailed(tickers, batchSize = 50, concurrency = 2) {
   const batches = [];
   for (let i = 0; i < tickers.length; i += batchSize) {
     batches.push(tickers.slice(i, i + batchSize));
@@ -299,7 +302,7 @@ async function batchYahooQuoteDetailed(tickers, batchSize = 15, concurrency = 2)
 }
 
 // Back-compat wrapper: same array shape the other call sites expect.
-async function batchYahooQuote(tickers, batchSize = 15) {
+async function batchYahooQuote(tickers, batchSize = 50) {
   const r = await batchYahooQuoteDetailed(tickers, batchSize);
   return r.quotes;
 }
@@ -431,7 +434,7 @@ router.get('/snapshot/european', async (req, res) => {
 
   try {
     if (!eulerpool.isConfigured()) {
-      const allQuotes = await batchYahooQuote(EUROPEAN_STOCKS, 20);
+      const allQuotes = await batchYahooQuote(EUROPEAN_STOCKS, 50);
       const stocks = {};
       for (const q of allQuotes) {
         if (q?.regularMarketPrice == null) continue;
@@ -1506,3 +1509,4 @@ module.exports = router;
 module.exports.DEFAULT_STOCK_TICKERS = DEFAULT_STOCK_TICKERS;
 module.exports.batchYahooQuoteDetailed = batchYahooQuoteDetailed;
 module.exports.snapshotStatus = snapshotStatus;
+module.exports.toSnapshot = toSnapshot;

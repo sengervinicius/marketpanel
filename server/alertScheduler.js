@@ -39,39 +39,28 @@ let _intervalId = null;
 let _serverPort = 3001;
 
 /**
- * Fetch current price data for a symbol via internal HTTP.
- * Uses the server's own /api/snapshot/ticker/:symbol endpoint.
- * This avoids duplicating provider logic and benefits from all existing caching.
- *
- * @param {string} symbol
- * @returns {{ price: number|null, changePct: number|null }} or null on failure
+ * #292 grid — batched, IN-PROCESS price fetch for alert evaluation.
+ * Calls the snapshot batch builder directly: no HTTP hop, no auth, and
+ * N alerts → ceil(N/50) Yahoo calls sharing the staggered helper and the
+ * 60s yahooQuote cache. Returns Map<symbol, { price, changePct }>;
+ * symbols Yahoo didn't return are absent.
  */
-async function fetchPrice(symbol) {
-  try {
-    const url = `http://127.0.0.1:${_serverPort}/api/snapshot/ticker/${encodeURIComponent(symbol)}`;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-
-    if (!res.ok) return null;
-    const data = await res.json();
-    const t = data?.ticker ?? data;
-
+async function fetchPricesBatched(symbols) {
+  const stocks = require('./routes/market/stocks');
+  const detail = await stocks.batchYahooQuoteDetailed(symbols, 50);
+  const out = new Map();
+  for (const q of detail.quotes) {
+    const t = stocks.toSnapshot(q);
     const price = (t?.min?.c > 0 ? t.min.c : null)
       ?? (t?.day?.c > 0 ? t.day.c : null)
       ?? (t?.lastTrade?.p > 0 ? t.lastTrade.p : null)
       ?? t?.prevDay?.c ?? null;
-
-    return {
-      price,
-      changePct: t?.todaysChangePerc ?? null,
-    };
-  } catch (e) {
-    // Silence errors — stale prices just mean alerts aren't evaluated this cycle
-    return null;
+    out.set(String(t.ticker).toUpperCase(), { price, changePct: t?.todaysChangePerc ?? null });
   }
+  if (detail.failed.length) {
+    logger.warn('alerts', `price batch: ${detail.failed.length} batch(es) failed — ${detail.failed[0].error}`);
+  }
+  return out;
 }
 
 /**
@@ -189,22 +178,23 @@ async function runEvaluation() {
       bySymbol.get(sym).push(alert);
     }
 
-    // Fetch prices in parallel (batched by symbol)
+    // #292 grid — ONE in-process batched fetch for every alerted symbol.
+    // The old fetchPrice() made an unauthenticated HTTP call to
+    // 127.0.0.1/api/snapshot/ticker/:symbol; that route sits behind
+    // requireAuth with no loopback bypass, so every call was a 401 and
+    // price alerts never evaluated against a real price in production.
     const symbols = Array.from(bySymbol.keys());
-    const priceResults = await Promise.allSettled(
-      symbols.map(sym => fetchPrice(sym))
-    );
-
-    // Build symbol → priceData map
     const priceMap = new Map();
     let fetchFailed = 0;
-    for (let i = 0; i < symbols.length; i++) {
-      const result = priceResults[i];
-      if (result.status === 'fulfilled' && result.value) {
-        priceMap.set(symbols[i], result.value);
-      } else {
-        fetchFailed++;
+    try {
+      const batched = await fetchPricesBatched(symbols);
+      for (const sym of symbols) {
+        const pd = batched.get(sym);
+        if (pd && pd.price != null) priceMap.set(sym, pd); else fetchFailed++;
       }
+    } catch (e) {
+      logger.warn('alerts', `batched price fetch threw (${e.message}) — skipping this cycle`);
+      fetchFailed = symbols.length;
     }
 
     // Evaluate each alert

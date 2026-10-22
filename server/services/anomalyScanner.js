@@ -147,10 +147,13 @@ async function scan() {
       return;
     }
 
-    // 2. Scan each symbol for anomalies
+    // 2. Scan each symbol for anomalies (one batched price fetch for all)
     const newAnomalies = [];
+    let prices;
+    try { prices = await fetchPricesBatched(allSymbols); }
+    catch (e) { logger.warn('anomaly', `price batch failed: ${e.message}`); return; }
     for (const symbol of allSymbols) {
-      const priceData = await fetchPrice(symbol);
+      const priceData = prices.get(String(symbol).toUpperCase());
       if (!priceData) continue;
 
       // Check for price move anomaly
@@ -205,39 +208,36 @@ async function scan() {
 // ── Price data fetching ────────────────────────────────────────────────────
 
 /**
- * Fetch current price data for a symbol via internal HTTP.
- * Uses the server's own /api/snapshot/ticker/:symbol endpoint.
+ * #292 grid — batched, IN-PROCESS price fetch.
  *
- * @param {string} symbol
- * @returns {object} { price, changePct, volume, ... } or null on failure
+ * The old fetchPrice() made an unauthenticated HTTP call to
+ * 127.0.0.1/api/snapshot/ticker/:symbol. That route is behind requireAuth
+ * with no loopback bypass, so every call was a 401 and this scanner never
+ * saw a price — anomaly detection has been a no-op in production. Calling
+ * the snapshot batch builder directly fixes that and turns N symbols into
+ * ceil(N/50) Yahoo calls on the shared 60s cache.
+ *
+ * Returns Map<symbol, { price, changePct, volume, timestamp }>.
  */
-async function fetchPrice(symbol) {
-  try {
-    const url = `http://127.0.0.1:${_serverPort}/api/snapshot/ticker/${encodeURIComponent(symbol)}`;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-
-    if (!res.ok) return null;
-    const data = await res.json();
-    const t = data?.ticker ?? data;
-
+async function fetchPricesBatched(symbols) {
+  const stocks = require('../routes/market/stocks');
+  const detail = await stocks.batchYahooQuoteDetailed(Array.from(symbols), 50);
+  const out = new Map();
+  const now = Date.now();
+  for (const q of detail.quotes) {
+    const t = stocks.toSnapshot(q);
     const price = (t?.min?.c > 0 ? t.min.c : null)
       ?? (t?.day?.c > 0 ? t.day.c : null)
       ?? (t?.lastTrade?.p > 0 ? t.lastTrade.p : null)
       ?? t?.prevDay?.c ?? null;
-
-    return {
+    out.set(String(t.ticker).toUpperCase(), {
       price,
       changePct: t?.todaysChangePerc ?? null,
-      volume: t?.day?.v ?? t?.volume ?? null,
-      timestamp: Date.now(),
-    };
-  } catch (e) {
-    return null;
+      volume: t?.day?.v ?? null,
+      timestamp: now,
+    });
   }
+  return out;
 }
 
 // ── Price history management ───────────────────────────────────────────────
