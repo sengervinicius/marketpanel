@@ -116,10 +116,25 @@ export function useMarketData() {
 
       const newData = {};
       const newEndpointErrors = {};
+      // #292 grid — the server now answers 200 with status:'PARTIAL' or
+      // 'EMPTY' (plus `missing` / `providerError`) when Yahoo dropped
+      // batches, instead of a fake 'OK'. Treat those as feed errors so the
+      // banner shows WHY the grid has dashes instead of just showing them.
+      let degraded = false;
       for (const r of results) {
         if (r.status === 'fulfilled') {
           newData[r.value.key] = r.value.d;
-          newEndpointErrors[r.value.key] = null;
+          const st = r.value.d?.status;
+          if (st === 'EMPTY') {
+            newEndpointErrors[r.value.key] = `no data — ${r.value.d.providerError || 'provider returned nothing'}`;
+            degraded = true;
+          } else if (st === 'PARTIAL') {
+            const n = Array.isArray(r.value.d.missing) ? r.value.d.missing.length : '?';
+            newEndpointErrors[r.value.key] = `partial — ${n} symbols missing${r.value.d.providerError ? ' (' + r.value.d.providerError + ')' : ''}`;
+            degraded = true;
+          } else {
+            newEndpointErrors[r.value.key] = null;
+          }
         } else {
           // Extract endpoint key from rejected reason (it includes the path prefix)
           const msg = r.reason?.message || 'Failed';
@@ -167,6 +182,9 @@ export function useMarketData() {
       // key UX fix: previously error stayed null even when every endpoint returned
       // HTTP 402/403/401, so users saw blank panels with no explanation.
       const primaryKeys = ['stocks', 'forex', 'crypto'];
+      // #292 grid — degraded (PARTIAL/EMPTY on any primary feed) surfaces the
+      // banner even when the other feeds are fine; previously only an
+      // all-feeds HTTP failure did, so a half-dead grid showed no message.
       const allPrimaryFailed = primaryKeys.every(k => newEndpointErrors[k]);
       const hasNewPrimaryData = primaryKeys.some(k => newData[k] && Object.keys(newData[k]).length > 0);
       if (allPrimaryFailed && !hasNewPrimaryData) {
@@ -176,6 +194,8 @@ export function useMarketData() {
         else if (httpCode === '401') setError('auth_required');
         else if (httpCode === '403') setError('api_key_invalid');
         else                          setError(msgs[0] || 'Data endpoints unreachable');
+      } else if (degraded && primaryKeys.some(k => newEndpointErrors[k])) {
+        setError('degraded');
       } else {
         setError(null);
       }

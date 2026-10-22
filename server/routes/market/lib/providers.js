@@ -208,6 +208,18 @@ function _crumbCircuitIsOpen() {
   return true;
 }
 
+// #292 grid — read-only view for selftest / health. Never mutates.
+function getYahooCircuitState() {
+  const open = _crumbCircuit.openedAt !== 0 && (Date.now() - _crumbCircuit.openedAt) <= _CB_OPEN_DURATION_MS;
+  return {
+    open,
+    failures: _crumbCircuit.failures,
+    openedAt: _crumbCircuit.openedAt || null,
+    reopensInMs: open ? Math.max(0, _CB_OPEN_DURATION_MS - (Date.now() - _crumbCircuit.openedAt)) : 0,
+    crumbCached: !!_yfCrumb && Date.now() < _yfCrumbExpiry,
+  };
+}
+
 function _crumbCircuitRecordFailure() {
   const now = Date.now();
   if (now - _crumbCircuit.firstFailureAt > _CB_FAIL_WINDOW_MS) {
@@ -1041,6 +1053,7 @@ module.exports = {
   alphaVantageQuote,
   fetchWithFallback,
   resetYahooCrumb,
+  getYahooCircuitState, // #292 grid
   // Request queue (for monitoring)
   polygonQueue,
   // Utilities

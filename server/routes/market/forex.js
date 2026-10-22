@@ -57,8 +57,16 @@ router.get('/snapshot/forex', async (req, res) => {
       };
     });
 
-    const data = { tickers: transformedTickers, status: 'OK' };
-    cacheSet('snapshot:forex', data, TTL.forexSnapshot);
+    // #292 grid — a Yahoo reply with zero rows (crumb rejected, throttled
+    // body) used to be cached as status:'OK' for 60s → a minute of dashes.
+    const expected = polygonTickers.length;
+    const got = transformedTickers.length;
+    const data = {
+      tickers: transformedTickers,
+      status: got === 0 ? 'EMPTY' : (got < expected ? 'PARTIAL' : 'OK'),
+      ...(got < expected ? { missing: polygonTickers.filter(t => !transformedTickers.some(x => x.ticker === t)) } : {}),
+    };
+    cacheSet('snapshot:forex', data, data.status === 'EMPTY' ? 5_000 : TTL.forexSnapshot);
     res.json(data);
     validateForex(data);
   } catch (e) {

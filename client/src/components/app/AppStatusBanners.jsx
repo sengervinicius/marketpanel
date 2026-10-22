@@ -91,6 +91,11 @@ export function DataErrorBanner({ error, endpointErrors }) {
   } else if (error === 'timeout') {
     msg    = 'DATA DELAYED';
     detail = 'Upstream provider did not respond in time. Charts and snapshots may be stale.';
+  } else if (error === 'degraded') {
+    // #292 grid — server answered but with missing symbols (Yahoo batch
+    // dropped / throttled). The feed list below says which and why.
+    msg    = 'DATA FEED DEGRADED';
+    detail = 'Some prices are unavailable from the upstream provider. Retrying automatically every 60s.';
   } else {
     // Generic: show the raw error string (includes endpoint path + HTTP status)
     msg    = 'MARKET DATA ERROR';

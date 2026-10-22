@@ -24,6 +24,7 @@ const router = express.Router();
 
 const pg = require('../db/postgres');
 const logger = require('../utils/logger');
+const providerBudget = require('../utils/providerBudget');
 const { decideSubscription } = require('../authMiddleware');
 
 const DAY = 86_400_000;
@@ -124,6 +125,72 @@ router.get('/', async (req, res) => {
   for (const [name, symbol] of Object.entries(PROBE_SYMBOLS)) {
     checks.push(await check(name, () => probeQuote(symbol)));
   }
+
+  // ── #292 grid — exercise what the HOME SCREEN actually calls ──────────
+  //
+  // The single-symbol probes above kept passing while the logged-in grid
+  // was a wall of "—": every /snapshot/* route is Yahoo, the default stock
+  // list is ~80 tickers in parallel batches, and a 429'd batch used to be
+  // dropped silently with status:'OK'. These checks run the same batch
+  // builders (cache-aware, so hitting /selftest doesn't itself hammer
+  // Yahoo), report requested vs received, the newest quote's age, and the
+  // crumb circuit + rate budget so "providers are down" is visible here
+  // instead of only in the user's screenshot.
+  const providers = require('./market/lib/providers');
+  checks.push(await check('yahoo.circuit', async () => {
+    const st = providers.getYahooCircuitState();
+    return { ok: !st.open, warn: st.failures > 0 && !st.open, ...st };
+  }));
+  checks.push(await check('yahoo.budget', async () => {
+    const u = providerBudget.usage('yahoo');
+    if (!u) return { ok: true, warn: true, detail: 'no budget declared' };
+    return { ok: u.pct < 0.95, warn: u.pct >= 0.8, used: u.used, limit: u.limit, pct: Math.round(u.pct * 100) / 100, windowMs: u.windowMs };
+  }));
+
+  const STALE_MS = 36 * 60 * 60 * 1000; // > 36h = older than any weekend close
+  function gridSummary(label, requested, quotes, failed) {
+    const received = quotes.length;
+    const newest = quotes.reduce((m, q) => Math.max(m, (q.regularMarketTime || 0) * 1000), 0);
+    const ageMs = newest ? Date.now() - newest : null;
+    const priced = quotes.filter(q => typeof q.regularMarketPrice === 'number' && q.regularMarketPrice > 0).length;
+    const ok = received > 0 && priced >= Math.ceil(requested * 0.8) && (ageMs == null || ageMs < STALE_MS);
+    const warn = ok && (received < requested || priced < requested);
+    return {
+      ok, warn,
+      requested, received, priced,
+      missing: requested - received,
+      newestQuoteAgeMs: ageMs,
+      stale: ageMs != null && ageMs >= STALE_MS,
+      firstError: failed && failed[0] ? failed[0].error : null,
+      label,
+    };
+  }
+
+  checks.push(await check('grid.stocks', async () => {
+    const stocks = require('./market/stocks');
+    const d = await stocks.batchYahooQuoteDetailed(stocks.DEFAULT_STOCK_TICKERS);
+    return gridSummary('/snapshot/stocks', d.requested, d.quotes, d.failed);
+  }));
+  checks.push(await check('grid.forex', async () => {
+    const syms = ['EURUSD=X','GBPUSD=X','USDJPY=X','USDBRL=X','USDCHF=X','AUDUSD=X'];
+    const q = await providers.yahooQuote(syms.join(','));
+    return gridSummary('/snapshot/forex', syms.length, q || [], null);
+  }));
+  checks.push(await check('grid.crypto', async () => {
+    const syms = ['BTC-USD','ETH-USD','SOL-USD'];
+    const q = await providers.yahooQuote(syms.join(','));
+    return gridSummary('/snapshot/crypto', syms.length, q || [], null);
+  }));
+  checks.push(await check('grid.brazil', async () => {
+    const syms = ['PETR4.SA','VALE3.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','B3SA3.SA'];
+    const q = await providers.yahooQuote(syms.join(','));
+    return gridSummary('/snapshot/brazil', syms.length, q || [], null);
+  }));
+  checks.push(await check('grid.rates', async () => {
+    const syms = ['^IRX','^FVX','^TNX','^TYX'];
+    const q = await providers.yahooQuote(syms.join(','));
+    return gridSummary('/snapshot/rates', syms.length, q || [], null);
+  }));
 
   const failed = checks.filter((c) => !c.ok).map((c) => c.name);
   const warned = checks.filter((c) => c.ok && c.warn).map((c) => c.name);

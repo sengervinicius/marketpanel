@@ -63,6 +63,7 @@ const {
   getYahooCrumb, resetYahooCrumb, sendError, eulerpool, twelvedata, fetch, YF_UA,
 } = require('./lib/providers');
 const { validateEquities } = require('../../services/dataIntegrityValidator');
+const logger = require('../../utils/logger');
 // fix/bug-wave3 BUG 3 — fundamentals cascade (yahoo → twelvedata → fmp) so a
 // single provider hiccup no longer nukes the AI Fundamentals context.
 const { getFundamentalsCascade } = require('../../providers/fundamentalsCascade');
@@ -250,21 +251,71 @@ function toSnapshot(q) {
 }
 
 // ── Helper: batch Yahoo quotes ──────────────────────────────────────
-async function batchYahooQuote(tickers, batchSize = 15) {
+// #292 grid — batchYahooQuoteDetailed
+//
+// The previous batchYahooQuote fired every batch in parallel (82 default
+// tickers / 15 = 6 simultaneous Yahoo calls, on top of forex/crypto/brazil/
+// etfs doing the same) and used Promise.allSettled, silently dropping any
+// batch that rejected. When Yahoo 429'd or the crumb circuit opened, the
+// route still answered 200 { status: 'OK' } with a fraction of the tickers
+// and the home grid rendered "—" for the rest, with nothing logged, no
+// Sentry, and a green selftest (which only probes single symbols).
+//
+// Now: batches run with bounded concurrency (2) and a short stagger so we
+// stay under Yahoo's burst limit, and the result carries what failed so the
+// route can report PARTIAL + missing symbols + the provider error instead
+// of pretending.
+async function batchYahooQuoteDetailed(tickers, batchSize = 15, concurrency = 2) {
   const batches = [];
   for (let i = 0; i < tickers.length; i += batchSize) {
     batches.push(tickers.slice(i, i + batchSize));
   }
-  const results = await Promise.allSettled(
-    batches.map(batch => yahooQuote(batch.join(',')))
-  );
-  const allQuotes = [];
-  for (const result of results) {
-    if (result.status === 'fulfilled') {
-      allQuotes.push(...result.value);
+  const quotes = [];
+  const failed = [];      // [{ symbols: [...], error: 'msg' }]
+  let next = 0;
+  async function worker() {
+    while (next < batches.length) {
+      const idx = next++;
+      const batch = batches[idx];
+      try {
+        const r = await yahooQuote(batch.join(','));
+        quotes.push(...(Array.isArray(r) ? r : []));
+      } catch (e) {
+        failed.push({ symbols: batch, error: String(e?.message || e).slice(0, 160) });
+      }
+      // Stagger between batches on the same worker — Yahoo's v7 quote
+      // endpoint tolerates steady traffic far better than bursts.
+      if (next < batches.length) await new Promise(r => setTimeout(r, 150));
     }
   }
-  return allQuotes;
+  await Promise.all(Array.from({ length: Math.min(concurrency, batches.length) }, worker));
+
+  const got = new Set(quotes.map(q => String(q.symbol || '').toUpperCase()));
+  const missing = tickers.filter(t => !got.has(String(t).toUpperCase()));
+  if (failed.length) {
+    logger.warn('yahoo', `batch quote: ${failed.length}/${batches.length} batches failed, ${missing.length}/${tickers.length} symbols missing — ${failed[0].error}`);
+  }
+  return { quotes, requested: tickers.length, received: quotes.length, missing, failed };
+}
+
+// Back-compat wrapper: same array shape the other call sites expect.
+async function batchYahooQuote(tickers, batchSize = 15) {
+  const r = await batchYahooQuoteDetailed(tickers, batchSize);
+  return r.quotes;
+}
+
+// Attach honest status to a snapshot payload. 'OK' only when every requested
+// symbol came back; 'PARTIAL' (with `missing` + `providerError`) otherwise;
+// 'EMPTY' when nothing did. The client shows a degraded banner on anything
+// but OK instead of a wall of em-dashes.
+function snapshotStatus(detail) {
+  if (detail.received === 0) {
+    return { status: 'EMPTY', missing: detail.missing, providerError: detail.failed[0]?.error || 'no quotes returned' };
+  }
+  if (detail.missing.length > 0) {
+    return { status: 'PARTIAL', missing: detail.missing, providerError: detail.failed[0]?.error || null };
+  }
+  return { status: 'OK' };
 }
 
 // ── yr() helper for fundamentals ────────────────────────────────────
@@ -299,11 +350,13 @@ router.get('/snapshot/stocks', async (req, res) => {
   const cached = cacheGet('snapshot:stocks');
   if (cached) return res.json(cached);
   try {
-    const allQuotes = await batchYahooQuote(DEFAULT_STOCK_TICKERS);
-    const data = { tickers: allQuotes.map(toSnapshot), status: 'OK' };
-    cacheSet('snapshot:stocks', data, TTL.stocksSnapshot);
+    const detail = await batchYahooQuoteDetailed(DEFAULT_STOCK_TICKERS);
+    const data = { tickers: detail.quotes.map(toSnapshot), ...snapshotStatus(detail) };
+    // Don't cache an EMPTY answer for the full TTL — let the next request
+    // retry quickly rather than pinning a dead grid for 60s.
+    cacheSet('snapshot:stocks', data, data.status === 'EMPTY' ? 5_000 : TTL.stocksSnapshot);
     res.json(data);
-    validateEquities(data);
+    if (data.status === 'OK') validateEquities(data);
   } catch (e) {
     sendError(res, e, '/snapshot/stocks');
   }
@@ -450,15 +503,16 @@ router.get('/snapshot/brazil', async (req, res) => {
     const requestedSymbols = universe;
 
     // Yahoo accepts comma-separated lists but caps them; batch to be safe.
+    // #292 grid — was Promise.all: one 429'd batch rejected the whole board
+    // and fell to a 10-ticker Finnhub trickle. Detailed batching keeps every
+    // batch that succeeded and reports the rest.
     const BATCH = 50;
     let quotes = [];
+    let brazilDetail = null;
     try {
-      const batches = [];
-      for (let i = 0; i < tickers.length; i += BATCH) {
-        batches.push(tickers.slice(i, i + BATCH));
-      }
-      const out = await Promise.all(batches.map(b => yahooQuote(b.join(','))));
-      quotes = out.flat();
+      brazilDetail = await batchYahooQuoteDetailed(tickers, BATCH);
+      quotes = brazilDetail.quotes;
+      if (quotes.length === 0) throw new Error(brazilDetail.failed[0]?.error || 'no quotes');
     } catch (e) {
       console.warn('[Brazil] Yahoo Finance failed:', e.message);
       if (require('./lib/providers').finnhubKey()) {
@@ -527,9 +581,12 @@ router.get('/snapshot/brazil', async (req, res) => {
       source: 'yahoo',
       missing: missingSymbols,
       metadata: B3_METADATA,
+      // #292 grid — honest status for the client banner.
+      status: (brazilDetail && brazilDetail.failed.length) ? 'PARTIAL' : 'OK',
+      providerError: brazilDetail?.failed?.[0]?.error || null,
     };
     _brazilCache = payload;
-    _brazilCacheExpiry = now + 60_000;
+    _brazilCacheExpiry = now + (payload.status === 'OK' ? 60_000 : 10_000);
     res.json(payload);
   } catch (err) {
     console.error('[API] /snapshot/brazil error:', err.message);
@@ -1445,3 +1502,7 @@ router.get('/snapshot/quote', async (req, res) => {
 });
 
 module.exports = router;
+// #292 grid — selftest exercises the real grid builders.
+module.exports.DEFAULT_STOCK_TICKERS = DEFAULT_STOCK_TICKERS;
+module.exports.batchYahooQuoteDetailed = batchYahooQuoteDetailed;
+module.exports.snapshotStatus = snapshotStatus;
