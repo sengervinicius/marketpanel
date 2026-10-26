@@ -247,6 +247,18 @@ function toSnapshot(q) {
     },
     prevDay: { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
     min: { c: q.regularMarketPrice ?? null },
+    // #292 incident — extended-hours fields were only carried on the
+    // single-ticker path. The batch path (home grid) dropped them, so on
+    // 26 Oct pre-open the Brazil ADRs (PBR/VALE/ITUB/EWZ) showed Friday's
+    // close while NYSE pre-market had been printing since 05:00 BRT.
+    ...(q.preMarketPrice != null || q.postMarketPrice != null ? {
+      ext: {
+        pre:  q.preMarketPrice  != null ? { price: q.preMarketPrice,  changePct: q.preMarketChangePercent  ?? null } : null,
+        post: q.postMarketPrice != null ? { price: q.postMarketPrice, changePct: q.postMarketChangePercent ?? null } : null,
+      },
+    } : {}),
+    // Source quotation time so the client can show age, not clock time.
+    asOf: q.regularMarketTime ? q.regularMarketTime * 1000 : null,
   };
 }
 

@@ -155,6 +155,8 @@ function parseSnapshotPayload(d) {
     price,
     changePct: t?.todaysChangePerc ?? null,
     change:    t?.todaysChange     ?? null,
+    ext:       t?.ext || null,      // #292 incident — pre/post-market
+    asOf:      t?.asOf || null,
   };
 }
 

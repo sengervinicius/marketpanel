@@ -32,6 +32,8 @@ function PriceRow({
   name,
   price: priceProp,
   changePct: changePctProp,
+  // #292 incident — extended-hours quote { pre:{price,changePct}, post:{...} }
+  ext: extProp,
   // Phase 8: optional ticker for PriceContext fallback
   ticker,
   // Phase 2: optional sparkline data (array of numbers)
@@ -81,10 +83,17 @@ function PriceRow({
   }, []);
 
   // Phase 8: merge snapshot price with PriceContext fallback
-  const snapshotQuote = priceProp != null ? { price: priceProp, changePct: changePctProp } : null;
+  const snapshotQuote = priceProp != null ? { price: priceProp, changePct: changePctProp, ext: extProp ?? null } : null;
   const merged = useMergedTickerQuote(ticker || null, snapshotQuote);
   const price = merged.price;
   const changePct = merged.changePct;
+  // #292 incident — when Yahoo reports a pre- or post-market print, show it
+  // as a small tag after the regular price. The regular price stays the
+  // row's number (it is what every sort/compare uses); the tag is the
+  // live signal. Pre wins when both are present (post is yesterday's).
+  const ext = merged.ext || extProp || null;
+  const extQ = ext?.pre || ext?.post || null;
+  const extKind = ext?.pre ? 'PRE' : (ext?.post ? 'POST' : null);
 
   const pos = (changePct ?? 0) >= 0;
   const fmtFn = decimals >= 4 ? fmt4 : fmt2;
@@ -193,6 +202,17 @@ function PriceRow({
         whiteSpace: 'nowrap',
       }}>
         {renderPrice(price)}
+        {extQ && extQ.price != null && (
+          <span
+            className="pr-ext"
+            title={`${extKind === 'PRE' ? 'Pre-market' : 'After-hours'} ${extQ.price}${extQ.changePct != null ? ` (${extQ.changePct >= 0 ? '+' : ''}${Number(extQ.changePct).toFixed(2)}%)` : ''}`}
+            style={{
+              marginLeft: 4, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em',
+              color: (extQ.changePct ?? 0) >= 0 ? 'var(--price-up)' : 'var(--price-down)',
+              opacity: 0.9,
+            }}
+          >{extKind}{extQ.changePct != null ? ` ${extQ.changePct >= 0 ? '+' : ''}${Number(extQ.changePct).toFixed(1)}%` : ''}</span>
+        )}
       </span>
       <span style={{
         color: pos ? 'var(--price-up)' : 'var(--price-down)',

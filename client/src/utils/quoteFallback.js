@@ -40,5 +40,8 @@ export function mergeQuote(snapshotQuote, ctxQuote) {
     change:    snapshotQuote?.change    ?? ctxQuote?.change    ?? null,
     changePct: snapshotQuote?.changePct ?? ctxQuote?.changePct ?? null,
     volume:    snapshotQuote?.volume    ?? ctxQuote?.volume    ?? null,
+    // #292 incident — extended-hours + source quotation time
+    ext:       snapshotQuote?.ext       ?? ctxQuote?.ext       ?? null,
+    asOf:      snapshotQuote?.asOf      ?? ctxQuote?.asOf      ?? null,
   };
 }

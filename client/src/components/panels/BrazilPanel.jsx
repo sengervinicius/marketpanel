@@ -714,6 +714,7 @@ function BrazilPanel({ onTickerClick }) {
                 displaySymbol={displaySym}
                 name={s.name}
                 price={d.price}
+                ext={d.ext}
                 changePct={d.changePct}
                 symbolColor="var(--section-brazil)"
                 columns={COLS}

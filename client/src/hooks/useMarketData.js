@@ -24,6 +24,8 @@ function normalizeBrazil(data) {
         symbol:    q.symbol,
         price:     q.price,
         changePct: q.changePct ?? null,
+        ext:       q.ext || null,     // B3 has no pre-market on Yahoo; ADRs carry it via stocks
+        asOf:      q.asOf || null,
         change:    q.change    ?? null,
         mid:       q.price,
       };
@@ -47,6 +49,8 @@ function normalizePolygon(data, stripPrefix) {
       changePct: t.todaysChangePerc ?? null,
       change:    t.todaysChange ?? null,
       mid:       price,
+      ext:       t.ext || null,   // #292 incident — pre/post-market
+      asOf:      t.asOf || null,
     };
   }
   return result;
