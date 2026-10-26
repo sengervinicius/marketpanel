@@ -91,6 +91,13 @@ services:
       # ── Apple Sign In / IAP ─────────────────────────────────────────────────
       - key: APPLE_CLIENT_ID
         sync: false
+      # INCIDENT 2026-10-26 — Brazil yield curve source. Free developer tier at
+      # https://developers.anbima.com.br (ETTJ Prefixado/IPCA, daily). Without
+      # these the Brazil curve reports 'unavailable' (never synthesized).
+      - key: ANBIMA_CLIENT_ID
+        sync: false
+      - key: ANBIMA_CLIENT_SECRET
+        sync: false
       - key: APPLE_IAP_SHARED_SECRET
         sync: false
 

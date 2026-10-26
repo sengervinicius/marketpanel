@@ -422,46 +422,84 @@ function tdQuotationTime(json) {
   return null;
 }
 
-// BCB SGS — "Taxa referencial de swaps DI x pré" (B3 daily settlement),
-// one series per tenor. This IS the DI curve: the market's daily-settled
-// fixed-vs-CDI swap rates, published by the central bank. Daily, not
-// intraday — but real, official, and the same API the Selic fetch uses.
-// Series id → tenor in days. Values are % p.a.
-const BCB_DI_SWAP_SERIES = [
-  [7806, 30], [7807, 60], [7808, 90], [7809, 120], [7810, 180], [7811, 360],
-  [7812, 720], [7813, 1080], [7814, 1440], [7815, 1800], [7816, 2160],
-  [7817, 2520], [7818, 2880], [7819, 3240], [7820, 3600],
-];
-const BCB_SGS = (id) => `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${id}/dados/ultimos/1?formato=json`;
+// ANBIMA ETTJ — the market-standard Brazilian zero curve (Prefixado /
+// IPCA), published daily by ANBIMA. Free developer tier at
+// https://developers.anbima.com.br → set ANBIMA_CLIENT_ID +
+// ANBIMA_CLIENT_SECRET on the server. Until then this source is skipped.
+//
+// Why not the alternatives (all checked on 26 Oct 2026):
+//   Tesouro Direto JSON ........ HTTP 404 (endpoint retired)
+//   Tesouro Transparente CSV ... weekly dump (Last-Modified 10 days old)
+//   BCB SGS swap DI×pré ........ monthly averages, discontinued 2019
+//   B3 reference-rates page .... Cloudflare bot challenge
+//   Yahoo ...................... no DI instruments
+const ANBIMA_TOKEN_URL = process.env.ANBIMA_TOKEN_URL || 'https://api.anbima.com.br/oauth/access-token';
+const ANBIMA_CURVE_URL = process.env.ANBIMA_CURVE_URL || 'https://api.anbima.com.br/feed/precos-indices/v1/titulos-publicos/curvas-juros';
+let _anbimaTok = { token: null, exp: 0 };
+
+function anbimaConfigured() {
+  return !!(process.env.ANBIMA_CLIENT_ID && process.env.ANBIMA_CLIENT_SECRET);
+}
+
+async function anbimaToken(fetchImpl) {
+  if (_anbimaTok.token && Date.now() < _anbimaTok.exp) return _anbimaTok.token;
+  const basic = Buffer.from(`${process.env.ANBIMA_CLIENT_ID}:${process.env.ANBIMA_CLIENT_SECRET}`).toString('base64');
+  const r = await fetchImpl(ANBIMA_TOKEN_URL, {
+    method: 'POST',
+    headers: { Authorization: `Basic ${basic}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ grant_type: 'client_credentials' }),
+  });
+  if (!r.ok) throw new Error(`ANBIMA token HTTP ${r.status}`);
+  const j = await r.json();
+  if (!j.access_token) throw new Error('ANBIMA token missing');
+  _anbimaTok = { token: j.access_token, exp: Date.now() + Math.max(60, (j.expires_in || 3600) - 60) * 1000 };
+  return _anbimaTok.token;
+}
 
 function tenorLabel(days) {
-  if (days < 360) return `${Math.round(days / 30)}M`;
+  if (days < 360) return `${Math.max(1, Math.round(days / 30))}M`;
   const y = days / 360;
   return Number.isInteger(y) ? `${y}Y` : `${y.toFixed(1)}Y`;
 }
-function parseBcbDate(ddmmyyyy) {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(ddmmyyyy || ''));
-  if (!m) return null;
-  // Settlement date; treat as 18:00 BRT (21:00 UTC) close of that day.
-  return Date.UTC(+m[3], +m[2] - 1, +m[1], 21, 0, 0);
-}
 
-async function fetchBcbDiSwapCurve(fetchImpl = fetch) {
-  const results = await Promise.allSettled(BCB_DI_SWAP_SERIES.map(async ([id, days]) => {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 8000);
-    try {
-      const r = await fetchImpl(BCB_SGS(id), { headers: { Accept: 'application/json' }, signal: ctrl.signal });
-      if (!r.ok) throw new Error(`SGS ${id} HTTP ${r.status}`);
-      const j = await r.json();
-      const row = Array.isArray(j) ? j[0] : null;
-      const rate = row ? parseFloat(String(row.valor).replace(',', '.')) : NaN;
-      if (!row || isNaN(rate) || rate <= 0) throw new Error(`SGS ${id} empty`);
-      return { id, days, rate: parseFloat(rate.toFixed(2)), asOfMs: parseBcbDate(row.data) };
-    } finally { clearTimeout(t); }
-  }));
-  const points = results.filter(r => r.status === 'fulfilled').map(r => r.value);
-  const errors = results.filter(r => r.status === 'rejected').map(r => String(r.reason?.message || r.reason).slice(0, 60));
+// Returns { points: [{days, rate, asOfMs}], errors: [] }. Field names are
+// matched loosely (any key containing "prefix" for the rate, "vertice"/
+// "dias" for the tenor, "data" for the reference date) because the feed's
+// exact schema is only confirmed once credentials exist; the plausibility
+// gate in buildBrCurve rejects anything that doesn't look like a curve.
+async function fetchAnbimaPrefixadoCurve(fetchImpl = fetch) {
+  const errors = [];
+  if (!anbimaConfigured()) return { points: [], errors: ['ANBIMA_CLIENT_ID/SECRET not set'] };
+  const token = await anbimaToken(fetchImpl);
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 10000);
+  let body;
+  try {
+    const r = await fetchImpl(ANBIMA_CURVE_URL, {
+      headers: { client_id: process.env.ANBIMA_CLIENT_ID, access_token: token, Accept: 'application/json' },
+      signal: ctrl.signal,
+    });
+    if (!r.ok) throw new Error(`ANBIMA curve HTTP ${r.status}`);
+    body = await r.json();
+  } finally { clearTimeout(t); }
+
+  const entries = Array.isArray(body) ? body : (Array.isArray(body?.content) ? body.content : [body]);
+  // Prefer the latest data_referencia.
+  const dated = entries.map(e => {
+    const dk = Object.keys(e || {}).find(k => /^data/i.test(k));
+    return { e, asOfMs: dk ? Date.parse(e[dk]) : NaN };
+  }).filter(x => !isNaN(x.asOfMs)).sort((a, b) => b.asOfMs - a.asOfMs);
+  const pick = dated[0] || { e: entries[0], asOfMs: null };
+  const verts = pick.e?.vertices || pick.e?.vertice || pick.e?.curva || [];
+  const points = [];
+  for (const v of verts) {
+    const dk = Object.keys(v).find(k => /vertice|dias|prazo/i.test(k));
+    const rk = Object.keys(v).find(k => /prefix/i.test(k));
+    const days = dk ? parseInt(v[dk], 10) : NaN;
+    const rate = rk ? parseFloat(String(v[rk]).replace(',', '.')) : NaN;
+    if (!isNaN(days) && !isNaN(rate) && days > 0) points.push({ days, rate: parseFloat(rate.toFixed(2)), asOfMs: pick.asOfMs });
+  }
+  if (!points.length) errors.push('ANBIMA: no prefixado vertices parsed');
   return { points, errors };
 }
 
@@ -472,11 +510,11 @@ async function buildBrCurve({ tdRes, selicRes, now = new Date(), fetchImpl = fet
     const v = parseFloat(selicRes.value[0].valor);
     if (!isNaN(v) && v > 0) selic = parseFloat(v.toFixed(2));
   }
-  const label = 'DI × PRÉ SWAP (B3 SETTLEMENT VIA BCB, DAILY) · BCB SELIC';
+  const label = 'ANBIMA ETTJ PREFIXADO (DAILY) · BCB SELIC';
 
-  // ── Primary: BCB DI×Pré swap settlement curve ──
+  // ── Primary: ANBIMA ETTJ (when credentials are configured) ──
   let swap = { points: [], errors: [] };
-  try { swap = await fetchBcbDiSwapCurve(fetchImpl); } catch (e) { swap.errors.push(String(e.message).slice(0, 60)); }
+  try { swap = await fetchAnbimaPrefixadoCurve(fetchImpl); } catch (e) { swap.errors.push(String(e.message).slice(0, 60)); }
   // Plausibility gate — a mislabelled series must NEVER reach the chart.
   // Every rate must be a sane % p.a., the shortest tenor must sit near
   // Selic (DI×Pré 30d ≈ CDI), and the settlement date can't be in the
@@ -495,8 +533,8 @@ async function buildBrCurve({ tdRes, selicRes, now = new Date(), fetchImpl = fet
     const stale = asOfMs == null || (now.getTime() - asOfMs) > CURVE_STALE_MS;
     const curve = [];
     if (selic != null) curve.push({ tenor: 'SELIC', months: 0.5, rate: selic });
-    curve.push(...swap.points.map(p => ({ tenor: tenorLabel(p.days), months: Math.round(p.days / 30), days: p.days, rate: p.rate, series: p.id })));
-    return { curve, source: 'BCB DI×Pré swap', selic, asOf, fetchedAt, stale, label,
+    curve.push(...swap.points.map(p => ({ tenor: tenorLabel(p.days), months: Math.round(p.days / 30), days: p.days, rate: p.rate })));
+    return { curve, source: 'ANBIMA ETTJ', selic, asOf, fetchedAt, stale, label,
              seriesErrors: swap.errors.length ? swap.errors : undefined };
   }
 
@@ -532,7 +570,7 @@ async function buildBrCurve({ tdRes, selicRes, now = new Date(), fetchImpl = fet
   return {
     curve: [], source: 'unavailable', selic, asOf: null, fetchedAt, stale: true, label,
     error: [
-      swap.points.length ? `swap: only ${swap.points.length} tenors` : `swap: ${swap.errors[0] || 'no data'}`,
+      swap.points.length ? `anbima: only ${swap.points.length} tenors` : `anbima: ${swap.errors[0] || 'no data'}`,
       tdRes?.status === 'fulfilled' ? 'tesouro: <2 prefixado bonds' : `tesouro: ${String(tdRes?.reason?.message || 'unreachable').slice(0, 40)}`,
     ].join(' · '),
   };
