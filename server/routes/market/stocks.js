@@ -527,16 +527,33 @@ router.get('/snapshot/brazil', async (req, res) => {
     try {
       brazilDetail = await batchYahooQuoteDetailed(tickers, BATCH);
       quotes = brazilDetail.quotes;
-      if (quotes.length === 0) throw new Error(brazilDetail.failed[0]?.error || 'no quotes');
     } catch (e) {
       console.warn('[Brazil] Yahoo Finance failed:', e.message);
-      if (require('./lib/providers').finnhubKey()) {
-        for (const ticker of tickers.slice(0, 10)) {
-          try {
-            const data = await finnhubQuote(ticker);
-            if (data.c) quotes.push({ symbol: ticker, regularMarketPrice: data.c, regularMarketChange: data.d, regularMarketChangePercent: data.dp });
-          } catch (e) { console.warn(`[Brazil] Finnhub fallback failed for ${ticker}:`, e.message); }
+      brazilDetail = { quotes: [], requested: tickers.length, received: 0, missing: tickers, failed: [{ error: e.message }] };
+    }
+
+    // #292 Wave 2 — brapi as a real second source for B3. Finnhub (the old
+    // fallback) has no B3 coverage on this plan, so when Yahoo dropped a
+    // batch the board simply went blank. Now whatever Yahoo did not return
+    // is asked of brapi, and every row says which source it came from.
+    const gotYahoo = new Set(quotes.map(q => (q.symbol || '').replace(/\.SA$/i, '').toUpperCase()));
+    const needBrapi = universe.filter(t => !gotYahoo.has(t.toUpperCase()));
+    let brapiDetail = null;
+    if (needBrapi.length) {
+      try {
+        brapiDetail = await require('../../providers/brapi').getQuotes(needBrapi);
+        for (const b of brapiDetail.quotes) {
+          quotes.push({
+            symbol: `${b.symbol}.SA`, shortName: b.name, regularMarketPrice: b.price,
+            regularMarketChange: b.change, regularMarketChangePercent: b.chgPct,
+            regularMarketVolume: b.volume, regularMarketOpen: b.open, regularMarketDayHigh: b.high,
+            regularMarketDayLow: b.low, regularMarketPreviousClose: b.prevClose,
+            regularMarketTime: b.asOf ? Math.floor(Date.parse(b.asOf) / 1000) : null,
+            _source: 'brapi',
+          });
         }
+      } catch (e) {
+        console.warn('[Brazil] brapi fallback failed:', e.message);
       }
     }
 
@@ -552,26 +569,36 @@ router.get('/snapshot/brazil', async (req, res) => {
       .map(q => {
         const cleanSymbol = (q.symbol || '').replace(/\.SA$/i, '').trim();
         if (!cleanSymbol) return null;
-        const changePct = q.regularMarketChangePercent ?? 0;
-        const anomaly = priceAnomaly.check(cleanSymbol, changePct);
+        const changePct = q.regularMarketChangePercent ?? null;
+        const anomaly = changePct != null ? priceAnomaly.check(cleanSymbol, changePct) : { anomalous: false };
         if (anomaly.anomalous) {
           console.warn(`[Brazil/anomaly] ${anomaly.reason}`);
         }
+        // #292 Wave 0 — source time or nothing. Never the server clock.
+        const asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : null;
         // #291 W2.1.b — record into freshness ledger.
-        if (_ledger_stocks) {
-          const asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : Date.now();
+        if (_ledger_stocks && asOfMs) {
           try {
-            _ledger_stocks.record({ symbol: cleanSymbol + '.SA', source: 'yahoo', asOf: asOfMs });
+            _ledger_stocks.record({ symbol: cleanSymbol + '.SA', source: q._source || 'yahoo', asOf: asOfMs });
           } catch (_) { /* never throw from response path */ }
         }
         const base = {
           symbol:    cleanSymbol,
           name:      (q.shortName || q.longName || q.symbol).substring(0, 18),
           price:     q.regularMarketPrice,
-          change:    q.regularMarketChange        ?? 0,
+          // #292 Wave 0 — unknown is null, not 0. A 0 change renders as
+          // "flat"; a null renders as "--".
+          change:    q.regularMarketChange        ?? null,
           changePct,
-          volume:    q.regularMarketVolume        ?? 0,
+          volume:    q.regularMarketVolume        ?? null,
           currency:  'BRL',
+          source:    q._source || 'yahoo',
+          asOf:      asOfMs,
+          marketState: q.marketState || null,
+          ...(q.preMarketPrice != null || q.postMarketPrice != null ? { ext: {
+            pre:  q.preMarketPrice  != null ? { price: q.preMarketPrice,  changePct: q.preMarketChangePercent  ?? null } : null,
+            post: q.postMarketPrice != null ? { price: q.postMarketPrice, changePct: q.postMarketChangePercent ?? null } : null,
+          } } : {}),
           // #289 part 4 — surface the anomaly flag to the client.
           ...(anomaly.anomalous && {
             _meta: {
@@ -591,14 +618,19 @@ router.get('/snapshot/brazil', async (req, res) => {
     // Expose the metadata dictionary so the client doesn't need a second
     // fetch to enrich rows that didn't come back from Yahoo (e.g. if an
     // individual ticker was delisted but still in our list).
+    const fromBrapi = results.filter(r => r.source === 'brapi').length;
+    const newestAsOf = results.reduce((m, r) => Math.max(m, r.asOf || 0), 0) || null;
     const payload = {
       results,
-      source: 'yahoo',
+      source: fromBrapi === 0 ? 'yahoo' : fromBrapi === results.length ? 'brapi' : 'yahoo+brapi',
+      sources: { yahoo: results.length - fromBrapi, brapi: fromBrapi },
       missing: missingSymbols,
       metadata: B3_METADATA,
-      // #292 grid — honest status for the client banner.
-      status: (brazilDetail && brazilDetail.failed.length) ? 'PARTIAL' : 'OK',
-      providerError: brazilDetail?.failed?.[0]?.error || null,
+      // #292 grid — honest status for the client banner. PARTIAL if any
+      // requested symbol is still missing after both sources.
+      status: missingSymbols.length ? 'PARTIAL' : 'OK',
+      providerError: brazilDetail?.failed?.[0]?.error || brapiDetail?.failed?.[0]?.error || null,
+      asOf: newestAsOf,
     };
     _brazilCache = payload;
     _brazilCacheExpiry = now + (payload.status === 'OK' ? 60_000 : 10_000);

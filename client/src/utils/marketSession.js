@@ -21,10 +21,11 @@
  *
  * All exchange hours are regular-session local times; DST is handled by
  * computing the local wall-clock via Intl, so no offsets are hardcoded.
- * Exchange holidays are NOT modelled here (Wave 2 adds B3's calendar); a
- * holiday reads as "OPEN with a stale quote", which the stale check still
- * flags — better than lying.
+ * Exchange holidays come from ./exchangeHolidays (B3 + NYSE, generated
+ * from Easter and nth-weekday rules, so they do not go stale).
  */
+
+import { isHoliday } from './exchangeHolidays';
 
 const HOURS = {
   //            tz                      open   close  pre    post   days
@@ -55,7 +56,9 @@ function localClock(tz, nowMs) {
   const wd = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[get('weekday')] ?? 0;
   const h = parseInt(get('hour'), 10) % 24;
   const m = parseInt(get('minute'), 10);
-  return { mins: h * 60 + m, dow: wd };
+  // Local calendar date for the holiday table (en-CA gives YYYY-MM-DD).
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(nowMs));
+  return { mins: h * 60 + m, dow: wd, date };
 }
 
 export function getSession(group, nowMs = Date.now()) {
@@ -68,9 +71,12 @@ export function getSession(group, nowMs = Date.now()) {
     const open = (dow >= 1 && dow <= 4) || (dow === 5 && mins < 1020) || (dow === 0 && mins >= 1020);
     return { state: open ? 'ALWAYS' : 'CLOSED', label: open ? '24h' : 'WEEKEND', tz: 'America/New_York' };
   }
-  const { mins, dow } = localClock(cfg.tz, nowMs);
+  const { mins, dow, date } = localClock(cfg.tz, nowMs);
   const tradingDay = cfg.days.includes(dow);
   if (!tradingDay) return { state: 'CLOSED', label: 'CLOSED', tz: cfg.tz, opensAt: cfg.open, closesAt: cfg.close };
+  // #292 Wave 2 — exchange holidays. Without this a B3 holiday read as
+  // "OPEN + STALE", a red badge on a day nothing was wrong.
+  if (isHoliday(group, date)) return { state: 'CLOSED', label: 'HOLIDAY', tz: cfg.tz, opensAt: cfg.open, closesAt: cfg.close, holiday: true };
   if (mins >= cfg.open && mins < cfg.close) return { state: 'OPEN', label: 'OPEN', tz: cfg.tz, opensAt: cfg.open, closesAt: cfg.close };
   if (cfg.pre != null && mins >= cfg.pre && mins < cfg.open) return { state: 'PRE', label: 'PRE-MKT', tz: cfg.tz, opensAt: cfg.open, closesAt: cfg.close };
   if (cfg.post != null && mins >= cfg.close && mins < cfg.post) return { state: 'POST', label: 'AFTER-HRS', tz: cfg.tz, opensAt: cfg.open, closesAt: cfg.close };
@@ -125,7 +131,8 @@ export function describeQuote(group, asOfMs, nowMs = Date.now()) {
   if (sess.state === 'POST') {
     return { state: 'POST', badge: `AFTER-HRS · CLOSE ${label}`, color: AMBER, bg: '#1a1400', asOfLabel: label, isStale: false, ageMs, detail: 'Regular session closed; after-hours prints may appear as POST.' };
   }
-  return { state: 'CLOSED', badge: `CLOSED · ${label}`, color: GREY, bg: '#161616', asOfLabel: label, isStale: false, ageMs, detail: 'Market closed. Showing the last close.' };
+  const closedWord = sess.holiday ? 'HOLIDAY' : 'CLOSED';
+  return { state: 'CLOSED', badge: `${closedWord} · ${label}`, color: GREY, bg: '#161616', asOfLabel: label, isStale: false, ageMs, detail: sess.holiday ? 'Exchange holiday. Showing the last close.' : 'Market closed. Showing the last close.' };
 }
 
 /** Yahoo sends 0 for OPEN/HIGH/LOW/VOLUME before the first trade. 0 is not a price. */

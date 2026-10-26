@@ -153,15 +153,23 @@ router.get('/', async (req, res) => {
   // Session-aware staleness: a quote older than STALE_MS is a FAILURE while
   // that market should be printing, and only a WARNING outside its session
   // (weekend / pre-open legitimately carry the last close).
+  const { isHoliday } = require('../utils/exchangeHolidays');
+  function localParts(tz) {
+    const p = new Intl.DateTimeFormat('en-CA', { timeZone: tz, hour12: false, weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).formatToParts(new Date());
+    const g = (t) => (p.find(x => x.type === t) || {}).value;
+    const dow = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[g('weekday')] ?? 0;
+    return { dow, mins: (parseInt(g('hour'), 10) % 24) * 60 + parseInt(g('minute'), 10), date: `${g('year')}-${g('month')}-${g('day')}` };
+  }
+  // #292 Wave 2 — DST-safe via Intl, holiday-aware. The old version used a
+  // fixed UTC offset (wrong for half the year in New York) and no calendar.
   function sessionOpen(market) {
-    const now = new Date();
-    if (market === 'b3') {           // Mon-Fri 10:00–17:00 BRT (UTC-3) + buffer
-      const t = new Date(now.getTime() - 3 * 3600e3); const d = t.getUTCDay(); const m = t.getUTCHours() * 60 + t.getUTCMinutes();
-      return d >= 1 && d <= 5 && m >= 615 && m <= 1080;
+    if (market === 'b3') {           // Mon-Fri 10:15–18:00 BRT (15-min open buffer)
+      const { dow, mins, date } = localParts('America/Sao_Paulo');
+      return dow >= 1 && dow <= 5 && !isHoliday('B3', date) && mins >= 615 && mins <= 1080;
     }
-    if (market === 'us') {           // Mon-Fri 09:30–16:00 ET — approximate with UTC-4/-5 midpoint
-      const t = new Date(now.getTime() - 4.5 * 3600e3); const d = t.getUTCDay(); const m = t.getUTCHours() * 60 + t.getUTCMinutes();
-      return d >= 1 && d <= 5 && m >= 585 && m <= 990;
+    if (market === 'us') {           // Mon-Fri 09:45–16:30 ET
+      const { dow, mins, date } = localParts('America/New_York');
+      return dow >= 1 && dow <= 5 && !isHoliday('US', date) && mins >= 585 && mins <= 990;
     }
     return true;                     // fx/crypto: always
   }
@@ -210,6 +218,39 @@ router.get('/', async (req, res) => {
   // source quotation time; never fabricated. Stale (> 24h) is a failure on
   // a B3 business day after 10:30 BRT, a warning otherwise (weekend/pre-open
   // legitimately carries the last print).
+  // ── #292 Wave 2 — index vs its ETF ────────────────────────────────────
+  //
+  // On 26 Oct 2026 ^BVSP sat at Friday's +0.47% while EWZ was −30% in
+  // pre-market. Nothing in the system compared the two. This does: when
+  // both B3 and NYSE are in session, Ibovespa in USD terms (index move +
+  // BRL move) should track EWZ within a few points; a wide gap means one
+  // feed is not updating. Outside the overlap it only reports the gap.
+  checks.push(await check('brazil.index_vs_etf', async () => {
+    const rows = await providers.yahooQuote('^BVSP,EWZ,BRL=X');
+    const by = Object.fromEntries((rows || []).map(q => [q.symbol, q]));
+    const ibov = by['^BVSP'], ewz = by['EWZ'], brl = by['BRL=X'];
+    if (!ibov || !ewz) return { ok: true, warn: true, detail: 'quotes missing', have: Object.keys(by) };
+    const pct = (q) => (typeof q?.regularMarketChangePercent === 'number' ? q.regularMarketChangePercent : null);
+    const ewzLive = ewz.marketState === 'PRE' && ewz.preMarketChangePercent != null ? ewz.preMarketChangePercent
+                  : ewz.marketState === 'POST' && ewz.postMarketChangePercent != null ? ewz.postMarketChangePercent
+                  : pct(ewz);
+    const brlPct = pct(brl) ?? 0; // USD/BRL up ⇒ BRL weaker ⇒ EWZ lower
+    const ibovUsd = pct(ibov) != null ? pct(ibov) - brlPct : null;
+    const gapPp = ibovUsd != null && ewzLive != null ? Math.abs(ibovUsd - ewzLive) : null;
+    const overlap = sessionOpen('b3') && sessionOpen('us');
+    const ibovAgeMin = ibov.regularMarketTime ? Math.round((Date.now() - ibov.regularMarketTime * 1000) / 60000) : null;
+    const diverged = gapPp != null && gapPp > 4;
+    return {
+      ok: !(overlap && diverged),
+      warn: diverged,
+      ibovPct: pct(ibov), ibovAgeMin, ibovState: ibov.marketState || null,
+      ewzPct: ewzLive, ewzState: ewz.marketState || null, usdbrlPct: pct(brl),
+      ibovUsdPct: ibovUsd != null ? +ibovUsd.toFixed(2) : null, gapPp: gapPp != null ? +gapPp.toFixed(2) : null,
+      overlap,
+      detail: diverged ? (overlap ? 'Ibovespa feed not tracking EWZ during session — index feed likely stale' : 'EWZ has moved since Ibovespa last printed (markets not both open)') : 'tracking',
+    };
+  }));
+
   checks.push(await check('curve.br', async () => {
     const debt = require('./market/debt');
     if (typeof debt.buildBrCurve !== 'function') return { ok: false, detail: 'buildBrCurve not exported' };

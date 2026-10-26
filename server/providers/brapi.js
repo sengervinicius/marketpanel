@@ -110,23 +110,7 @@ async function getQuote(symbol) {
       cacheSet(ck, null);
       return null;
     }
-    const normalised = {
-      symbol: row.symbol,
-      name: row.longName || row.shortName || null,
-      price: typeof row.regularMarketPrice === 'number' ? row.regularMarketPrice : null,
-      change: typeof row.regularMarketChange === 'number' ? row.regularMarketChange : null,
-      chgPct: typeof row.regularMarketChangePercent === 'number' ? row.regularMarketChangePercent : null,
-      currency: row.currency || 'BRL',
-      marketCap: typeof row.marketCap === 'number' ? row.marketCap : null,
-      high52w: typeof row.fiftyTwoWeekHigh === 'number' ? row.fiftyTwoWeekHigh : null,
-      low52w: typeof row.fiftyTwoWeekLow === 'number' ? row.fiftyTwoWeekLow : null,
-      volume: typeof row.regularMarketVolume === 'number' ? row.regularMarketVolume : null,
-      exchange: 'B3',
-      source: 'brapi',
-      // #292 Wave 1 — was new Date(): fetch time dressed as market time.
-      asOf: row.regularMarketTime ? new Date(row.regularMarketTime).toISOString() : null,
-      fetchedAt: new Date().toISOString(),
-    };
+    const normalised = normaliseRow(row);
     cacheSet(ck, normalised);
     return normalised;
   } catch (e) {
@@ -141,4 +125,76 @@ async function getQuote(symbol) {
   }
 }
 
-module.exports = { getQuote, _normaliseTicker: normaliseTicker };
+
+/** One BRAPI result row → our quote shape. Exported for tests. */
+function normaliseRow(row) {
+  return {
+    symbol: row.symbol,
+    name: row.longName || row.shortName || null,
+    price: typeof row.regularMarketPrice === 'number' ? row.regularMarketPrice : null,
+    change: typeof row.regularMarketChange === 'number' ? row.regularMarketChange : null,
+    chgPct: typeof row.regularMarketChangePercent === 'number' ? row.regularMarketChangePercent : null,
+    currency: row.currency || 'BRL',
+    marketCap: typeof row.marketCap === 'number' ? row.marketCap : null,
+    high52w: typeof row.fiftyTwoWeekHigh === 'number' ? row.fiftyTwoWeekHigh : null,
+    low52w: typeof row.fiftyTwoWeekLow === 'number' ? row.fiftyTwoWeekLow : null,
+    volume: typeof row.regularMarketVolume === 'number' ? row.regularMarketVolume : null,
+    open: typeof row.regularMarketOpen === 'number' ? row.regularMarketOpen : null,
+    high: typeof row.regularMarketDayHigh === 'number' ? row.regularMarketDayHigh : null,
+    low: typeof row.regularMarketDayLow === 'number' ? row.regularMarketDayLow : null,
+    prevClose: typeof row.regularMarketPreviousClose === 'number' ? row.regularMarketPreviousClose : null,
+    exchange: 'B3',
+    source: 'brapi',
+    // #292 Wave 1 — was new Date(): fetch time dressed as market time.
+    asOf: row.regularMarketTime ? new Date(row.regularMarketTime).toISOString() : null,
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * #292 Wave 2 — batch quotes for the Brazil board. BRAPI accepts a comma
+ * list; keyed accounts get larger batches. Returns the same detailed shape
+ * as batchYahooQuoteDetailed so the snapshot route can merge sources:
+ *   { quotes: [normalised...], requested, received, missing: [tickers], failed: [{batch, error}] }
+ * Never throws.
+ */
+async function getQuotes(symbols, { batchSize } = {}) {
+  const tickers = [...new Set((symbols || []).map(normaliseTicker).filter(Boolean))];
+  const size = batchSize || (token() ? 20 : 1);
+  const out = { quotes: [], requested: tickers.length, received: 0, missing: [], failed: [] };
+  const seen = new Set();
+  for (let i = 0; i < tickers.length; i += size) {
+    const batch = tickers.slice(i, i + size);
+    const url = new URL(`${BASE}/quote/${encodeURIComponent(batch.join(','))}`);
+    const tk = token();
+    if (tk) url.searchParams.set('token', tk);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' }, signal: controller.signal });
+      if (!res.ok) {
+        out.failed.push({ batch, error: `brapi ${res.status}` });
+        if (res.status === 429 || res.status === 401 || res.status === 403) break; // don't hammer
+        continue;
+      }
+      const json = await res.json();
+      for (const row of (Array.isArray(json.results) ? json.results : [])) {
+        if (!row?.symbol || row.error) continue;
+        const n = normaliseRow(row);
+        if (n.price == null) continue;
+        out.quotes.push(n);
+        seen.add(n.symbol.toUpperCase());
+        cacheSet(`quote:${n.symbol.toUpperCase()}`, n);
+      }
+    } catch (e) {
+      out.failed.push({ batch, error: e.name === 'AbortError' ? 'brapi timeout' : (e.message || 'brapi failed') });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  out.received = out.quotes.length;
+  out.missing = tickers.filter(t => !seen.has(t));
+  return out;
+}
+
+module.exports = { getQuote, getQuotes, normaliseRow, _normaliseTicker: normaliseTicker };
