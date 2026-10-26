@@ -79,6 +79,10 @@ router.get('/bond-detail/:symbol', async (req, res) => {
     let dayHigh = null;
     let dayLow = null;
     let dayOpen = null;
+    // #292 Wave 4 — where the yield came from and when it was observed.
+    let yieldSource = null;
+    let yieldAsOf = null;        // ms
+    let yieldFrequency = null;   // 'intraday' | 'daily' | 'monthly-average'
 
     // —— Try Yahoo Finance for US treasuries ——
     if (meta.yahoo) {
@@ -93,6 +97,9 @@ router.get('/bond-detail/:symbol', async (req, res) => {
           dayHigh = q.regularMarketDayHigh ?? null;
           dayLow = q.regularMarketDayLow ?? null;
           dayOpen = q.regularMarketOpen ?? null;
+          yieldSource = 'yahoo';
+          yieldAsOf = q.regularMarketTime ? q.regularMarketTime * 1000 : null;
+          yieldFrequency = 'intraday';
         }
       } catch (e) {
         console.warn(`[BondDetail] Yahoo failed for ${meta.yahoo}:`, e.message);
@@ -112,6 +119,9 @@ router.get('/bond-detail/:symbol', async (req, res) => {
             );
             if (point) {
               yieldValue = point.rate;
+              yieldSource = cached[curveKey].source || 'curve';
+              yieldAsOf = cached[curveKey].asOf ? (typeof cached[curveKey].asOf === 'number' ? cached[curveKey].asOf : Date.parse(cached[curveKey].asOf)) || null : null;
+              yieldFrequency = 'daily';
             }
           }
         }
@@ -128,7 +138,12 @@ router.get('/bond-detail/:symbol', async (req, res) => {
     // Brazilian sovereigns).
     if (yieldValue == null && meta.tenor === '10Y' && FRED_SOVEREIGN_10Y[meta.country]) {
       const fredRate = await fetchFredSovereign10Y(meta.country);
-      if (fredRate != null) yieldValue = fredRate;
+      if (fredRate != null) {
+        yieldValue = fredRate.value;
+        yieldSource = 'fred-oecd';
+        yieldAsOf = fredRate.date ? Date.parse(`${fredRate.date}T12:00:00Z`) : null;
+        yieldFrequency = 'monthly-average'; // OECD MEI long-term rate: a MONTH's average, not today's print
+      }
     }
 
     // —— For Brazil, try Tesouro Direto for richer bond data ——
@@ -188,13 +203,11 @@ router.get('/bond-detail/:symbol', async (req, res) => {
     // for every bond row even when data was current. Now we record on
     // every successful resolve, regardless of whether it came from
     // Yahoo, the FRED fallback, or Tesouro Direto.
-    if (yieldValue != null) {
+    // #292 Wave 4 — was asOf: Date.now() for every source: a month-old
+    // OECD average lit the FreshnessDot green. Record only a real time.
+    if (yieldValue != null && yieldAsOf) {
       try {
-        require('../../services/freshnessLedger').record({
-          symbol: sym,
-          source: 'multi', // Yahoo, FRED, Tesouro — collapsed here; ops can check logs for which one served the last hit
-          asOf: Date.now(),
-        });
+        require('../../services/freshnessLedger').record({ symbol: sym, source: yieldSource || 'multi', asOf: yieldAsOf });
       } catch (_) { /* never throw from response path */ }
     }
 
@@ -282,7 +295,15 @@ router.get('/bond-detail/:symbol', async (req, res) => {
       ...(brBondData ? { brBond: brBondData } : {}),
 
       assetClass: 'fixed_income',
-      updatedAt: new Date().toISOString(),
+      // #292 Wave 4 — honest provenance. price/duration/dv01/currentYield
+      // are DERIVED from the yield with an ESTIMATED coupon (nearest 0.25),
+      // not market prices; the client must label them so.
+      source: yieldSource,
+      asOf: yieldAsOf ? new Date(yieldAsOf).toISOString() : null,
+      frequency: yieldFrequency,
+      derived: { price: true, discountPremium: true, currentYield: true, modifiedDuration: true, dv01: true, estimatedCoupon: true },
+      fetchedAt: new Date().toISOString(),
+      updatedAt: yieldAsOf ? new Date(yieldAsOf).toISOString() : null,
     });
   } catch (e) {
     console.error('[API] /bond-detail error:', e.message);
@@ -324,50 +345,32 @@ router.get('/snapshot/rates', async (req, res) => {
       console.error('[API] US Treasury fetch failed:', usResult.reason?.message);
     }
 
-    let selicRate = 14.75;
+    // #292 Wave 4 — policy rates. This block hardcoded SELIC 14.75 / Fed
+    // Funds 4.33 / ECB 3.50 and called FRED with api_key=DEMO_KEY (which
+    // FRED rejects), so FED FUNDS and ECB were very likely ALWAYS the
+    // hardcoded numbers, rendered as live. Now: real value with its
+    // observation date, or price:null + unavailable:true. No invented rates.
+    const policy = [];
     if (selicResult.status === 'fulfilled' && Array.isArray(selicResult.value) && selicResult.value[0]?.valor) {
-      selicRate = parseFloat(selicResult.value[0].valor);
+      const row = selicResult.value[0];
+      const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(row.data || '');
+      policy.push({ symbol: 'SELIC', name: 'SELIC', price: parseFloat(row.valor), change: null, changePct: null, note: 'BCB TARGET RATE', type: 'policy',
+        asOf: m ? Date.parse(`${m[3]}-${m[2]}-${m[1]}T12:00:00Z`) : null, source: 'bcb-sgs' });
+    } else {
+      policy.push({ symbol: 'SELIC', name: 'SELIC', price: null, change: null, changePct: null, note: 'BCB TARGET RATE', type: 'policy', unavailable: true, error: selicResult.reason?.message || 'bcb: no data' });
     }
-
-    results.push({ symbol: 'SELIC', name: 'SELIC', price: selicRate, change: null, changePct: null, note: 'BCB TARGET RATE', type: 'policy' });
-
-    let fedFundsRate = 4.33;
-    let ecbRate = 3.50;
-    try {
-      const fredController = new AbortController();
-      const fredTimeout = setTimeout(() => fredController.abort(), 5000);
-      try {
-        // FRED API Key: DEMO_KEY (limited rate; use API_KEY env var in production)
-        const [dffRes, ecbRes] = await Promise.all([
-          fetch(
-            'https://api.stlouisfed.org/fred/series/observations?series_id=DFF&sort_order=desc&limit=1&file_type=json&api_key=DEMO_KEY',
-            { signal: fredController.signal, headers: { 'Accept': 'application/json' } }
-          ),
-          fetch(
-            'https://api.stlouisfed.org/fred/series/observations?series_id=ECBDFR&sort_order=desc&limit=1&file_type=json&api_key=DEMO_KEY',
-            { signal: fredController.signal, headers: { 'Accept': 'application/json' } }
-          ),
-        ]);
-
-        if (dffRes.ok) {
-          const fredData = await dffRes.json();
-          const lastObs = fredData?.observations?.[0];
-          if (lastObs?.value && lastObs.value !== '.') fedFundsRate = parseFloat(lastObs.value);
-        }
-
-        if (ecbRes.ok) {
-          const ecbData = await ecbRes.json();
-          const lastObs = ecbData?.observations?.[0];
-          if (lastObs?.value && lastObs.value !== '.') ecbRate = parseFloat(lastObs.value);
-        }
-      } finally {
-        clearTimeout(fredTimeout);
+    const fred = require('../../providers/fred');
+    const [dff, ecb] = await Promise.allSettled([fred.fetchLatestPair('DFF'), fred.fetchLatestPair('ECBDFR')]);
+    const policyRow = (symbol, name, note, r) => {
+      const v = r.status === 'fulfilled' ? r.value : null;
+      if (v && Number.isFinite(v.value)) {
+        return { symbol, name, price: v.value, change: null, changePct: null, note, type: 'policy', asOf: v.date ? Date.parse(`${v.date}T20:00:00Z`) : null, source: 'fred' };
       }
-    } catch (e) {
-      console.warn('[API] FRED rates fetch failed, using fallback:', e.message);
-    }
-    results.push({ symbol: 'FEDFUNDS', name: 'FED FUNDS', price: fedFundsRate, change: null, changePct: null, note: 'TARGET RATE', type: 'policy' });
-    results.push({ symbol: 'ECBRATE', name: 'ECB RATE', price: ecbRate, change: null, changePct: null, note: 'MAIN REFINANCING RATE', type: 'policy' });
+      return { symbol, name, price: null, change: null, changePct: null, note, type: 'policy', unavailable: true, error: r.status === 'rejected' ? r.reason?.message : 'fred: no data' };
+    };
+    policy.push(policyRow('FEDFUNDS', 'FED FUNDS', 'EFFECTIVE RATE (DFF)', dff));
+    policy.push(policyRow('ECBRATE', 'ECB RATE', 'DEPOSIT FACILITY RATE', ecb));
+    results.push(...policy);
 
     const payload = { results };
     cacheSet(cacheKey, payload, 60_000); // Cache for 60 seconds
@@ -628,6 +631,10 @@ function parseUsTreasury(xml) {
     const m = new RegExp(`<d:${field}(?:\\s[^>]*)?>([\\d.]+)<`).exec(lastEntry);
     if (m) curve.push({ tenor, months, rate: parseFloat(m[1]) });
   }
+  // #292 Wave 4 — observation date rides on the array (parsers return
+  // arrays everywhere; the payload reads curve.asOf instead of now()).
+  const dm = /<d:NEW_DATE[^>]*>(\d{4}-\d{2}-\d{2})/.exec(lastEntry);
+  curve.asOf = dm ? `${dm[1]}T20:00:00Z` : null;
 
   // ── Sanity check: US Treasury yields should be in a reasonable range ──
   // If parsed rates look unreasonable, reject them so FRED fallback takes over.
@@ -647,6 +654,7 @@ function parseUsTreasury(xml) {
     }
   }
 
+  if (curve.length === 0) return curve;
   return curve;
 }
 
@@ -665,6 +673,9 @@ function parseBoeCsv(csv) {
   }
   if (!lastLine) return [];
   const result = [];
+  // #292 Wave 4 — BoE rows start with the date (e.g. "24 Oct 2026").
+  const boeDate = Date.parse((lastLine[0] || '').replace(/"/g, '').trim());
+  result.asOf = Number.isFinite(boeDate) ? new Date(boeDate + 16 * 3600e3).toISOString() : null;
   headers.forEach((h, i) => {
     if (UK_BOE_META[h] && lastLine[i]) {
       const val = lastLine[i].trim().replace(/"/g, '');
@@ -673,7 +684,9 @@ function parseBoeCsv(csv) {
       }
     }
   });
-  return result.sort((a, b) => a.months - b.months);
+  const sortedUk = result.sort((a, b) => a.months - b.months);
+  sortedUk.asOf = result.asOf;
+  return sortedUk;
 }
 
 function ukSynthetic(boeRate = 4.50) {
@@ -724,7 +737,12 @@ function parseEcbYieldCurve(json) {
       if (rate == null || isNaN(rate)) continue;
       results.push({ tenor: meta.tenor, months: meta.months, rate: parseFloat(rate.toFixed(2)) });
     }
-    return results.sort((a, b) => a.months - b.months);
+    const sorted = results.sort((a, b) => a.months - b.months);
+    // #292 Wave 4 — SDMX observation dimension holds the dates.
+    const obsDim = (json.structure?.dimensions?.observation || [])[0];
+    const lastObs = obsDim?.values?.[obsDim.values.length - 1]?.id;
+    sorted.asOf = lastObs && /^\d{4}-\d{2}-\d{2}/.test(lastObs) ? `${lastObs.slice(0, 10)}T16:00:00Z` : null;
+    return sorted;
   } catch (e) {
     console.warn('[ECB] parse error:', e.message);
     return [];
@@ -820,7 +838,10 @@ function parseSnbCsv(csv) {
       rate: parseFloat(latest.get(matCode).toFixed(2)),
     });
   }
-  return result.sort((a, b) => a.months - b.months);
+  const sortedCh = result.sort((a, b) => a.months - b.months);
+  const d = dates[dates.length - 1];
+  sortedCh.asOf = /^\d{4}-\d{2}-\d{2}/.test(d || '') ? `${d.slice(0, 10)}T16:00:00Z` : null; // #292 Wave 4
+  return sortedCh;
 }
 
 function chSynthetic(snbPolicyRate = 0.50) {
@@ -948,8 +969,10 @@ async function fetchFredSovereign10Y(country) {
         const rate = parseFloat(val);
         if (Number.isFinite(rate)) {
           // Monthly data → 1 hour cache; OECD MEI updates ~monthly.
-          cacheSet(cacheKey, rate, 3_600_000);
-          return rate;
+          // #292 Wave 4 — carry the observation date; callers label it.
+          const out = { value: rate, date: parts[0]?.trim() || null };
+          cacheSet(cacheKey, out, 3_600_000);
+          return out;
         }
       }
     }
@@ -1200,19 +1223,25 @@ router.get('/yield-curves', async (req, res) => {
       US: {
         curve: usCurve,
         source: usSource,
-        updatedAt: now.toISOString(),
+        // #292 Wave 4 — observation time, not response time; null when the
+        // parser could not read one (the client then shows TIME UNKNOWN).
+        asOf: usCurve.asOf || usCurve.fetchedAt || null,
+        updatedAt: usCurve.asOf || null,
+        fetchedAt: now.toISOString(),
         // Additive (Design v1): 1-month-ago ghost curve for the main chart.
         ...(usGhost && Array.isArray(usGhost.points) && usGhost.points.length
           ? { ghost: usGhost.points, ghostAsOf: usGhost.asOf }
           : {}),
       },
-      UK: { curve: ukCurve, source: ukSource, updatedAt: now.toISOString() },
-      EU: { curve: euCurve, source: euSource, updatedAt: now.toISOString() },
+      UK: { curve: ukCurve, source: ukSource, asOf: ukCurve.asOf || null, updatedAt: ukCurve.asOf || null, fetchedAt: now.toISOString() },
+      EU: { curve: euCurve, source: euSource, asOf: euCurve.asOf || null, updatedAt: euCurve.asOf || null, fetchedAt: now.toISOString() },
       CH: {
         curve: chCurve,
         forwards: chForwards,
         source: chSource,
-        updatedAt: now.toISOString(),
+        asOf: chCurve.asOf || null,
+        updatedAt: chCurve.asOf || null,
+        fetchedAt: now.toISOString(),
       },
     };
 

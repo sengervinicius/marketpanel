@@ -183,7 +183,7 @@ function getJson(path) {
   });
 }
 
-const US_SHAPE_KEYS_BASE = ['curve', 'source', 'updatedAt'];
+const US_SHAPE_KEYS_BASE = ['curve', 'source', 'asOf', 'updatedAt', 'fetchedAt']; // #292 Wave 4 — observation time + fetch time
 
 function assertUsCurveIntact(us, expectedSource) {
   assert.ok(us, 'payload must contain the US key');

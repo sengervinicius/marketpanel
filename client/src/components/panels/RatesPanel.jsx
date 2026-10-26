@@ -60,13 +60,16 @@ function RatesPanel() {
   const treasuryRates = results.filter(r => r.type === 'treasury');
   const policyRates   = results.filter(r => r.type === 'policy');
 
-  const ROW = ({ label, value, change, note, live = true }) => (
-    <div className="rp-row">
+  // #292 Wave 4 — a row is "live" only if the server gave it a value AND
+  // an observation time; policy rates carry asOf (BCB/FRED observation
+  // date) or unavailable:true. Nothing here is assumed live any more.
+  const ROW = ({ label, value, change, note, live = true, asOf = null, unavailable = false, error = null }) => (
+    <div className="rp-row" title={unavailable ? `Unavailable — ${error || 'source did not answer'}` : asOf ? `As of ${new Date(asOf).toLocaleString()}` : undefined}>
       <span className={`rp-row-label ${live ? 'rp-row-label--live' : 'rp-row-label--static'}`}>
         {label}
       </span>
       <span className={`rp-row-value ${live ? 'rp-row-value--live' : 'rp-row-value--static'}`}>
-        {value != null ? value.toFixed(2) + '%' : '-'}
+        {value != null ? value.toFixed(2) + '%' : (unavailable ? 'N/A' : '-')}
       </span>
       <span>
         {live ? <PctChange v={change} /> : <span className="rp-row-change rp-row-change--static">—</span>}
@@ -126,7 +129,7 @@ function RatesPanel() {
         <div style={{ height: 4 }} />
         <SectionLabel text="POLICY RATES" />
         {policyRates.map(r => (
-          <ROW key={r.symbol} label={r.name} value={r.price} change={null} note={r.note} live={true} />
+          <ROW key={r.symbol} label={r.name} value={r.price} change={null} note={r.unavailable ? 'UNAVAILABLE' : (r.asOf ? `${r.note} · ${new Date(r.asOf).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase()}` : r.note)} live={!r.unavailable && r.price != null} asOf={r.asOf} unavailable={!!r.unavailable} error={r.error} />
         ))}
 
         {/* Static CB rates */}
