@@ -910,19 +910,52 @@ async function fetchTickerSnapshot(sym) {
   }
 
   if (!q) throw new Error(`No data for ${sym} from any provider`);
+  return shapeTickerSnapshot(sym, q);
+}
+
+/**
+ * #292 — the batch endpoint used to call fetchTickerSnapshot() once per
+ * symbol: N single-symbol Yahoo requests every 60s per distinct ticker
+ * across all users (~6k/hour measured on 26 Oct). One comma-list call
+ * now; the per-symbol path (with its Finnhub fallback) only for what the
+ * batch did not return.
+ */
+async function fetchTickerSnapshotsBatched(symbols) {
+  const { toYahoo } = require('../../utils/tickerNormalize');
+  const toY = (sym) => (sym.includes('=') ? sym : toYahoo(sym));
+  const ySyms = symbols.map(toY);
+  const back = new Map(ySyms.map((y, i) => [String(y).toUpperCase(), symbols[i]]));
+  const results = {}, errors = {};
+  let detail = { quotes: [], failed: [] };
+  try { detail = await batchYahooQuoteDetailed(ySyms, 50); } catch (e) { detail.failed.push({ error: e.message }); }
+  for (const q of detail.quotes) {
+    const sym = back.get(String(q.symbol || '').toUpperCase());
+    if (sym && q.regularMarketPrice != null) results[sym] = shapeTickerSnapshot(sym, q);
+  }
+  const missing = symbols.filter(s => !results[s]);
+  const settled = await Promise.allSettled(missing.map(s => fetchTickerSnapshot(s)));
+  settled.forEach((r, i) => {
+    if (r.status === 'fulfilled') results[missing[i]] = r.value;
+    else errors[missing[i]] = r.reason?.message || 'fetch failed';
+  });
+  return { results, errors };
+}
+
+function shapeTickerSnapshot(sym, q) {
   // #289 — record + surface freshness so admin endpoints and the
   // client-side freshness dot (#289 part 2) can answer "when did
-  // SPY last get fresh REST data, and from which source?". Yahoo
-  // exposes regularMarketTime in epoch seconds when present;
-  // Finnhub doesn't, so we fall back to now() with source label
-  // pinned accordingly.
-  const _asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : Date.now();
-  const _source = q.regularMarketTime ? 'yahoo' : 'finnhub';
-  try {
-    require('../../services/freshnessLedger').record({
-      symbol: sym, source: _source, asOf: _asOfMs,
-    });
-  } catch (_) { /* never throw from response path */ }
+  // SPY last get fresh REST data, and from which source?".
+  // #292 Wave 0 — Finnhub has no quote time: record nothing rather than
+  // stamping now() (which made a stale fallback look live).
+  const _asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : null;
+  const _source = q._source || (q.regularMarketTime ? 'yahoo' : 'finnhub');
+  if (_asOfMs) {
+    try {
+      require('../../services/freshnessLedger').record({
+        symbol: sym, source: _source, asOf: _asOfMs,
+      });
+    } catch (_) { /* never throw from response path */ }
+  }
   return {
     ticker: {
       min:    { c: q.regularMarketPrice },
@@ -1015,15 +1048,10 @@ router.get('/snapshot/tickers', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'bad_request', message: `Too many symbols: ${symbols.length} (max ${SNAPSHOT_BATCH_MAX})` });
     }
 
-    // Fetch concurrently through the SAME per-ticker path as the single
-    // endpoint (shared yahooQuote 60s cache dedupes hot symbols).
-    const settled = await Promise.allSettled(symbols.map(s => fetchTickerSnapshot(s)));
-    const results = {};
-    settled.forEach((r, i) => {
-      if (r.status === 'fulfilled') results[symbols[i]] = r.value;
-      else errors[symbols[i]] = r.reason?.message || 'fetch failed';
-    });
-    res.json({ results, errors });
+    // #292 — one Yahoo call for the whole list (was one per symbol).
+    const b = await fetchTickerSnapshotsBatched(symbols);
+    Object.assign(errors, b.errors);
+    res.json({ results: b.results, errors });
   } catch (e) {
     console.error('[API] /snapshot/tickers error:', e.message);
     sendError(res, e);
