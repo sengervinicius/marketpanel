@@ -437,7 +437,10 @@ async function _yahooQuoteRaw(symbols) {
     // q.earningsTimestamp / q.earningsTimestampStart off these quotes, so the
     // timestamps must be requested explicitly or every fallback row is
     // dropped as "no timestamp".
-    const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency,marketCap,trailingPE,forwardPE,epsTrailingTwelveMonths,sharesOutstanding,trailingAnnualDividendYield,fiftyTwoWeekLow,fiftyTwoWeekHigh,averageDailyVolume3Month,preMarketPrice,preMarketChangePercent,postMarketPrice,postMarketChangePercent,earningsTimestamp,earningsTimestampStart,earningsTimestampEnd';
+    // #292 Wave 0/1 — regularMarketTime + marketState were never requested, so
+    // every asOf downstream was null or the server clock. These are the
+    // fields that make "LIVE" vs "FRI 17:00" decidable at all.
+    const fields = 'regularMarketTime,marketState,regularMarketPreviousClose,exchangeTimezoneName,regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,regularMarketOpen,regularMarketDayHigh,regularMarketDayLow,shortName,longName,currency,marketCap,trailingPE,forwardPE,epsTrailingTwelveMonths,sharesOutstanding,trailingAnnualDividendYield,fiftyTwoWeekLow,fiftyTwoWeekHigh,averageDailyVolume3Month,preMarketPrice,preMarketChangePercent,postMarketPrice,postMarketChangePercent,earningsTimestamp,earningsTimestampStart,earningsTimestampEnd';
     const host = HOSTS[attempt % HOSTS.length];
     const url = `https://${host}.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbols)}&crumb=${encodeURIComponent(crumb)}&fields=${fields}&lang=en-US`;
     const quoteController = new AbortController();
