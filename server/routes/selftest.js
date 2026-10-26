@@ -235,19 +235,29 @@ router.get('/', async (req, res) => {
                   : ewz.marketState === 'POST' && ewz.postMarketChangePercent != null ? ewz.postMarketChangePercent
                   : pct(ewz);
     const brlPct = pct(brl) ?? 0; // USD/BRL up ⇒ BRL weaker ⇒ EWZ lower
-    const ibovUsd = pct(ibov) != null ? pct(ibov) - brlPct : null;
+    // Multiplicative, not additive: on 26 Oct Ibov −17% with USD/BRL +11.3%
+    // is −25.4% in USD (0.83/1.113), not −28.3%. The additive version
+    // flagged a 4.6pp "divergence" that was arithmetic.
+    const ibovUsd = pct(ibov) != null ? ((1 + pct(ibov) / 100) / (1 + brlPct / 100) - 1) * 100 : null;
     const gapPp = ibovUsd != null && ewzLive != null ? Math.abs(ibovUsd - ewzLive) : null;
     const overlap = sessionOpen('b3') && sessionOpen('us');
     const ibovAgeMin = ibov.regularMarketTime ? Math.round((Date.now() - ibov.regularMarketTime * 1000) / 60000) : null;
-    const diverged = gapPp != null && gapPp > 4;
+    // Yahoo's ^BVSP is B3's 15-minute delayed feed; a gap with a print
+    // < 20 min old is index/ETF basis, not a dead feed. FAIL only when the
+    // gap is wide AND the index has not printed for 20+ minutes in session.
+    const wide = gapPp != null && gapPp > 5;
+    const feedStale = ibovAgeMin == null || ibovAgeMin > 20;
+    const diverged = wide && feedStale;
     return {
       ok: !(overlap && diverged),
-      warn: diverged,
+      warn: wide || (overlap && feedStale),
       ibovPct: pct(ibov), ibovAgeMin, ibovState: ibov.marketState || null,
       ewzPct: ewzLive, ewzState: ewz.marketState || null, usdbrlPct: pct(brl),
       ibovUsdPct: ibovUsd != null ? +ibovUsd.toFixed(2) : null, gapPp: gapPp != null ? +gapPp.toFixed(2) : null,
       overlap,
-      detail: diverged ? (overlap ? 'Ibovespa feed not tracking EWZ during session — index feed likely stale' : 'EWZ has moved since Ibovespa last printed (markets not both open)') : 'tracking',
+      detail: diverged ? (overlap ? 'Ibovespa feed not tracking EWZ during session — index feed likely stale' : 'EWZ has moved since Ibovespa last printed (markets not both open)')
+            : wide ? `index/ETF basis ${gapPp.toFixed(1)}pp with a fresh print (${ibovAgeMin}m) — tracking`
+            : (overlap && feedStale) ? `Ibovespa has not printed for ${ibovAgeMin}m during session` : 'tracking',
     };
   }));
 
@@ -290,7 +300,7 @@ router.get('/', async (req, res) => {
   // FAIL when configured-but-unreachable or value-less; everything else
   // WARNs. A row whose provider gives no timestamp is flagged so the
   // "we don't know how old this is" state is visible, not assumed live.
-  const CORE = new Set(['yahoo', 'yahoo_brazil', 'fred', 'bcb_sgs', 'ptax', 'coingecko']);
+  const CORE = new Set(['yahoo', 'yahoo_brazil', 'fred', 'bcb_sgs', 'ptax']); // coingecko: coin-detail only, crypto grid is Yahoo
   const STALE_MIN = { yahoo: 20, yahoo_brazil: 20, brapi: 20, twelvedata: 20, finnhub: 20, polygon: 20, coingecko: 15, commodities: 30, ptax: 75 * 60, fred: 5 * 24 * 60, bcb_sgs: 5 * 24 * 60, us_treasury_curve: 5 * 24 * 60 };
   try {
     const { providerMatrix } = require('../services/providerProbe');
