@@ -96,7 +96,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const instrumentData = useInstrumentData(ticker);
   const {
     norm, disp, resolution, isFX, isCrypto, isBrazil, isBondTicker, isStock, isBond, isETF, isIndex, exchangeGroup,
-    rangeIdx, setRangeIdx, bars, loading, range,
+    rangeIdx, setRangeIdx, bars, barsNote, loading, range,
     snap, info,
     fundsData, fundsLoading, fundsError, refetchFundamentals,
     etfMeta, otherListings, instrumentCompanyId,
@@ -799,6 +799,11 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
     return (
       <>
+        {barsNote && !customRangeBars && (
+          <div className="id-chart-note" style={{ fontSize: 9.5, letterSpacing: '0.06em', color: '#ffd54f', opacity: 0.9, padding: '2px 4px' }}>
+            {barsNote}
+          </div>
+        )}
         {/* Price chart */}
         <div className={`id-chart-flex-main${(hasRSI || hasMACD) ? ' id-chart-flex-main--compressed' : ''}`}>
           <ResponsiveContainer width="100%" height="100%">

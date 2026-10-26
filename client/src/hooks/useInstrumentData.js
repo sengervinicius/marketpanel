@@ -57,6 +57,9 @@ export function useInstrumentData(ticker) {
   // Chart state
   const [rangeIdx, setRangeIdx]   = useState(0);
   const [bars, setBars]           = useState([]);
+  // #292 Wave 0 — set when an intraday range had no bars yet (pre-open)
+  // and the chart is showing the previous session(s) instead.
+  const [barsNote, setBarsNote]   = useState(null);
   const [loading, setLoading]     = useState(true);
 
   // fix/bug-wave3 BUG 4 — measure-mode pause for the intraday bars poll.
@@ -145,12 +148,18 @@ export function useInstrumentData(ticker) {
   useEffect(() => {
     setLoading(true);
     setBars([]);
+    setBarsNote(null);
     let stale = false;
     let pollTimer = null;
     const isIntraday = range.timespan === 'minute' || range.timespan === 'hour';
 
-    const runFetch = (isInitial) => {
-      const from = getFromDate(range);
+    const runFetch = (isInitial, opts = {}) => {
+      // #292 Wave 0 — before the open, a 1D range starts today and has no
+      // bars yet; that used to render as "Historical chart data
+      // unavailable — US (NYSE / NASDAQ)" on ^BVSP. On an empty intraday
+      // result, re-ask once for the previous sessions (4 calendar days
+      // covers a weekend + holiday) and label the chart accordingly.
+      const from = opts.fromOverride || getFromDate(range);
       const to = new Date().toISOString().split('T')[0];
 
       apiFetch(
@@ -177,7 +186,13 @@ export function useInstrumentData(ticker) {
               close: b.c,
               volume: Number.isFinite(b.v) ? b.v : 0,
             }));
+          if (cleanBars.length === 0 && isIntraday && isInitial && !opts.fromOverride) {
+            const d = new Date(); d.setDate(d.getDate() - 4);
+            runFetch(true, { fromOverride: d.toISOString().split('T')[0], note: 'PREVIOUS SESSION — no trades yet today' });
+            return;
+          }
           setBars(cleanBars);
+          if (opts.note && cleanBars.length) setBarsNote(opts.note);
           if (isInitial) setLoading(false);
 
           // #219 — empty bars on a foreign-suffix ticker strongly suggests
@@ -582,6 +597,7 @@ export function useInstrumentData(ticker) {
     rangeIdx,
     setRangeIdx,
     bars,
+    barsNote,
     loading,
     range,
 
