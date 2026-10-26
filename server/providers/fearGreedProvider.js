@@ -160,11 +160,14 @@ function computeEquityFearGreed({ vix, putCallRatio, spyPrice, spy125Ma, advance
   }
 
   // Compute weighted average
-  const composite = totalWeight > 0 ? Math.round(totalScore / totalWeight) : 50;
+  // #292 Wave 4 — no inputs used to yield "50 Neutral", an invented
+  // reading. No inputs ⇒ value null, label 'Unavailable'.
+  const composite = totalWeight > 0 ? Math.round(totalScore / totalWeight) : null;
 
   // Label
   let label;
-  if (composite <= 20) label = 'Extreme Fear';
+  if (composite == null) label = 'Unavailable';
+  else if (composite <= 20) label = 'Extreme Fear';
   else if (composite <= 40) label = 'Fear';
   else if (composite <= 60) label = 'Neutral';
   else if (composite <= 80) label = 'Greed';
@@ -175,7 +178,8 @@ function computeEquityFearGreed({ vix, putCallRatio, spyPrice, spy125Ma, advance
     label,
     components,
     totalWeight,
-    timestamp: new Date().toISOString(),
+    unavailable: composite == null,
+    computedAt: new Date().toISOString(),
   };
 }
 

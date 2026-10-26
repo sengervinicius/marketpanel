@@ -82,9 +82,12 @@ function computePortfolioMetrics(portfolioDoc) {
   const holdings = [];
   for (const pos of positions) {
     const live = stocks[pos.ticker];
-    const price = live?.price || pos.avgPrice || 0;
-    const mktValue = Math.abs(pos.shares) * price;
-    const changePct = live?.changePct ?? live?.changePercent ?? 0;
+    // #292 Wave 4 — no live price ⇒ priced:false, not avg cost (which
+    // invented a 0% gain) and not 0 (which invented −100%).
+    const price = live?.price ?? null;
+    const priced = price != null && price > 0;
+    const mktValue = priced ? Math.abs(pos.shares) * price : null;
+    const changePct = live?.changePct ?? live?.changePercent ?? null;
 
     holdings.push({
       ticker: pos.ticker,
@@ -93,33 +96,38 @@ function computePortfolioMetrics(portfolioDoc) {
       currentPrice: price,
       marketValue: mktValue,
       changePct,
-      gainPct: pos.avgPrice ? ((price - pos.avgPrice) / pos.avgPrice * 100) : 0,
+      gainPct: priced && pos.avgPrice ? ((price - pos.avgPrice) / pos.avgPrice * 100) : null,
+      priced,
       sector: guessSector(pos.ticker),
     });
-    totalValue += mktValue;
+    if (priced) totalValue += mktValue;
   }
 
   if (totalValue === 0) return null;
 
-  // Weights
+  // Weights — unpriced holdings carry weight null and are listed as such;
+  // they are not silently dropped or counted as zero.
   for (const h of holdings) {
-    h.weight = (h.marketValue / totalValue * 100);
+    h.weight = h.priced ? (h.marketValue / totalValue * 100) : null;
   }
+  const unpriced = holdings.filter(h => !h.priced).map(h => h.ticker);
 
   // Sort by weight desc
-  holdings.sort((a, b) => b.weight - a.weight);
+  holdings.sort((a, b) => (b.weight ?? -1) - (a.weight ?? -1));
 
   // Sector breakdown
   const sectorMap = {};
   for (const h of holdings) {
+    if (!h.priced) continue;
     const s = h.sector || 'Other';
     sectorMap[s] = (sectorMap[s] || 0) + h.weight;
   }
 
   // Concentration metrics
-  const top3Weight = holdings.slice(0, 3).reduce((s, h) => s + h.weight, 0);
-  const top5Weight = holdings.slice(0, 5).reduce((s, h) => s + h.weight, 0);
-  const hhi = holdings.reduce((s, h) => s + (h.weight / 100) ** 2, 0); // Herfindahl index
+  const pricedH = holdings.filter(h => h.priced);
+  const top3Weight = pricedH.slice(0, 3).reduce((s, h) => s + h.weight, 0);
+  const top5Weight = pricedH.slice(0, 5).reduce((s, h) => s + h.weight, 0);
+  const hhi = pricedH.reduce((s, h) => s + (h.weight / 100) ** 2, 0); // Herfindahl index
 
   return {
     totalValue,
@@ -132,7 +140,8 @@ function computePortfolioMetrics(portfolioDoc) {
       hhi: Math.round(hhi * 1000) / 1000,
       isConcentrated: top3Weight > 50 || hhi > 0.15,
     },
-    todayPnl: holdings.reduce((s, h) => s + h.marketValue * h.changePct / 100, 0),
+    todayPnl: holdings.reduce((s, h) => s + (h.priced && h.changePct != null ? h.marketValue * h.changePct / 100 : 0), 0),
+    unpriced, // #292 Wave 4 — the AI must say these could not be valued
   };
 }
 

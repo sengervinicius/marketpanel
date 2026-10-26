@@ -163,7 +163,7 @@ function getIndices() {
       return {
         symbol: sym,
         price: d.price,
-        change: d.changePercent ?? 0,
+        change: d.changePercent ?? null, // #292 Wave 4 — unknown ≠ flat
       };
     })
     .filter(Boolean);
@@ -180,7 +180,7 @@ function getForexSnapshot() {
     .map(sym => {
       const d = _marketState.forex[sym];
       if (!d || !d.price) return null;
-      return { symbol: sym, price: d.price, change: d.changePercent ?? 0 };
+      return { symbol: sym, price: d.price, change: d.changePercent ?? null };
     })
     .filter(Boolean);
 }
@@ -196,7 +196,7 @@ function getCryptoSnapshot() {
     .map(sym => {
       const d = _marketState.crypto[sym];
       if (!d || !d.price) return null;
-      return { symbol: sym, price: d.price, change: d.changePercent ?? 0 };
+      return { symbol: sym, price: d.price, change: d.changePercent ?? null };
     })
     .filter(Boolean);
 }
@@ -430,7 +430,7 @@ async function fetchOnDemandQuotes(tickers) {
       if (quote && quote.price) {
         const data = {
           price: quote.price,
-          changePercent: quote.changePct || 0,
+          changePercent: quote.changePct ?? null,
           volume: quote.volume || 0,
           name: quote.name || sym,
           high52w: quote.high52w,

@@ -160,7 +160,7 @@ function assembleMarketSnapshot() {
         snapshot.indices[sym] = {
           label,
           price: d.price,
-          change: d.changePercent || 0,
+          change: d.changePercent ?? null, // #292 Wave 4 — unknown ≠ flat
           volume: d.volume || 0,
         };
       }
@@ -169,7 +169,7 @@ function assembleMarketSnapshot() {
     // VIX
     const vix = stocks['VIX'] || stocks['UVXY'];
     if (vix?.price) {
-      snapshot.vix = { price: vix.price, change: vix.changePercent || 0 };
+      snapshot.vix = { price: vix.price, change: vix.changePercent ?? null };
     }
 
     // Crypto
@@ -177,7 +177,7 @@ function assembleMarketSnapshot() {
       const d = stocks[sym];
       if (d?.price) {
         const key = sym.replace('USD', '');
-        snapshot.crypto[key] = { price: d.price, change: d.changePercent || 0 };
+        snapshot.crypto[key] = { price: d.price, change: d.changePercent ?? null };
       }
     }
 
@@ -259,7 +259,8 @@ async function joinUserRelevance(snapshot, userId) {
       const isPortfolio = portfolioTickers.has(ticker);
       const isWatchlist = watchlist.has(ticker);
       const isInterest = tickersOfInterest.has(ticker);
-      const changePct = d.changePercent || 0;
+      const changePct = d.changePercent;
+      if (changePct == null) continue; // #292 Wave 4 — no change ⇒ cannot rank it
 
       // Score: portfolio 2x, explicit brief interest 1.5x, watchlist 1x
       const weight = isPortfolio ? 2 : (isInterest ? 1.5 : 1);
@@ -1002,7 +1003,10 @@ async function getContextualGreeting(userId = null) {
           let totalVal = 0, totalCost = 0;
           for (const pos of portfolio.positions) {
             const d = _marketState.stocks[pos.symbol];
-            const price = d?.price || pos.currentPrice || 0;
+            const price = d?.price ?? pos.currentPrice ?? null;
+            // #292 Wave 4 — an unpriced position used to count as $0 and
+            // drag the portfolio to −100%. Skip it from both sides.
+            if (!(price > 0)) continue;
             totalVal += price * (pos.quantity || 0);
             totalCost += (pos.entryPrice || 0) * (pos.quantity || 0);
           }

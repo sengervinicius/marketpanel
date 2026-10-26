@@ -167,13 +167,27 @@ async function getSnapshot(code) {
   }
 
   // 2. Country-specific real fallbacks
+  // #292 Wave 4 — was { ...STUBS.X, ...live, stub:false }: any field the
+  // live fetch did not return silently kept its March-2026 stub value
+  // under the live label (US currentAcctGDP was ALWAYS stub; BR gdp /
+  // unemployment / debt / currentAcct always stub). Now: live fields
+  // only, the rest null, and `missing` names them.
+  const liveOnly = (base, live) => {
+    const KEYS = ['policyRate', 'cpiYoY', 'gdpGrowthYoY', 'unemploymentRate', 'currentAcctGDP', 'debtGDP'];
+    const out = { country: base.country, currency: base.currency, name: base.name, stub: false };
+    const missing = [];
+    for (const k of KEYS) {
+      if (live[k] != null && Number.isFinite(live[k])) out[k] = live[k]; else { out[k] = null; missing.push(k); }
+    }
+    return { ...out, asOf: live.asOf || null, source: live.source || base.source.replace(' (stub)', ''), missing, partial: missing.length > 0 };
+  };
   if (code === 'US') {
     const fred = await fredMacroUS();
-    if (fred) return { ...STUBS.US, ...fred, stub: false };
+    if (fred) return liveOnly(STUBS.US, fred);
   }
   if (code === 'BR') {
     const bcb = await bcbMacroBR();
-    if (bcb) return { ...STUBS.BR, ...bcb, stub: false };
+    if (bcb) return liveOnly(STUBS.BR, bcb);
   }
 
   // 3. Static stub

@@ -2412,8 +2412,9 @@ router.post('/chat', aiChatKillSwitch, perMinuteLimit, dailyAILimit, aiQuotaGate
         symbol: p.symbol || 'UNKNOWN',
         shares: p.quantity || 0,
         avgCost: p.entryPrice || 0,
-        currentPrice: p.currentPrice || 0,
-        dayPriceChange: p.dayPriceChange || 0,
+        currentPrice: p.currentPrice ?? null, // #292 Wave 4 — unknown, not $0
+        dayPriceChange: p.dayPriceChange ?? null,
+        priced: p.currentPrice != null && p.currentPrice > 0,
       }));
     }
   }
