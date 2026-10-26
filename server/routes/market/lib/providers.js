@@ -256,9 +256,52 @@ function _crumbCircuitRecordSuccess() {
   _crumbCircuit.openedAt = 0;
 }
 
+// #292 Wave 2 — crumb persistence across deploys. A crumb+cookie pair is
+// good for ~25 min; every deploy used to throw it away and ask Yahoo for a
+// new one, and with no single-flight every concurrent caller on boot
+// asked separately — 15 seed requests in one second, 429, circuit open,
+// whole home screen blank. Store the pair in Postgres so the next boot
+// starts warm, and let exactly one fetch be in flight at a time.
+let _crumbInflight = null;
+let _crumbStoreLoaded = false;
+async function _crumbStore() {
+  try {
+    const pg = require('../../../db/postgres');
+    if (!pg.isConnected?.()) return null;
+    await pg.query(`CREATE TABLE IF NOT EXISTS provider_state (k TEXT PRIMARY KEY, v JSONB NOT NULL, updated_at TIMESTAMPTZ DEFAULT now())`);
+    return pg;
+  } catch { return null; }
+}
+async function _loadCrumbFromStore() {
+  if (_crumbStoreLoaded) return;
+  _crumbStoreLoaded = true;
+  const pg = await _crumbStore();
+  if (!pg) return;
+  try {
+    const r = await pg.query(`SELECT v FROM provider_state WHERE k = 'yahoo_crumb'`);
+    const v = r?.rows?.[0]?.v;
+    if (v?.crumb && v?.cookie && v?.expiry > Date.now() + 60_000) {
+      _yfCrumb = v.crumb; _yfCookie = v.cookie; _yfCrumbExpiry = v.expiry;
+      logger.info('yahoo', `Crumb restored from store (expires in ${Math.round((v.expiry - Date.now()) / 60000)}m)`);
+    }
+  } catch (e) { logger.warn('yahoo', `crumb store read failed: ${e.message}`); }
+}
+async function _saveCrumbToStore(crumb, cookie, expiry) {
+  const pg = await _crumbStore();
+  if (!pg) return;
+  try {
+    await pg.query(`INSERT INTO provider_state (k, v, updated_at) VALUES ('yahoo_crumb', $1, now())
+                    ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v, updated_at = now()`, [JSON.stringify({ crumb, cookie, expiry })]);
+  } catch (e) { logger.warn('yahoo', `crumb store write failed: ${e.message}`); }
+}
+
 async function getYahooCrumb() {
   const now = Date.now();
   if (_yfCrumb && now < _yfCrumbExpiry) return { crumb: _yfCrumb, cookie: _yfCookie };
+  if (!_crumbStoreLoaded) {
+    await _loadCrumbFromStore();
+    if (_yfCrumb && Date.now() < _yfCrumbExpiry) return { crumb: _yfCrumb, cookie: _yfCookie };
+  }
 
   // #291 W2.2 — short-circuit when the breaker is open. Throwing here
   // matches the existing error contract; callers already handle
@@ -266,6 +309,15 @@ async function getYahooCrumb() {
   if (_crumbCircuitIsOpen()) {
     throw new Error('Yahoo Finance auth failed: circuit open (cooldown active)');
   }
+
+  // Single-flight: concurrent callers share one attempt (and one failure).
+  if (_crumbInflight) return _crumbInflight;
+  _crumbInflight = _fetchYahooCrumb().finally(() => { _crumbInflight = null; });
+  return _crumbInflight;
+}
+
+async function _fetchYahooCrumb() {
+  const now = Date.now();
 
   const SEED_URLS = [
     'https://finance.yahoo.com/',
@@ -330,6 +382,7 @@ async function getYahooCrumb() {
           if (_yfCrumbHistory.length > 3) _yfCrumbHistory.shift();
           logger.info('yahoo', `Crumb OK via ${seedUrl} + ${crumbUrl}`);
           _crumbCircuitRecordSuccess();
+          _saveCrumbToStore(crumb, cookie, _yfCrumbExpiry); // fire-and-forget
           return { crumb, cookie };
         } catch (e) { lastError = e; }
       }

@@ -304,10 +304,10 @@ router.get('/', async (req, res) => {
         checks.push({ name: `provider.${r.provider}`, ok: true, configured: true, role: r.role, detail: r.note });
         continue;
       }
-      const sessionOpen = ['yahoo', 'finnhub', 'polygon', 'twelvedata'].includes(r.provider) ? sessionOpen('us')
-                        : ['yahoo_brazil', 'brapi'].includes(r.provider) ? sessionOpen('b3') : true;
+      const inSession = ['yahoo', 'finnhub', 'polygon', 'twelvedata'].includes(r.provider) ? sessionOpen('us')
+                      : ['yahoo_brazil', 'brapi'].includes(r.provider) ? sessionOpen('b3') : true;
       const limit = STALE_MIN[r.provider];
-      const stale = sessionOpen && limit != null && r.ageMin != null && r.ageMin > limit;
+      const stale = inSession && limit != null && r.ageMin != null && r.ageMin > limit;
       const broken = r.reached === false || r.hasValue === false;
       const isCore = CORE.has(r.provider);
       checks.push({
