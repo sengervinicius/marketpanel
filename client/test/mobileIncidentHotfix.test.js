@@ -61,21 +61,26 @@ describe('mobile hotfix — coverage matrix label softening', () => {
   });
 
   it('still shows LIVE (green) when a live quote is present — softening must not swallow success', () => {
-    const out = getDataTypeCoverage('AAPL', null, { hasLiveQuote: true });
-    expect(out.quote.label).toBe('LIVE');
-    expect(out.quote.color).toBe('#4caf50');
+    // #292 Wave 4 — "LIVE" needs the quote's own timestamp and an open
+    // session. Without a timestamp the honest label is QUOTED (amber);
+    // with a fresh timestamp during US hours it is LIVE.
+    const noTime = getDataTypeCoverage('AAPL', null, { hasLiveQuote: true });
+    expect(noTime.quote.label).toBe('QUOTED');
+    const fresh = getDataTypeCoverage('AAPL', null, { hasLiveQuote: true, quoteAsOf: Date.now() - 10_000 });
+    expect(['LIVE', 'CLOSED', 'PRE-MKT', 'AFTER-HRS']).toContain(fresh.quote.label.split(' ')[0].replace('·', '').trim());
+    expect(fresh.quote.label).not.toBe('QUOTED');
   });
 
   it('still shows AVAILABLE (green) when bars are present', () => {
     const out = getDataTypeCoverage('AAPL', null, { hasBars: true });
     expect(out.chart.label).toBe('AVAILABLE');
-    expect(out.chart.color).toBe('#4caf50');
+    expect(out.chart.color).toBe('#22c55e'); // TOKEN_HEX.up
   });
 
   it('still shows AVAILABLE (green) when AI content is present', () => {
     const out = getDataTypeCoverage('AAPL', null, { hasAI: true });
     expect(out.ai.label).toBe('AVAILABLE');
-    expect(out.ai.color).toBe('#4caf50');
+    expect(out.ai.color).toBe('#22c55e'); // TOKEN_HEX.up
   });
 });
 

@@ -1,9 +1,9 @@
 // node --test — Phase S W1 item 4: pure asset-class classifier.
-// Run: node --test client/src/utils/__tests__/assetClass.test.js
+// Run: npx vitest run src/utils/__tests__/assetClass.test.js
 //
 // MIRROR NOTE: server/utils/__tests__/assetClass.test.js runs the SAME
 // cases against the CommonJS mirror. Add cases in both files.
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import {
   ASSET_CLASSES, ASSET_CLASS_IDS, classifyAssetClass, assetClassLabel,

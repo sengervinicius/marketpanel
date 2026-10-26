@@ -29,7 +29,7 @@ describe('buildResetDefaultsPayload', () => {
     // the standalone panel stays registry-addable but leaves the defaults.
     const ids = payload.layout.desktopRows.flat();
     expect(ids).not.toContain('futures');
-    expect(payload.layout.desktopRows[0]).toEqual(['charts', 'watchlist', 'globalIndices']);
+    expect(payload.layout.desktopRows[0].slice(0, 3)).toEqual(['charts', 'watchlist', 'globalIndices']); // later additions (bloombergTV) allowed
     const grid = payload.layouts.items[payload.layouts.activeId].grid;
     expect(grid.find(g => g.i === 'futures')).toBeUndefined();
   });

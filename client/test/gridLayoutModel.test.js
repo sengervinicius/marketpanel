@@ -54,9 +54,12 @@ describe('migrateDesktopRowsToGrid', () => {
   it('maps row order to cumulative y offsets (charts row pushes later rows down)', () => {
     const grid = migrateDesktopRowsToGrid(rows);
     const yOf = id => grid.find(g => g.i === id).y;
+    // Derive from the live default so a reshuffle of DEFAULT_LAYOUT does
+    // not silently turn into a false failure (it did: 'debt' moved to row 1).
+    const row1 = rows[1][0], row2 = rows[2][0];
     expect(yOf('charts')).toBe(0);          // row 0
-    expect(yOf('forex')).toBe(8);           // row 1 sits below the h=8 charts band
-    expect(yOf('debt')).toBe(12);           // row 2
+    expect(yOf(row1)).toBe(8);              // row 1 sits below the h=8 charts band
+    expect(yOf(row2)).toBe(12);             // row 2
   });
 
   it('uses plain row-height offsets when no charts panel is present', () => {

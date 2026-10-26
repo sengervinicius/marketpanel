@@ -1,6 +1,6 @@
 // node --test — fix/ux-round4 FIX 1: shared mini-profile formatters.
-// Run: node --test client/src/utils/__tests__/format.test.js
-import { test } from 'node:test';
+// Run: npx vitest run src/utils/__tests__/format.test.js
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { fmtMarketCap, fmtMultiple, fmtYieldPct } from '../format.js';
 

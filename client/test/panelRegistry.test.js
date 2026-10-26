@@ -2,9 +2,11 @@ import { PANEL_DEFINITIONS } from '../src/config/panels';
 import { PANEL_REGISTRY } from '../src/components/app/AppLayoutHelpers';
 
 describe('Panel Registry Sync', () => {
-  // All sync gaps resolved in S3 Cleanup — no known exceptions remain
   const PLANNED_NOT_IN_REGISTRY = [];
-  const IN_REGISTRY_NOT_DEFINED = [];
+  // 'portfolio' is a legacy alias kept in the registry so saved layouts
+  // that still carry the key render the Watchlist (PortfolioPanel.jsx is
+  // a compatibility shim); it is intentionally absent from the picker.
+  const IN_REGISTRY_NOT_DEFINED = ['portfolio'];
 
   // Core panels that must exist in both
   const CORE_PANELS = [
@@ -14,7 +16,7 @@ describe('Panel Registry Sync', () => {
     'commodities',
     'crypto',
     'watchlist',
-    'search',
+    // 'search' — removed from the desktop layout; the header search bar is the single entry point
     'news',
     'alerts',
   ];
@@ -51,17 +53,12 @@ describe('Panel Registry Sync', () => {
         'alerts',
         'news',
         'sentiment',
-        'search',
         'chat',
         'curves',
         'etf',
         'screener',
         'macro',
         'rates',
-        'game',
-        'leaderboard',
-        'missions',
-        'referrals',
         'calendar',
         ...SECTOR_SCREENS,
       ];
@@ -88,7 +85,6 @@ describe('Panel Registry Sync', () => {
         'commodities',
         'crypto',
         'indices',
-        'search',
         'watchlist',
         'curves',
         'debt',
@@ -98,9 +94,6 @@ describe('Panel Registry Sync', () => {
         'alerts',
         'screener',
         'macro',
-        'leaderboard',
-        'game',
-        'referrals',
         'calendar',
         ...SECTOR_SCREENS,
       ];
@@ -178,8 +171,8 @@ describe('Panel Registry Sync', () => {
   });
 
   describe('Full sync validation (no exceptions)', () => {
-    it('etf, missions, rates now exist in both PANEL_DEFINITIONS and PANEL_REGISTRY', () => {
-      ['etf', 'missions', 'rates'].forEach((key) => {
+    it('etf, rates exist in both PANEL_DEFINITIONS and PANEL_REGISTRY (missions removed with gamification)', () => {
+      ['etf', 'rates'].forEach((key) => {
         expect(PANEL_DEFINITIONS).toHaveProperty(key);
         expect(PANEL_REGISTRY).toHaveProperty(key);
       });

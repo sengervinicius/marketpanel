@@ -132,6 +132,11 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: (cd client && npm ci --prefer-offline --audit=false)
+      # #292 — the client unit suite was never run in CI; 6 of its 23 files
+      # had not loaded for months (missing @testing-library/dom) and the
+      # provider-matrix / LIVE-badge contracts live here now.
+      - name: Client unit tests
+        run: (cd client && npx vitest run)
       - name: Build client
         run: (cd client && npm run build)
       # In CI we strip maps unconditionally. In the deploy pipeline the

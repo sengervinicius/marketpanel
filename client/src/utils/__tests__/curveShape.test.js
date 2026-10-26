@@ -1,12 +1,12 @@
 // node --test — fix/us-curve-shape: shape-tolerant curve normalizer.
-// Run: node --test client/src/utils/__tests__/curveShape.test.js
+// Run: npx vitest run src/utils/__tests__/curveShape.test.js
 //
 // The DebtPanel US heal fetched /api/debt/sovereign/US (shape
 // { points: [{ tenor, yield }] }) but was written against the
 // /api/yield-curves shape ({ curve: [{ tenor, months?, rate }] }) — a
 // mismatch silently produced 0 points and an "empty heal". These tests
 // pin the normalizer against BOTH server shapes plus garbage.
-import { test } from 'node:test';
+import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import { normalizeCurvePayload, tenorToMonths } from '../curveShape.js';
 
