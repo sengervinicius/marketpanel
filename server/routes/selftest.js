@@ -223,12 +223,16 @@ router.get('/', async (req, res) => {
     const b3ShouldBeFresh = dow >= 1 && dow <= 5 && mins >= 630; // Mon-Fri after 10:30 BRT
     const points = br.curve.length;
     const slopeBps = points >= 2 ? Math.round((br.curve[points - 1].rate - br.curve[0].rate) * 100) : null;
+    // Short tenor should sit near Selic; a mislabelled series would show here.
+    const first = br.curve.find(p => p.tenor !== 'SELIC');
+    const shortVsSelicBps = (first && br.selic != null) ? Math.round((first.rate - br.selic) * 100) : null;
     return {
       ok: br.source !== 'unavailable' && !(br.stale && b3ShouldBeFresh),
-      warn: br.stale && !b3ShouldBeFresh,
+      warn: (br.stale && !b3ShouldBeFresh) || (shortVsSelicBps != null && Math.abs(shortVsSelicBps) > 150),
       source: br.source, points, asOf: br.asOf, stale: br.stale, selic: br.selic,
-      slopeBps, error: br.error || null,
+      slopeBps, shortVsSelicBps, error: br.error || null, seriesErrors: br.seriesErrors || null,
       b3ShouldBeFresh,
+      tenors: br.curve.map(p => `${p.tenor}=${p.rate}`).join(' '),
     };
   }));
 

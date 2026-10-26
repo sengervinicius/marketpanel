@@ -422,60 +422,109 @@ function tdQuotationTime(json) {
   return null;
 }
 
-async function buildBrCurve({ tdRes, selicRes, now = new Date() }) {
+// BCB SGS — "Taxa referencial de swaps DI x pré" (B3 daily settlement),
+// one series per tenor. This IS the DI curve: the market's daily-settled
+// fixed-vs-CDI swap rates, published by the central bank. Daily, not
+// intraday — but real, official, and the same API the Selic fetch uses.
+// Series id → tenor in days. Values are % p.a.
+const BCB_DI_SWAP_SERIES = [
+  [7806, 30], [7807, 60], [7808, 90], [7809, 120], [7810, 180], [7811, 360],
+  [7812, 720], [7813, 1080], [7814, 1440], [7815, 1800], [7816, 2160],
+  [7817, 2520], [7818, 2880], [7819, 3240], [7820, 3600],
+];
+const BCB_SGS = (id) => `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${id}/dados/ultimos/1?formato=json`;
+
+function tenorLabel(days) {
+  if (days < 360) return `${Math.round(days / 30)}M`;
+  const y = days / 360;
+  return Number.isInteger(y) ? `${y}Y` : `${y.toFixed(1)}Y`;
+}
+function parseBcbDate(ddmmyyyy) {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(String(ddmmyyyy || ''));
+  if (!m) return null;
+  // Settlement date; treat as 18:00 BRT (21:00 UTC) close of that day.
+  return Date.UTC(+m[3], +m[2] - 1, +m[1], 21, 0, 0);
+}
+
+async function fetchBcbDiSwapCurve(fetchImpl = fetch) {
+  const results = await Promise.allSettled(BCB_DI_SWAP_SERIES.map(async ([id, days]) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const r = await fetchImpl(BCB_SGS(id), { headers: { Accept: 'application/json' }, signal: ctrl.signal });
+      if (!r.ok) throw new Error(`SGS ${id} HTTP ${r.status}`);
+      const j = await r.json();
+      const row = Array.isArray(j) ? j[0] : null;
+      const rate = row ? parseFloat(String(row.valor).replace(',', '.')) : NaN;
+      if (!row || isNaN(rate) || rate <= 0) throw new Error(`SGS ${id} empty`);
+      return { id, days, rate: parseFloat(rate.toFixed(2)), asOfMs: parseBcbDate(row.data) };
+    } finally { clearTimeout(t); }
+  }));
+  const points = results.filter(r => r.status === 'fulfilled').map(r => r.value);
+  const errors = results.filter(r => r.status === 'rejected').map(r => String(r.reason?.message || r.reason).slice(0, 60));
+  return { points, errors };
+}
+
+async function buildBrCurve({ tdRes, selicRes, now = new Date(), fetchImpl = fetch }) {
   const fetchedAt = now.toISOString();
   let selic = null;
   if (selicRes?.status === 'fulfilled' && Array.isArray(selicRes.value) && selicRes.value[0]?.valor) {
     const v = parseFloat(selicRes.value[0].valor);
     if (!isNaN(v) && v > 0) selic = parseFloat(v.toFixed(2));
   }
+  const label = 'DI × PRÉ SWAP (B3 SETTLEMENT VIA BCB, DAILY) · BCB SELIC';
 
-  if (tdRes?.status !== 'fulfilled') {
-    return {
-      curve: [], source: 'unavailable', selic,
-      asOf: null, fetchedAt, stale: true,
-      error: String(tdRes?.reason?.message || 'Tesouro Direto unreachable').slice(0, 120),
-      label: 'TESOURO PREFIXADO (daily) · BCB SELIC',
-    };
+  // ── Primary: BCB DI×Pré swap settlement curve ──
+  let swap = { points: [], errors: [] };
+  try { swap = await fetchBcbDiSwapCurve(fetchImpl); } catch (e) { swap.errors.push(String(e.message).slice(0, 60)); }
+  if (swap.points.length >= 4) {
+    swap.points.sort((a, b) => a.days - b.days);
+    const asOfMs = swap.points.reduce((m, p) => Math.max(m, p.asOfMs || 0), 0) || null;
+    const asOf = asOfMs ? new Date(asOfMs).toISOString() : null;
+    const stale = asOfMs == null || (now.getTime() - asOfMs) > CURVE_STALE_MS;
+    const curve = [];
+    if (selic != null) curve.push({ tenor: 'SELIC', months: 0.5, rate: selic });
+    curve.push(...swap.points.map(p => ({ tenor: tenorLabel(p.days), months: Math.round(p.days / 30), days: p.days, rate: p.rate, series: p.id })));
+    return { curve, source: 'BCB DI×Pré swap', selic, asOf, fetchedAt, stale, label,
+             seriesErrors: swap.errors.length ? swap.errors : undefined };
   }
 
-  const json = tdRes.value;
-  const bonds = json?.response?.TrsrBdTradgList || [];
-  const prefixados = bonds
-    .filter(b => { const nm = (b.TrsrBd?.nm || '').toLowerCase(); return nm.includes('prefixado') && !nm.includes('juros') && b.TrsrBd?.anulInvstmtRate; })
-    .map(b => {
-      const matDate = new Date(b.TrsrBd.mtrtyDt);
-      const daysToMat = Math.round((matDate - now) / 86400000);
-      const months = Math.round(daysToMat / 30.44);
-      const rawRate = parseFloat(b.TrsrBd.anulInvstmtRate);
-      const rate = rawRate < 1 ? parseFloat((rawRate * 100).toFixed(2)) : parseFloat(rawRate.toFixed(2));
-      let tenor;
-      if (months < 4) tenor = '3M'; else if (months < 8) tenor = '6M';
-      else if (months < 18) tenor = '1Y'; else if (months < 30) tenor = '2Y';
-      else if (months < 42) tenor = '3Y'; else if (months < 54) tenor = '4Y';
-      else if (months < 66) tenor = '5Y'; else if (months < 90) tenor = '7Y';
-      else tenor = Math.round(months / 12) + 'Y';
-      return { tenor, months, rate, maturity: (b.TrsrBd.mtrtyDt || '').split('T')[0] };
-    })
-    .filter(b => b.months > 0 && b.rate > 0)
-    .sort((a, b) => a.months - b.months);
-
-  const asOfMs = tdQuotationTime(json);
-  const asOf = asOfMs ? new Date(asOfMs).toISOString() : null;
-  const stale = asOfMs == null || (now.getTime() - asOfMs) > CURVE_STALE_MS;
-
-  if (prefixados.length < 2) {
-    return {
-      curve: [], source: 'unavailable', selic, asOf, fetchedAt, stale: true,
-      error: `Tesouro Direto returned ${prefixados.length} prefixado bond(s)`,
-      label: 'TESOURO PREFIXADO (daily) · BCB SELIC',
-    };
+  // ── Secondary: Tesouro Direto retail Prefixado (if its endpoint is alive) ──
+  if (tdRes?.status === 'fulfilled') {
+    const json = tdRes.value;
+    const bonds = json?.response?.TrsrBdTradgList || [];
+    const prefixados = bonds
+      .filter(b => { const nm = (b.TrsrBd?.nm || '').toLowerCase(); return nm.includes('prefixado') && !nm.includes('juros') && b.TrsrBd?.anulInvstmtRate; })
+      .map(b => {
+        const matDate = new Date(b.TrsrBd.mtrtyDt);
+        const daysToMat = Math.round((matDate - now) / 86400000);
+        const months = Math.round(daysToMat / 30.44);
+        const rawRate = parseFloat(b.TrsrBd.anulInvstmtRate);
+        const rate = rawRate < 1 ? parseFloat((rawRate * 100).toFixed(2)) : parseFloat(rawRate.toFixed(2));
+        return { tenor: tenorLabel(daysToMat), months, days: daysToMat, rate, maturity: (b.TrsrBd.mtrtyDt || '').split('T')[0] };
+      })
+      .filter(b => b.months > 0 && b.rate > 0)
+      .sort((a, b) => a.months - b.months);
+    if (prefixados.length >= 2) {
+      const asOfMs = tdQuotationTime(json);
+      const asOf = asOfMs ? new Date(asOfMs).toISOString() : null;
+      const stale = asOfMs == null || (now.getTime() - asOfMs) > CURVE_STALE_MS;
+      const curve = [];
+      if (selic != null) curve.push({ tenor: 'SELIC', months: 0.5, rate: selic });
+      curve.push(...prefixados);
+      return { curve, source: 'Tesouro Direto', selic, asOf, fetchedAt, stale,
+               label: 'TESOURO PREFIXADO (daily) · BCB SELIC' };
+    }
   }
 
-  const curve = [];
-  if (selic != null) curve.push({ tenor: 'SELIC', months: 0.5, rate: selic });
-  curve.push(...prefixados);
-  return { curve, source: 'Tesouro Direto', selic, asOf, fetchedAt, stale, label: 'TESOURO PREFIXADO (daily) · BCB SELIC' };
+  // ── Nothing real → say so. Never fabricate. ──
+  return {
+    curve: [], source: 'unavailable', selic, asOf: null, fetchedAt, stale: true, label,
+    error: [
+      swap.points.length ? `swap: only ${swap.points.length} tenors` : `swap: ${swap.errors[0] || 'no data'}`,
+      tdRes?.status === 'fulfilled' ? 'tesouro: <2 prefixado bonds' : `tesouro: ${String(tdRes?.reason?.message || 'unreachable').slice(0, 40)}`,
+    ].join(' · '),
+  };
 }
 
 router.get('/di-curve', async (req, res) => {
