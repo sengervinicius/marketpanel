@@ -1,4 +1,5 @@
 import { TOKEN_HEX } from '../utils/tokenHex';
+import { describeQuote } from '../utils/marketSession';
 /**
  * providerMatrix.js — Client-side mirror of server/config/providerMatrix.js
  * ─────────────────────────────────────────────────────────────────────
@@ -184,8 +185,16 @@ export function getDataTypeCoverage(symbol, exchange, liveState = {}) {
   const { group, groupInfo, providers, coverage } = getProviderRouting(symbol, exchange);
 
   const quoteLabel = (() => {
-    if (liveState.hasLiveQuote) return { label: 'LIVE', color: TOKEN_HEX.up, bg: '#002a0a' };
-    if (liveState.hasSnapshot)  return { label: groupInfo.delay > 0 ? `DELAYED ${groupInfo.delay}min` : 'LIVE', color: groupInfo.delay > 0 ? '#ffd54f' : TOKEN_HEX.up, bg: groupInfo.delay > 0 ? '#1a1400' : '#002a0a' };
+    // #292 Wave 4 — "LIVE" used to mean "a price exists". It now requires
+    // the quote's own timestamp and an open session (utils/marketSession);
+    // callers that pass quoteAsOf get the honest badge, callers that
+    // don't get a neutral "QUOTED" rather than a false LIVE.
+    if (liveState.quoteAsOf !== undefined && (liveState.hasLiveQuote || liveState.hasSnapshot)) {
+      const d = describeQuote(group, liveState.quoteAsOf);
+      return { label: d.badge, color: d.color, bg: d.bg, title: d.detail };
+    }
+    if (liveState.hasLiveQuote) return { label: 'QUOTED', color: '#ffd54f', bg: '#1a1400', title: 'Price present; quotation time not supplied' };
+    if (liveState.hasSnapshot)  return { label: groupInfo.delay > 0 ? `DELAYED ${groupInfo.delay}min` : 'QUOTED', color: '#ffd54f', bg: '#1a1400' };
     if (providers.quote.length === 0) return { label: 'N/A', color: '#666', bg: '#111' };
     return { label: 'LOADING', color: '#888', bg: '#1a1a1a' };
   })();

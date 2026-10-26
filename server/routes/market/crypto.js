@@ -35,16 +35,16 @@ router.get('/snapshot/crypto', async (req, res) => {
       const symbol = q.symbol.replace(/-USD$/, 'USD').replace('-', '');
       const polygonTicker = 'X:' + symbol;
       // Yahoo's regularMarketTime is epoch seconds; if absent fall back to now.
-      const asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : Date.now();
-      if (_ledger && q.regularMarketPrice != null) {
+      const asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : null;
+      if (_ledger && q.regularMarketPrice != null && asOfMs) {
         try {
           _ledger.record({ symbol: polygonTicker, source: 'yahoo', asOf: asOfMs });
         } catch (_) { /* never throw from response path */ }
       }
       return {
         ticker: polygonTicker,
-        todaysChange: q.regularMarketChange ?? 0,
-        todaysChangePerc: q.regularMarketChangePercent ?? 0,
+        todaysChange: q.regularMarketChange ?? null,
+        todaysChangePerc: q.regularMarketChangePercent ?? null,
         day: {
           o: q.regularMarketOpen ?? null,
           h: q.regularMarketDayHigh ?? null,

@@ -228,16 +228,19 @@ let _ledger_stocks = null;
 try { _ledger_stocks = require('../../services/freshnessLedger'); } catch (_) { /* optional */ }
 
 function toSnapshot(q) {
-  if (_ledger_stocks && q.symbol && q.regularMarketPrice != null) {
-    const asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : Date.now();
+  // #292 Wave 4 — record only a real quote time; fallback providers
+  // (Finnhub/AV/TD) carry none and used to light the FreshnessDot green.
+  if (_ledger_stocks && q.symbol && q.regularMarketPrice != null && q.regularMarketTime) {
+    const asOfMs = q.regularMarketTime * 1000;
     try {
       _ledger_stocks.record({ symbol: q.symbol, source: 'yahoo', asOf: asOfMs });
     } catch (_) { /* never throw from response path */ }
   }
   return {
     ticker: q.symbol,
-    todaysChange: q.regularMarketChange ?? 0,
-    todaysChangePerc: q.regularMarketChangePercent ?? 0,
+    // #292 Wave 4 — unknown change is null (rendered "--"), not 0 ("flat").
+    todaysChange: q.regularMarketChange ?? null,
+    todaysChangePerc: q.regularMarketChangePercent ?? null,
     day: {
       o: q.regularMarketOpen ?? null,
       h: q.regularMarketDayHigh ?? null,
@@ -245,7 +248,7 @@ function toSnapshot(q) {
       c: q.regularMarketPrice ?? null,
       v: q.regularMarketVolume ?? 0,
     },
-    prevDay: { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
+    prevDay: { c: q.regularMarketPreviousClose ?? (q.regularMarketChange != null ? q.regularMarketPrice - q.regularMarketChange : null) }, // #292 Wave 4 — NaN is not null
     min: { c: q.regularMarketPrice ?? null },
     // #292 incident — extended-hours fields were only carried on the
     // single-ticker path. The batch path (home grid) dropped them, so on
@@ -355,9 +358,10 @@ router.get('/snapshot/stocks', async (req, res) => {
     const cached = cacheGet(cacheKey);
     if (cached) return res.json(cached);
     try {
-      const allQuotes = await batchYahooQuote(syms);
-      const data = { tickers: allQuotes.map(toSnapshot), status: 'OK' };
-      cacheSet(cacheKey, data, TTL.stocksSnapshot);
+      // #292 Wave 4 — was batchYahooQuote (drops failed batches) + status:'OK'.
+      const detail = await batchYahooQuoteDetailed(syms);
+      const data = { tickers: detail.quotes.map(toSnapshot), ...snapshotStatus(detail) };
+      if (data.status === 'OK') cacheSet(cacheKey, data, TTL.stocksSnapshot);
       return res.json(data);
     } catch (e) {
       return sendError(res, e, `/snapshot/stocks?tickers=${adHoc}`);
@@ -385,7 +389,8 @@ router.get('/snapshot/etfs', async (req, res) => {
   if (cached) return res.json(cached);
   try {
     const allTickers = Object.values(ETF_DATA).flat();
-    const allQuotes = await batchYahooQuote(allTickers);
+    const etfDetail = await batchYahooQuoteDetailed(allTickers); // #292 Wave 4 — keep failure info
+    const allQuotes = etfDetail.quotes;
 
     const etfsByCategory = {};
     for (const [category, tickers] of Object.entries(ETF_DATA)) {
@@ -396,14 +401,14 @@ router.get('/snapshot/etfs', async (req, res) => {
           ticker: q.symbol,
           name: q.shortName || q.symbol,
           price: q.regularMarketPrice ?? null,
-          change: q.regularMarketChange ?? 0,
-          changePct: q.regularMarketChangePercent ?? 0,
+          change: q.regularMarketChange ?? null,
+          changePct: q.regularMarketChangePercent ?? null,
           volume: q.regularMarketVolume ?? 0,
         };
       }).filter(Boolean);
     }
 
-    const data = { etfs: etfsByCategory, status: 'OK' };
+    const data = { etfs: etfsByCategory, ...snapshotStatus(etfDetail) };
     cacheSet('snapshot:etfs', data, TTL.etfs);
     res.json(data);
   } catch (e) {
@@ -429,7 +434,7 @@ router.get('/snapshot/yields', async (req, res) => {
           tenor:     meta.tenor   || null,
           yield:     q.regularMarketPrice,
           change:    q.regularMarketChange ?? null,
-          changeBps: Math.round((q.regularMarketChange ?? 0) * 100),
+          changeBps: q.regularMarketChange != null ? Math.round(q.regularMarketChange * 100) : null,
           type:      meta.country === 'US' ? 'treasury' : 'sovereign',
         };
       });
@@ -786,7 +791,7 @@ router.get('/snapshot/brazil-fiis', async (req, res) => {
         if (!cleanSymbol) return null;
         // #291 W2.1.b — record into freshness ledger.
         if (_ledger_stocks) {
-          const asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : Date.now();
+          const asOfMs = q.regularMarketTime ? q.regularMarketTime * 1000 : null;
           try {
             _ledger_stocks.record({ symbol: cleanSymbol + '.SA', source: 'yahoo', asOf: asOfMs });
           } catch (_) { /* never throw from response path */ }
@@ -795,8 +800,8 @@ router.get('/snapshot/brazil-fiis', async (req, res) => {
           symbol:    cleanSymbol,
           name:      (q.shortName || q.longName || q.symbol).substring(0, 18),
           price:     q.regularMarketPrice,
-          change:    q.regularMarketChange        ?? 0,
-          changePct: q.regularMarketChangePercent ?? 0,
+          change:    q.regularMarketChange        ?? null,
+          changePct: q.regularMarketChangePercent ?? null,
           volume:    q.regularMarketVolume        ?? 0,
           currency:  'BRL',
         };
@@ -846,8 +851,12 @@ router.get('/snapshot/global-indices', async (req, res) => {
     // 40-ticker Yahoo call. Plus the brapi leg for ^BVSP.
     const now = Date.now();
     if (_giCache && now < _giCacheExpiry) return res.json(_giCache);
-    const allQuotes = await refreshBvspIfStale(await batchYahooQuote(tickers));
-    const data = { tickers: allQuotes.map(toSnapshot), status: 'OK', asOf: now };
+    const giDetail = await batchYahooQuoteDetailed(tickers);
+    const allQuotes = await refreshBvspIfStale(giDetail.quotes);
+    // #292 Wave 4 — status reflects dropped batches; asOf is the newest
+    // quote time, not the response clock.
+    const newest = allQuotes.reduce((m, q) => Math.max(m, (q.regularMarketTime || 0) * 1000), 0) || null;
+    const data = { tickers: allQuotes.map(toSnapshot), ...snapshotStatus(giDetail), asOf: newest, fetchedAt: now };
     _giCache = data; _giCacheExpiry = now + 30_000;
     res.json(data);
   } catch (err) {
@@ -967,7 +976,7 @@ function shapeTickerSnapshot(sym, q) {
         v: q.regularMarketVolume      ?? 0,
         vw: null,
       },
-      prevDay:          { c: q.regularMarketPreviousClose ?? (q.regularMarketPrice - q.regularMarketChange) ?? null },
+      prevDay:          { c: q.regularMarketPreviousClose ?? (q.regularMarketChange != null ? q.regularMarketPrice - q.regularMarketChange : null) },
       todaysChangePerc: q.regularMarketChangePercent ?? null,
       todaysChange:     q.regularMarketChange        ?? null,
       // Design v1 (watchlist VIEWS) — additive: display name, 3-month
@@ -1110,7 +1119,7 @@ router.get('/quotes/:symbol', async (req, res) => {
     const quote = {
       lastPrice:  q.regularMarketPrice             ?? null,
       change:     q.regularMarketChange             ?? null,
-      changePct:  (q.regularMarketChangePercent ?? 0) / 100,
+      changePct:  q.regularMarketChangePercent != null ? q.regularMarketChangePercent / 100 : null,
       bid:        q.bid                             ?? null,
       ask:        q.ask                             ?? null,
       volume:     q.regularMarketVolume             ?? null,

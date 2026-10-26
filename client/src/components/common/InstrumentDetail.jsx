@@ -2352,6 +2352,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     const exchange = info?.primary_exchange || etfMeta?.exchange || '';
     return getDataTypeCoverage(norm, exchange, {
       hasLiveQuote: !!snap?.min?.c,
+      quoteAsOf:    ctxPrice?.asOf ?? snap?._meta?.asOf ?? snap?.asOf ?? null, // #292 Wave 4
       hasSnapshot:  !!snap,
       hasBars:      bars.length > 0,
       chartLoading: loading,

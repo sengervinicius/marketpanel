@@ -59,17 +59,17 @@ export const FuturesCurveChart = memo(function FuturesCurveChart({
       const json = await res.json();
       if (!mountedRef.current) return;
 
-      let curve = json.curve || [];
-      // If curve is empty (whether Eulerpool unconfigured or returns no data),
-      // generate a realistic placeholder from live front-month price
-      if (curve.length === 0) {
-        curve = generatePlaceholderCurve(symbol);
-      }
+      // #292 Wave 4 — an empty curve used to be replaced by
+      // generatePlaceholderCurve(): hardcoded spots (WTI 72, Gold 2380…)
+      // with an invented contango shape and no label. An empty curve is
+      // now an empty chart with the reason shown.
+      const curve = json.curve || [];
+      if (curve.length === 0 && json.error) setError(json.error);
 
       // Normalize data shape
       const normalized = curve.map((c, i) => ({
         contract: c.contract || c.label || c.month || `M+${i + 1}`,
-        price: c.price || c.settle || c.last || c.close || 0,
+        price: c.price ?? c.settle ?? c.last ?? c.close ?? null, // #292 Wave 4 — no zero points
         change: c.change || c.changePct || null,
         volume: c.volume || null,
         oi: c.openInterest || c.oi || null,
@@ -210,50 +210,5 @@ export const FuturesCurveChart = memo(function FuturesCurveChart({
  * Uses deterministic pricing (no Math.random) to avoid re-render jitter.
  * Contango/backwardation shape varies by commodity type.
  */
-function generatePlaceholderCurve(symbol) {
-  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const now = new Date();
-
-  // Approximate spot prices and curve shapes per commodity
-  const configs = {
-    CL: { spot: 72, drift: 0.0025, shape: 'contango' },     // WTI crude
-    BZ: { spot: 76, drift: 0.002,  shape: 'contango' },     // Brent crude
-    GC: { spot: 2380, drift: 0.0015, shape: 'contango' },   // Gold
-    SI: { spot: 28.5, drift: 0.002,  shape: 'contango' },   // Silver
-    NG: { spot: 2.85, drift: 0.008,  shape: 'seasonal' },   // NatGas (seasonal)
-    HG: { spot: 4.25, drift: 0.001,  shape: 'flat' },       // Copper
-    ZW: { spot: 5.60, drift: 0.003,  shape: 'backwardation' }, // Wheat
-    ZC: { spot: 4.50, drift: 0.002,  shape: 'contango' },   // Corn
-  };
-
-  const cfg = configs[symbol] || { spot: 100, drift: 0.002, shape: 'contango' };
-  const contracts = [];
-
-  for (let i = 0; i < 8; i++) {
-    const month = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
-    const label = `${MONTHS[month.getMonth()]}'${month.getFullYear().toString().slice(2)}`;
-
-    let multiplier;
-    if (cfg.shape === 'contango') {
-      multiplier = 1 + cfg.drift * (i + 1);
-    } else if (cfg.shape === 'backwardation') {
-      multiplier = 1 - cfg.drift * 0.6 * (i + 1);
-    } else if (cfg.shape === 'seasonal') {
-      // NatGas: winter premium
-      const futureMonth = (now.getMonth() + i + 1) % 12;
-      const winterPremium = (futureMonth >= 10 || futureMonth <= 2) ? 0.08 : 0;
-      multiplier = 1 + cfg.drift * (i + 1) + winterPremium;
-    } else {
-      multiplier = 1 + cfg.drift * 0.5 * (i + 1);
-    }
-
-    contracts.push({
-      contract: label,
-      price: parseFloat((cfg.spot * multiplier).toFixed(2)),
-      change: null,
-    });
-  }
-  return contracts;
-}
 
 export default FuturesCurveChart;
