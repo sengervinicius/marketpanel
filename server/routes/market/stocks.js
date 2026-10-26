@@ -259,6 +259,8 @@ function toSnapshot(q) {
     } : {}),
     // Source quotation time so the client can show age, not clock time.
     asOf: q.regularMarketTime ? q.regularMarketTime * 1000 : null,
+    source: q._source || 'yahoo',
+    marketState: q.marketState || null,
   };
 }
 
@@ -366,6 +368,7 @@ router.get('/snapshot/stocks', async (req, res) => {
   if (cached) return res.json(cached);
   try {
     const detail = await batchYahooQuoteDetailed(DEFAULT_STOCK_TICKERS);
+    detail.quotes = await refreshBvspIfStale(detail.quotes); // #292 — Ibov via brapi when Yahoo is stale in-session
     const data = { tickers: detail.quotes.map(toSnapshot), ...snapshotStatus(detail) };
     // Don't cache an EMPTY answer for the full TTL — let the next request
     // retry quickly rather than pinning a dead grid for 60s.
@@ -507,6 +510,41 @@ function buildBrazilUniverse() {
   return Array.from(set);
 }
 
+// #292 Wave 2/3 — Ibovespa itself. Yahoo's ^BVSP sat at −0.02% for the
+// first hour of 26 Oct while EWZ was −23%. brapi quotes the index too;
+// when B3 is open and Yahoo's row is stale or missing, brapi's wins.
+function isB3OpenNow() {
+  const { isHoliday } = require('../../utils/exchangeHolidays');
+  const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', hour12: false, weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).formatToParts(new Date());
+  const g = (t) => (p.find(x => x.type === t) || {}).value;
+  const dow = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[g('weekday')] ?? 0;
+  const mins = (parseInt(g('hour'), 10) % 24) * 60 + parseInt(g('minute'), 10);
+  return dow >= 1 && dow <= 5 && !isHoliday('B3', `${g('year')}-${g('month')}-${g('day')}`) && mins >= 600 && mins <= 1080;
+}
+async function refreshBvspIfStale(quotes, staleMs = 20 * 60e3) {
+  try {
+    if (!isB3OpenNow()) return quotes;
+    const i = quotes.findIndex(q => q.symbol === '^BVSP');
+    const row = i >= 0 ? quotes[i] : null;
+    const stale = !row || !row.regularMarketTime || Date.now() - row.regularMarketTime * 1000 > staleMs;
+    if (!stale) return quotes;
+    const b = await require('../../providers/brapi').getQuote('^BVSP');
+    if (!b || b.error || !(b.price > 0)) return quotes;
+    const bTime = b.asOf ? Math.floor(Date.parse(b.asOf) / 1000) : null;
+    if (row && bTime && row.regularMarketTime && bTime <= row.regularMarketTime) return quotes;
+    const fresh = {
+      ...(row || { symbol: '^BVSP', shortName: 'IBOVESPA', currency: 'BRL', quoteType: 'INDEX' }),
+      regularMarketPrice: b.price, regularMarketChange: b.change, regularMarketChangePercent: b.chgPct,
+      regularMarketOpen: b.open, regularMarketDayHigh: b.high, regularMarketDayLow: b.low,
+      regularMarketPreviousClose: b.prevClose, regularMarketVolume: b.volume,
+      regularMarketTime: bTime, marketState: 'REGULAR', _source: 'brapi',
+    };
+    const out = quotes.slice();
+    if (i >= 0) out[i] = fresh; else out.push(fresh);
+    return out;
+  } catch (_) { return quotes; }
+}
+
 router.get('/snapshot/brazil', async (req, res) => {
   try {
     const now = Date.now();
@@ -536,13 +574,47 @@ router.get('/snapshot/brazil', async (req, res) => {
     // fallback) has no B3 coverage on this plan, so when Yahoo dropped a
     // batch the board simply went blank. Now whatever Yahoo did not return
     // is asked of brapi, and every row says which source it came from.
-    const gotYahoo = new Set(quotes.map(q => (q.symbol || '').replace(/\.SA$/i, '').toUpperCase()));
-    const needBrapi = universe.filter(t => !gotYahoo.has(t.toUpperCase()));
+    // 26 Oct 13:54 UTC, B3 open 54 min, EWZ −23%: Yahoo returned all six
+    // grid names — at Friday's close. "Fill only what's missing" was not
+    // enough; a stale row is a missing row. During the B3 session any
+    // Yahoo row older than STALE_IN_SESSION_MS is re-asked of brapi and
+    // the FRESHER of the two wins, per symbol.
+    const STALE_IN_SESSION_MS = 20 * 60e3;
+    const b3Open = (() => {
+      const { isHoliday } = require('../../utils/exchangeHolidays');
+      const p = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', hour12: false, weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).formatToParts(new Date());
+      const g = (t) => (p.find(x => x.type === t) || {}).value;
+      const dow = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[g('weekday')] ?? 0;
+      const mins = (parseInt(g('hour'), 10) % 24) * 60 + parseInt(g('minute'), 10);
+      return dow >= 1 && dow <= 5 && !isHoliday('B3', `${g('year')}-${g('month')}-${g('day')}`) && mins >= 600 && mins <= 1080;
+    })();
+    const clean = (sym) => (sym || '').replace(/\.SA$/i, '').toUpperCase();
+    const yahooBySym = new Map(quotes.map(q => [clean(q.symbol), q]));
+    const isStaleRow = (q) => !q.regularMarketTime || (Date.now() - q.regularMarketTime * 1000) > STALE_IN_SESSION_MS;
+    const needBrapi = universe.filter(t => {
+      const q = yahooBySym.get(t.toUpperCase());
+      return !q || (b3Open && isStaleRow(q));
+    });
     let brapiDetail = null;
+    let replacedStale = 0;
     if (needBrapi.length) {
       try {
-        brapiDetail = await require('../../providers/brapi').getQuotes(needBrapi);
+        // Anonymous brapi is 1 ticker/request; cap the refresh to the core
+        // list + genuinely missing names so we don't burn its 200/min.
+        const keyed = !!process.env.BRAPI_API_KEY;
+        const ask = keyed ? needBrapi : needBrapi.filter(t => BRAZIL_CORE_TICKERS.includes(t) || !yahooBySym.has(t.toUpperCase())).slice(0, 40);
+        brapiDetail = await require('../../providers/brapi').getQuotes(ask);
         for (const b of brapiDetail.quotes) {
+          const existing = yahooBySym.get(b.symbol.toUpperCase());
+          const bTime = b.asOf ? Math.floor(Date.parse(b.asOf) / 1000) : null;
+          if (existing) {
+            // Fresher wins. Unknown time on brapi loses to a known Yahoo time.
+            if (bTime && (!existing.regularMarketTime || bTime > existing.regularMarketTime)) {
+              const i = quotes.indexOf(existing);
+              if (i >= 0) quotes.splice(i, 1);
+              replacedStale++;
+            } else continue;
+          }
           quotes.push({
             symbol: `${b.symbol}.SA`, shortName: b.name, regularMarketPrice: b.price,
             regularMarketChange: b.change, regularMarketChangePercent: b.chgPct,
@@ -652,6 +724,8 @@ router.get('/snapshot/brazil', async (req, res) => {
       providerError: brazilDetail?.failed?.[0]?.error || brapiDetail?.failed?.[0]?.error || null,
       asOf: newestAsOf,
       validation: xs.report,
+      b3Open,
+      replacedStale,
     };
     _brazilCache = payload;
     _brazilCacheExpiry = now + (payload.status === 'OK' ? 60_000 : 10_000);
@@ -756,6 +830,7 @@ router.get('/snapshot/brazil-fiis', async (req, res) => {
   }
 });
 
+let _giCache = null, _giCacheExpiry = 0;
 router.get('/snapshot/global-indices', async (req, res) => {
   try {
     const tickers = [
@@ -767,8 +842,13 @@ router.get('/snapshot/global-indices', async (req, res) => {
       'EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD',
       'EWJ','EWH','EWY','EWA','MCHI','EWT','EWS','INDA'
     ];
-    const allQuotes = await batchYahooQuote(tickers);
-    const data = { tickers: allQuotes.map(toSnapshot), status: 'OK' };
+    // #292 — 30s cache: this route had none, so every client poll was a
+    // 40-ticker Yahoo call. Plus the brapi leg for ^BVSP.
+    const now = Date.now();
+    if (_giCache && now < _giCacheExpiry) return res.json(_giCache);
+    const allQuotes = await refreshBvspIfStale(await batchYahooQuote(tickers));
+    const data = { tickers: allQuotes.map(toSnapshot), status: 'OK', asOf: now };
+    _giCache = data; _giCacheExpiry = now + 30_000;
     res.json(data);
   } catch (err) {
     console.error('[API] /snapshot/global-indices error:', err.message);
