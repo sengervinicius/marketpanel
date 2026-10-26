@@ -618,6 +618,26 @@ router.get('/snapshot/brazil', async (req, res) => {
     // Expose the metadata dictionary so the client doesn't need a second
     // fetch to enrich rows that didn't come back from Yahoo (e.g. if an
     // individual ticker was delisted but still in our list).
+    // #292 Wave 3 — second opinion. Five core names Yahoo returned are
+    // re-asked of brapi; price gap > 2% or Yahoo > 15 min behind brapi
+    // flags the row (_meta.crossSource) and the payload (validation).
+    // Nothing is rewritten — the user is told which feed disagrees.
+    const { checkBrazil } = require('../../services/crossSourceCheck');
+    const xs = await checkBrazil(results, { sample: 5, core: BRAZIL_CORE_TICKERS });
+    if (xs.flagged.size) {
+      for (const r of results) {
+        if (!xs.flagged.has(r.symbol)) continue;
+        const d = xs.report.diverged.find(x => x.symbol === r.symbol);
+        const st = xs.report.staleVsSecondary.find(x => x.symbol === r.symbol);
+        r._meta = { ...(r._meta || {}), crossSource: {
+          secondary: 'brapi',
+          ...(d ? { secondaryPrice: d.secondary, gapPct: d.gapPct } : {}),
+          ...(st ? { behindMin: st.behindMin, secondaryAsOf: st.secondaryAsOf } : {}),
+        } };
+      }
+      console.warn(`[Brazil/cross-source] ${xs.report.verdict}: ${[...xs.flagged].join(', ')} (maxGap ${xs.report.maxGapPct}%)`);
+    }
+
     const fromBrapi = results.filter(r => r.source === 'brapi').length;
     const newestAsOf = results.reduce((m, r) => Math.max(m, r.asOf || 0), 0) || null;
     const payload = {
@@ -631,6 +651,7 @@ router.get('/snapshot/brazil', async (req, res) => {
       status: missingSymbols.length ? 'PARTIAL' : 'OK',
       providerError: brazilDetail?.failed?.[0]?.error || brapiDetail?.failed?.[0]?.error || null,
       asOf: newestAsOf,
+      validation: xs.report,
     };
     _brazilCache = payload;
     _brazilCacheExpiry = now + (payload.status === 'OK' ? 60_000 : 10_000);

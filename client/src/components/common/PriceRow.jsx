@@ -34,6 +34,7 @@ function PriceRow({
   changePct: changePctProp,
   // #292 incident — extended-hours quote { pre:{price,changePct}, post:{...} }
   ext: extProp,
+  warn = null, // #292 Wave 3 — { tag, title } from a cross-source / anomaly check
   // Phase 8: optional ticker for PriceContext fallback
   ticker,
   // Phase 2: optional sparkline data (array of numbers)
@@ -212,6 +213,12 @@ function PriceRow({
               opacity: 0.9,
             }}
           >{extKind}{extQ.changePct != null ? ` ${extQ.changePct >= 0 ? '+' : ''}${Number(extQ.changePct).toFixed(1)}%` : ''}</span>
+        )}
+        {warn?.tag && (
+          <span
+            title={warn.title}
+            style={{ marginLeft: 4, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--semantic-warning, #ffd54f)', opacity: 0.95 }}
+          >⚠ {warn.tag}</span>
         )}
       </span>
       <span style={{

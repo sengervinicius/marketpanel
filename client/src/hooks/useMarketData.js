@@ -28,6 +28,8 @@ function normalizeBrazil(data) {
         asOf:      q.asOf || null,
         change:    q.change    ?? null,
         mid:       q.price,
+        source:    q.source || null,
+        _meta:     q._meta || null,  // #289 anomaly / #292 Wave 3 crossSource — never rendered before
       };
     }
   }

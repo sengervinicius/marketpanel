@@ -182,6 +182,22 @@ const fmt2fii = (n) => (n == null || !Number.isFinite(n))
   ? '—'
   : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// #292 Wave 3 — a row the server could not reconcile with a second
+// source, or flagged as implausible. Rendered as a ⚠ tag; never hidden.
+function rowWarning(d) {
+  const m = d?._meta;
+  if (!m) return null;
+  if (m.crossSource) {
+    const c = m.crossSource;
+    const parts = [];
+    if (c.gapPct != null) parts.push(`${c.secondary} says ${c.secondaryPrice} (${c.gapPct}% apart)`);
+    if (c.behindMin != null) parts.push(`this feed is ${c.behindMin} min behind ${c.secondary}`);
+    return { tag: 'CHECK', title: `Sources disagree — ${parts.join('; ')}` };
+  }
+  if (m.anomalous) return { tag: 'VERIFY', title: 'Move looks implausible vs. previous close — verify against an independent source' };
+  return null;
+}
+
 function FiiRow({ sym, meta, editMode, onRemove, onTickerClick, openDetail }) {
   // wave-nov item 5 — see hooks/useTickerClicks.js
   const rowClicks = useTickerClicks(`${sym}.SA`, { onSingle: (t) => onTickerClick?.(t) });
@@ -716,6 +732,7 @@ function BrazilPanel({ onTickerClick }) {
                 price={d.price}
                 ext={d.ext}
                 changePct={d.changePct}
+                warn={rowWarning(d)}
                 symbolColor="var(--section-brazil)"
                 columns={COLS}
                 draggable
