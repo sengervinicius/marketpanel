@@ -1,0 +1,66 @@
+# #292 Wave 6 — logged-in production monitor.
+#
+# Signs in as the monitor account and checks what a user sees: prices on
+# the home grid, change figures, no DEGRADED banner, no ⚠ CHECK tags, and
+# an honest QUOTE badge on ^BVSP (never LIVE on a stale quote, never TIME
+# UNKNOWN). Runs every 30 minutes during B3/NYSE hours on weekdays and
+# once pre-open; a failure sends GitHub's default email with screenshots
+# and traces attached as artifacts.
+#
+# Required repository secrets (Settings → Secrets → Actions):
+#   MONITOR_USERNAME, MONITOR_PASSWORD  — a dedicated account on the
+#   Nuclear tier (so every panel loads). Never a personal login.
+name: monitor
+
+on:
+  schedule:
+    # UTC. B3 10:00–17:00 BRT = 13:00–20:00 UTC; NYSE 09:30–16:00 ET = 13:30–20:00 UTC (EDT).
+    - cron: '28 12 * * 1-5'            # pre-open check (09:28 BRT — the incident time)
+    - cron: '5,35 13-20 * * 1-5'       # every 30 min through the session
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      MONITOR_BASE_URL: https://the-particle.com
+      MONITOR_API_URL: https://senger-server.onrender.com
+      MONITOR_USERNAME: ${{ secrets.MONITOR_USERNAME }}
+      MONITOR_PASSWORD: ${{ secrets.MONITOR_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install Playwright
+        run: |
+          npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+      - name: Secrets present?
+        run: |
+          if [ -z "$MONITOR_USERNAME" ] || [ -z "$MONITOR_PASSWORD" ]; then
+            echo "::error::MONITOR_USERNAME / MONITOR_PASSWORD secrets are not set — the logged-in monitor cannot run. Add them in Settings → Secrets → Actions."
+            exit 1
+          fi
+      - name: Server selftest (context for the report)
+        run: curl -s --max-time 60 "$MONITOR_API_URL/api/selftest?brief=1" || true
+      - name: Run monitor
+        run: npx playwright test -c tests/monitor/playwright.config.js
+      - name: Upload screenshots, traces, report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: monitor-${{ github.run_id }}
+          path: |
+            monitor-report
+            test-results
+          retention-days: 7

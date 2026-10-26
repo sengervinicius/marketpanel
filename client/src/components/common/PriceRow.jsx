@@ -146,6 +146,14 @@ function PriceRow({
   return (
     <div
       {...(dataAttrs || {})}
+      // #292 Wave 6 — stable hooks for the logged-in monitor: it counts
+      // rows with no price / no change and reads the warn tag, instead of
+      // parsing rendered text.
+      data-price-row=""
+      data-symbol={ticker || symbol || undefined}
+      data-has-price={price != null ? '1' : '0'}
+      data-has-change={changePct != null ? '1' : '0'}
+      data-warn={warn?.tag || undefined}
       className={flash ? 'price-row-flash' : undefined}
       draggable={dragEnabled || undefined}
       onDragStart={dragEnabled ? handleDragStart : undefined}
