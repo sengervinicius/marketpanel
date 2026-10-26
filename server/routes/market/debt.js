@@ -477,6 +477,17 @@ async function buildBrCurve({ tdRes, selicRes, now = new Date(), fetchImpl = fet
   // ── Primary: BCB DI×Pré swap settlement curve ──
   let swap = { points: [], errors: [] };
   try { swap = await fetchBcbDiSwapCurve(fetchImpl); } catch (e) { swap.errors.push(String(e.message).slice(0, 60)); }
+  // Plausibility gate — a mislabelled series must NEVER reach the chart.
+  // Every rate must be a sane % p.a., the shortest tenor must sit near
+  // Selic (DI×Pré 30d ≈ CDI), and the settlement date can't be in the
+  // future. Fail → fall through to unavailable, never to a guess.
+  const sane = swap.points.filter(p => p.rate > 0 && p.rate < 60 && p.asOfMs && p.asOfMs <= now.getTime() + 86400e3);
+  const shortest = sane.slice().sort((a, b) => a.days - b.days)[0];
+  const nearSelic = selic == null || (shortest && Math.abs(shortest.rate - selic) <= 3);
+  if (sane.length !== swap.points.length || !nearSelic) {
+    swap.errors.push(`implausible: ${swap.points.length - sane.length} out-of-range, short=${shortest?.rate} vs selic=${selic}`);
+    swap.points = [];
+  }
   if (swap.points.length >= 4) {
     swap.points.sort((a, b) => a.days - b.days);
     const asOfMs = swap.points.reduce((m, p) => Math.max(m, p.asOfMs || 0), 0) || null;

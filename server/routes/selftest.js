@@ -227,7 +227,7 @@ router.get('/', async (req, res) => {
     const first = br.curve.find(p => p.tenor !== 'SELIC');
     const shortVsSelicBps = (first && br.selic != null) ? Math.round((first.rate - br.selic) * 100) : null;
     return {
-      ok: br.source !== 'unavailable' && !(br.stale && b3ShouldBeFresh),
+      ok: br.source !== 'unavailable' && !(br.stale && b3ShouldBeFresh) && !(shortVsSelicBps != null && Math.abs(shortVsSelicBps) > 300),
       warn: (br.stale && !b3ShouldBeFresh) || (shortVsSelicBps != null && Math.abs(shortVsSelicBps) > 150),
       source: br.source, points, asOf: br.asOf, stale: br.stale, selic: br.selic,
       slopeBps, shortVsSelicBps, error: br.error || null, seriesErrors: br.seriesErrors || null,
