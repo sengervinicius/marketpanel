@@ -123,7 +123,9 @@ async function getQuote(symbol) {
       volume: typeof row.regularMarketVolume === 'number' ? row.regularMarketVolume : null,
       exchange: 'B3',
       source: 'brapi',
-      asOf: new Date().toISOString(),
+      // #292 Wave 1 — was new Date(): fetch time dressed as market time.
+      asOf: row.regularMarketTime ? new Date(row.regularMarketTime).toISOString() : null,
+      fetchedAt: new Date().toISOString(),
     };
     cacheSet(ck, normalised);
     return normalised;

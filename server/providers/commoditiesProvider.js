@@ -241,7 +241,7 @@ async function fetchTwelveDataCommodity(sym) {
       change:    parseFloat(d.change)          || null,
       changePct: parseFloat(d.percent_change)  || null,
       volume:    parseInt(d.volume) || null,
-      asOf: d.datetime || new Date().toISOString(),
+      asOf: d.datetime || null, // #292 Wave 1 — unknown, not now
       source: 'Twelve Data',
     };
     cset(ck, result);
@@ -280,7 +280,7 @@ async function fetchYahooCommodity(sym) {
       volume:    q.regularMarketVolume          ?? null,
       asOf: q.regularMarketTime
         ? new Date(q.regularMarketTime * 1000).toISOString()
-        : new Date().toISOString(),
+        : null, // #292 Wave 1 — unknown, not now
       source: 'Yahoo Finance',
     };
     cset(ck, result);

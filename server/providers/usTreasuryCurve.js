@@ -37,11 +37,25 @@ const TENOR_MONTHS = {
 const TTL_MS = 15 * 60 * 1000; // one FRED burst per 15-minute window
 const MIN_POINTS = 3;          // same "usable curve" floor as both routes
 
-let _entry = null;    // { points, exp }
+let _entry = null;    // { points, exp, fetchedAt }
+// #292 Wave 1 — expired points used to be served forever after a FRED
+// failure, with no date. Now: at most MAX_STALE_MS past expiry, and the
+// result carries fetchedAt/stale so callers can label it.
+const MAX_STALE_MS = 6 * 60 * 60 * 1000;
+function withMeta(points, entry, stale) {
+  const out = points.slice();
+  out.fetchedAt = entry ? entry.fetchedAt : null;
+  out.stale = !!stale;
+  return out;
+}
+function staleOrEmpty() {
+  if (_entry && Date.now() < _entry.exp + MAX_STALE_MS) return withMeta(_entry.points, _entry, true);
+  return withMeta([], null, false);
+}
 let _inflight = null; // de-dupes concurrent bursts
 
 async function getUsTreasuryCurve() {
-  if (_entry && Date.now() < _entry.exp) return _entry.points;
+  if (_entry && Date.now() < _entry.exp) return withMeta(_entry.points, _entry, false);
   if (_inflight) return _inflight;
 
   _inflight = (async () => {
@@ -60,15 +74,15 @@ async function getUsTreasuryCurve() {
         .sort((a, b) => a.months - b.months);
 
       if (points.length >= MIN_POINTS) {
-        _entry = { points, exp: Date.now() + TTL_MS };
-        return points;
+        _entry = { points, exp: Date.now() + TTL_MS, fetchedAt: Date.now() };
+        return withMeta(points, _entry, false);
       }
       // Thin/empty burst (rate-limited?) — serve the previous window's
       // points if we still have them rather than shipping a hole.
-      return _entry ? _entry.points : points;
+      return staleOrEmpty();
     } catch (e) {
       console.warn('[usTreasuryCurve]', e?.message || e);
-      return _entry ? _entry.points : [];
+      return staleOrEmpty();
     } finally {
       _inflight = null;
     }

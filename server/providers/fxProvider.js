@@ -172,7 +172,7 @@ async function fetchTwelveDataFx(base, quote) {
       prevClose: parseFloat(data.previous_close) || null,
       change: parseFloat(data.change) || null,
       changePct: parseFloat(data.percent_change) || null,
-      asOf: data.datetime || new Date().toISOString(),
+      asOf: data.datetime || null, // #292 Wave 1 — unknown, not now
       source: 'Twelve Data (live)',
     };
     cset(ck, result, TTL.live);
@@ -217,7 +217,7 @@ async function fetchYahooFx(base, quote) {
       changePct: q.regularMarketChangePercent ?? null,
       asOf: q.regularMarketTime
         ? new Date(q.regularMarketTime * 1000).toISOString()
-        : new Date().toISOString(),
+        : null, // #292 Wave 1 — unknown, not now
       source: 'Yahoo Finance (live)',
     };
     cset(ck, result, TTL.live);

@@ -242,6 +242,49 @@ router.get('/', async (req, res) => {
     return gridSummary('/snapshot/rates', syms.length, q || [], null, 'us');
   }));
 
+  // ── #292 Wave 1 — provider truth matrix ───────────────────────────────
+  //
+  // One row per external source, hit once with a canonical instrument.
+  // CORE providers (what the home screen / Brazil / rates are built on)
+  // FAIL when configured-but-unreachable or value-less; everything else
+  // WARNs. A row whose provider gives no timestamp is flagged so the
+  // "we don't know how old this is" state is visible, not assumed live.
+  const CORE = new Set(['yahoo', 'yahoo_brazil', 'fred', 'bcb_sgs', 'ptax', 'coingecko']);
+  const STALE_MIN = { yahoo: 20, yahoo_brazil: 20, brapi: 20, twelvedata: 20, finnhub: 20, polygon: 20, coingecko: 15, commodities: 30, ptax: 36 * 60, fred: 5 * 24 * 60, bcb_sgs: 5 * 24 * 60, us_treasury_curve: 5 * 24 * 60 };
+  try {
+    const { providerMatrix } = require('../services/providerProbe');
+    const m = await providerMatrix({ force: req.query.force === '1' });
+    for (const r of m.rows) {
+      if (!r.configured) {
+        checks.push({ name: `provider.${r.provider}`, ok: true, warn: CORE.has(r.provider), configured: false, role: r.role, detail: 'not configured' });
+        continue;
+      }
+      if (r.reached == null) {
+        checks.push({ name: `provider.${r.provider}`, ok: true, configured: true, role: r.role, detail: r.note });
+        continue;
+      }
+      const sessionOpen = ['yahoo', 'finnhub', 'polygon', 'twelvedata'].includes(r.provider) ? sessionOpen('us')
+                        : ['yahoo_brazil', 'brapi'].includes(r.provider) ? sessionOpen('b3') : true;
+      const limit = STALE_MIN[r.provider];
+      const stale = sessionOpen && limit != null && r.ageMin != null && r.ageMin > limit;
+      const broken = r.reached === false || r.hasValue === false;
+      const isCore = CORE.has(r.provider);
+      checks.push({
+        name: `provider.${r.provider}`,
+        ok: !(broken && isCore),
+        warn: (broken && !isCore) || stale || r.asOfMs == null,
+        configured: true, role: r.role, symbol: r.symbol,
+        reached: r.reached, hasValue: r.hasValue,
+        asOf: r.asOfMs ? new Date(r.asOfMs).toISOString() : null,
+        ageMin: r.ageMin, stale, ms: r.ms,
+        detail: r.error || (r.asOfMs == null ? `${r.note ? r.note + ' · ' : ''}no provider timestamp` : r.note),
+      });
+    }
+    checks.push({ name: 'provider.matrix', ok: true, cached: m.cached, ...m.summary });
+  } catch (e) {
+    checks.push({ name: 'provider.matrix', ok: false, error: e.message });
+  }
+
   const failed = checks.filter((c) => !c.ok).map((c) => c.name);
   const warned = checks.filter((c) => c.ok && c.warn).map((c) => c.name);
   const body = {
@@ -254,6 +297,18 @@ router.get('/', async (req, res) => {
 
   if (failed.length) logger.warn('selftest', `FAILING: ${failed.join(', ')}`);
   res.status(failed.length ? 503 : 200).json(body);
+});
+
+// #292 Wave 1 — raw matrix, one row per provider. ?force=1 bypasses the
+// 60s cache (costs one call per provider).
+router.get('/providers', async (req, res) => {
+  try {
+    const { providerMatrix } = require('../services/providerProbe');
+    const m = await providerMatrix({ force: req.query.force === '1' });
+    res.json({ ok: true, ts: new Date(m.at).toISOString(), cached: m.cached, summary: m.summary, rows: m.rows });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 module.exports = router;
