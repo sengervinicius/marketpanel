@@ -31,6 +31,8 @@ import {
 } from '../../utils/formatPrice';
 import { useWatchlist } from '../../context/WatchlistContext';
 import { useTickerPrice } from '../../context/PriceContext';
+// #292 Wave 0 — session + as-of layer (replaces the 'LIVE means we have a number' badge)
+import { describeQuote, isZeroPlaceholder, INDEX_PROXY_ETF, asOfLabel as fmtAsOf } from '../../utils/marketSession';
 import { useInstrumentSearch } from '../../hooks/useInstrumentSearch';
 import { useAlerts } from '../../context/AlertsContext';
 import { useToast } from '../../context/ToastContext';
@@ -93,7 +95,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   // Use the instrument data hook
   const instrumentData = useInstrumentData(ticker);
   const {
-    norm, disp, resolution, isFX, isCrypto, isBrazil, isBondTicker, isStock, isBond, isETF,
+    norm, disp, resolution, isFX, isCrypto, isBrazil, isBondTicker, isStock, isBond, isETF, isIndex, exchangeGroup,
     rangeIdx, setRangeIdx, bars, loading, range,
     snap, info,
     fundsData, fundsLoading, fundsError, refetchFundamentals,
@@ -334,7 +336,12 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   const name       = bondData?.name || info?.name || fundsData?.longName || disp;
 
   // Currency-aware price display
-  const instrumentCurrency = etfMeta?.currency || (isBrazil ? 'BRL' : 'USD');
+  // #292 Wave 0 — an index is quoted in its home currency's points, never
+  // "$": ^BVSP was rendering as "$205,083".
+  const INDEX_CCY = { B3: 'BRL', EUROPE: 'EUR', TSE: 'JPY', KRX: 'KRW', TWSE: 'TWD', HKEX: 'HKD', CHINA: 'CNY', INDIA: 'INR', CANADA: 'CAD', AUSTRALIA: 'AUD' };
+  const instrumentCurrency = etfMeta?.currency
+    || (isIndex ? (INDEX_CCY[exchangeGroup] || 'USD') : null)
+    || (isBrazil ? 'BRL' : 'USD');
 
   // Step 5.2: Handle GBX (London Stock Exchange pence)
   const isGBX = instrumentCurrency === 'GBX';
@@ -1405,11 +1412,18 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               value={dayChgPct != null ? `${isPos?'+':''}${fmt(dayChgPct)}%` : '--'}
               color={dayChgPct != null ? (isPos ? GREEN : RED) : undefined}
             />
-            <StatRow label="OPEN" value={fmt(snap?.day?.o)} />
+            {/* #292 Wave 0 — Yahoo sends 0 for OPEN/HIGH/LOW/VOLUME before the
+                first trade of the session. 0 is not a price; render "—". */}
+            <StatRow label="OPEN" value={isZeroPlaceholder(snap?.day?.o) ? '--' : fmt(snap?.day?.o)} />
             <StatRow label="PREV CLOSE" value={fmt(prevClose)} />
-            <StatRow label="DAY HIGH" value={fmt(dayHigh)} />
-            <StatRow label="DAY LOW" value={fmt(dayLow)} />
-            {volume != null && <StatRow label="VOLUME" value={fmt(volume, 0)} />}
+            <StatRow label="DAY HIGH" value={isZeroPlaceholder(dayHigh) ? '--' : fmt(dayHigh)} />
+            <StatRow label="DAY LOW" value={isZeroPlaceholder(dayLow) ? '--' : fmt(dayLow)} />
+            {volume != null && <StatRow label="VOLUME" value={isZeroPlaceholder(volume) ? '--' : fmt(volume, 0)} />}
+            {(sessionInfo.state === 'PRE' || sessionInfo.state === 'CLOSED') && (
+              <div style={{ gridColumn: '1 / -1', fontSize: 10, color: 'var(--text-muted)', paddingTop: 4 }}>
+                {sessionInfo.state === 'PRE' ? 'Session not open — no trades yet today.' : 'Market closed — last session shown.'}
+              </div>
+            )}
           </div>
         </Section>
 
@@ -2345,6 +2359,18 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
   }, [norm, info, etfMeta, snap, bars, loading, fundsData, tdStatistics, tdProfile,
       fundsLoading, tdFinancialsLoading, aiFunds, aiFundsLoading, aiFundsError]);
 
+  // #292 Wave 0 — the quote's own timestamp + the home exchange's session.
+  // This is what the QUOTE badge and the as-of line are built from; the
+  // old badge said LIVE for any non-null price (Friday's close included).
+  const quoteAsOf = ctxPrice?.asOf ?? snap?._meta?.asOf ?? snap?.asOf ?? null;
+  const sessionInfo = useMemo(
+    () => describeQuote(exchangeGroup || 'US', quoteAsOf),
+    // re-evaluate each minute so PRE flips to OPEN without a refetch
+    [exchangeGroup, quoteAsOf, Math.floor(Date.now() / 60000)] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const proxyEtf = isIndex ? INDEX_PROXY_ETF[norm?.toUpperCase()] : null;
+  const proxyPrice = useTickerPrice(proxyEtf || null);
+
   // Legacy degraded detection (still used for amber warning)
   const degradedSources = useMemo(() => {
     if (loading) return [];
@@ -2392,6 +2418,25 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           <span className="id-hero-price">{formattedPrice}</span>
           {!isBond && !isFX && <span className="id-hero-ccy">{currencyLabel(displayCurrency)}</span>}
           <span className={`id-hero-change ${changeDirection}`}>{changeArrow} {formattedChange} {formattedChangePct}</span>
+          {/* #292 Wave 0 — when this number is from. Never omitted. */}
+          <span className="id-hero-asof" title={sessionInfo.detail} style={{ display: 'block', fontSize: 10, letterSpacing: '0.06em', color: sessionInfo.color, marginTop: 2, fontFamily: 'var(--font-family-mono)' }}>
+            {sessionInfo.state === 'PRE' || sessionInfo.state === 'CLOSED' ? 'LAST CLOSE ' : 'AS OF '}{sessionInfo.asOfLabel}
+            {sessionInfo.isStale && sessionInfo.state === 'OPEN' ? ' · FEED STALE' : ''}
+            {sessionInfo.state === 'PRE' && exchangeGroup === 'B3' ? ' · B3 OPENS 10:00 BRT' : ''}
+          </span>
+          {/* #292 Wave 0 — an index that isn't printing yet: show the thing that IS. */}
+          {proxyEtf && proxyPrice && (proxyPrice.ext?.pre || proxyPrice.ext?.post || proxyPrice.price != null) && (() => {
+            const e = proxyPrice.ext?.pre || proxyPrice.ext?.post || null;
+            const px = e?.price ?? proxyPrice.price;
+            const pc = e?.changePct ?? proxyPrice.changePct;
+            const tag = proxyPrice.ext?.pre ? 'PRE-MKT' : proxyPrice.ext?.post ? 'AFTER-HRS' : 'LAST';
+            return (
+              <span className="id-hero-proxy" style={{ display: 'block', fontSize: 11, marginTop: 4, color: (pc ?? 0) >= 0 ? 'var(--price-up)' : 'var(--price-down)', fontFamily: 'var(--font-family-mono)' }}
+                title={`${proxyEtf} is the NYSE-listed ETF tracking this index — it trades when the index does not.`}>
+                {proxyEtf} {tag} {px != null ? Number(px).toFixed(2) : '—'}{pc != null ? ` (${pc >= 0 ? '+' : ''}${Number(pc).toFixed(2)}%)` : ''}
+              </span>
+            );
+          })()}
           {/* Step 5.1: Data delay badge */}
           {dataDelay && dataDelay !== 'realtime' && (
             <span className={`id-delay-badge ${dataDelay === '15min' ? 'id-delay-badge--delayed' : 'id-delay-badge--slow'}`}>
@@ -2442,12 +2487,12 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
       {/* ── DATA COVERAGE HEADER ── */}
       <div className="id-coverage-bar">
         {[
-          { key: 'QUOTE', ...coverageInfo.quote },
+          { key: 'QUOTE', ...coverageInfo.quote, label: sessionInfo.badge, color: sessionInfo.color, bg: sessionInfo.bg, title: sessionInfo.detail },
           { key: 'CHART', ...coverageInfo.chart },
           { key: 'FUNDAMENTALS', ...coverageInfo.fundamentals },
           { key: 'AI', ...coverageInfo.ai },
         ].map(b => (
-          <span key={b.key} className="id-coverage-badge" style={{ background: b.bg, color: b.color, borderColor: `${b.color}33` }}>
+          <span key={b.key} className="id-coverage-badge" title={b.title || undefined} style={{ background: b.bg, color: b.color, borderColor: `${b.color}33` }}>
             {b.key}: {b.label}
           </span>
         ))}
@@ -2984,16 +3029,16 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 {isFX && desktopTab === 'MACRO' && renderFXMacro()}
                 {isFX && desktopTab === 'NEWS'  && renderNews()}
                 {!isBond && !isFX && (isETF ? renderETFStats() : renderStats())}
-                {!isBond && !isFX && renderAIFundamentals()}
-                {!isBond && !isFX && (
+                {!isBond && !isFX && !isIndex && renderAIFundamentals()}
+                {!isBond && !isFX && !isIndex && (
                   <InstrumentOptionsPanel
                     symbol={norm}
                     spot={livePrice}
                     isMobile={false}
                   />
                 )}
-                {!isBond && !isFX && renderFinancials()}
-                {!isBond && !isFX && renderInsider()}
+                {!isBond && !isFX && !isIndex && renderFinancials()}
+                {!isBond && !isFX && !isIndex && renderInsider()}
                 {!isBond && !isFX && renderNews()}
                 {!isBond && !isFX && renderRelatedTickers()}
                 {!isBond && !isFX && renderAbout()}

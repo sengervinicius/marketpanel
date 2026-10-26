@@ -929,6 +929,10 @@ router.get('/quote/:symbol', async (req, res) => {
       low: q.regularMarketDayLow,
       volume: q.regularMarketVolume,
       currency: q.currency || 'USD',
+      // #292 Wave 0 — the quote's own time, so callers can say "Friday's
+      // close" instead of "today". null when Yahoo omits it; never now().
+      asOf: q.regularMarketTime ? q.regularMarketTime * 1000 : null,
+      marketState: q.marketState || null,
     });
   } catch (e) {
     console.error(`[API] /quote/${req.params.symbol} error:`, e.message);
@@ -953,7 +957,10 @@ router.get('/quotes/:symbol', async (req, res) => {
       high:       q.regularMarketDayHigh            ?? null,
       low:        q.regularMarketDayLow             ?? null,
       prevClose:  q.regularMarketPreviousClose      ?? null,
-      asOf:       new Date().toISOString(),
+      // #292 Wave 0 — was new Date(): the server clock stamped Friday's
+      // close as "now". Source time or null.
+      asOf:       q.regularMarketTime ? new Date(q.regularMarketTime * 1000).toISOString() : null,
+      marketState: q.marketState || null,
     };
 
     return res.json({ symbol, quote, source: result.source });

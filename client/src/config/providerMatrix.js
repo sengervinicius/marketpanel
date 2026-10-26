@@ -36,6 +36,7 @@ export const EXCHANGE_GROUPS = {
   CRYPTO:   { label: 'Cryptocurrency',               delay: 0,  currency: 'USD' },
   ETF:      { label: 'ETFs',                         delay: 0,  currency: 'USD' },
   BOND:     { label: 'Bonds & Rates',                delay: 0,  currency: null  },
+  INDEX:    { label: 'Index',                        delay: 15, currency: null  },
 };
 
 // ── Provider routing per exchange group ───────────────────────────────
@@ -53,6 +54,7 @@ const MATRIX = {
   CANADA:   { quote: ['twelvedata_ws', 'yahoo'],  chart: ['yahoo'], fundamentals: ['twelvedata', 'yahoo'] },
   AUSTRALIA:{ quote: ['twelvedata_ws', 'yahoo'],  chart: ['yahoo'], fundamentals: ['twelvedata', 'yahoo'] },
   FX:       { quote: ['polygon_ws'],              chart: ['yahoo'], fundamentals: [] },
+  INDEX:    { quote: ['yahoo'],                   chart: ['yahoo'], fundamentals: [] },
   CRYPTO:   { quote: ['polygon_ws'],              chart: ['yahoo'], fundamentals: [] },
   ETF:      { quote: ['polygon_ws'],              chart: ['yahoo'], fundamentals: ['yahoo'] },
   BOND:     { quote: ['fred', 'ecb'],             chart: ['fred'],  fundamentals: [] },
@@ -89,6 +91,20 @@ const SUFFIX_MAP = {
   '.AX':  'AUSTRALIA',
 };
 
+
+// #292 Wave 0 — Indices. A "^" symbol has no exchange suffix, so it used to
+// fall through to the US default: ^BVSP routed its chart to Polygon (which
+// has no B3 index), failed, and the header said "unavailable — US (NYSE /
+// NASDAQ)" for the Ibovespa. Map each index to its home market so the
+// session clock, currency and provider chain are right; Yahoo serves
+// quote + chart for all of them.
+const INDEX_HOME = {
+  '^BVSP': 'B3', '^IBOV': 'B3',
+  '^GSPC': 'US', '^DJI': 'US', '^IXIC': 'US', '^NDX': 'US', '^RUT': 'US', '^VIX': 'US', '^TNX': 'US', '^IRX': 'US', '^FVX': 'US', '^TYX': 'US',
+  '^FTSE': 'EUROPE', '^GDAXI': 'EUROPE', '^FCHI': 'EUROPE', '^STOXX50E': 'EUROPE', '^IBEX': 'EUROPE', '^FTSEMIB': 'EUROPE', '^AEX': 'EUROPE', '^SSMI': 'EUROPE',
+  '^N225': 'TSE', '^KS11': 'KRX', '^TWII': 'TWSE', '^HSI': 'HKEX', '000001.SS': 'CHINA', '^NSEI': 'INDIA', '^BSESN': 'INDIA', '^GSPTSE': 'CANADA', '^AXJO': 'AUSTRALIA',
+  '^MXX': 'US', '^MERV': 'US',
+};
 const BOND_RE = /^(US|DE|GB|JP|BR|AU|CA|KR|TW|HK|CN|IN)\d+Y$/i;
 const SUFFIXES_SORTED = Object.keys(SUFFIX_MAP).sort((a, b) => b.length - a.length);
 
@@ -100,6 +116,11 @@ export function detectExchangeGroup(symbol, exchange) {
   if (symbol.startsWith('C:')) return 'FX';
   if (symbol.startsWith('X:')) return 'CRYPTO';
   if (BOND_RE.test(symbol)) return 'BOND';
+  if (symbol.startsWith('^') || symbol.endsWith('.SS') && /^\d{6}\.SS$/.test(symbol)) {
+    const home = INDEX_HOME[symbol.toUpperCase()];
+    if (home) return home;
+    return 'INDEX';
+  }
   for (const sfx of SUFFIXES_SORTED) {
     if (symbol.endsWith(sfx)) return SUFFIX_MAP[sfx];
   }
@@ -202,4 +223,12 @@ export function getDataTypeCoverage(symbol, exchange, liveState = {}) {
   })();
 
   return { quote: quoteLabel, chart: chartLabel, fundamentals: fundsLabel, ai: aiLabel, group, coverage };
+}
+
+
+/** #292 Wave 0 — true for index symbols (^BVSP, ^GSPC, 000001.SS). */
+export function isIndexSymbol(symbol) {
+  if (!symbol) return false;
+  const u = String(symbol).toUpperCase();
+  return u.startsWith('^') || !!INDEX_HOME[u];
 }

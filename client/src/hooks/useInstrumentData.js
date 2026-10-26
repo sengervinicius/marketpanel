@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { apiFetch } from '../utils/api';
 import { swallow } from '../utils/swallow';
 import { createPollGate } from '../utils/chartPollGate';
+import { isIndexSymbol, detectExchangeGroup } from '../config/providerMatrix';
 import {
   normalizeTicker, displayTicker, getFromDate, fmtLabel,
   RANGES,
@@ -46,7 +47,12 @@ export function useInstrumentData(ticker) {
   const isCrypto     = norm.startsWith('X:');
   const isBrazil     = norm.endsWith('.SA');
   const isBondTicker = /^(US|DE|GB|JP|BR)\d+Y$/i.test(norm);
-  const isStock      = !isFX && !isCrypto && !isBondTicker;
+  // #292 Wave 0 — an index (^BVSP) is not a stock: no fundamentals, no
+  // insider filings, no options chain, and its session clock is its home
+  // exchange's, not NYSE's.
+  const isIndex      = isIndexSymbol(norm);
+  const isStock      = !isFX && !isCrypto && !isBondTicker && !isIndex;
+  const exchangeGroup = detectExchangeGroup(norm);
 
   // Chart state
   const [rangeIdx, setRangeIdx]   = useState(0);
@@ -559,6 +565,7 @@ export function useInstrumentData(ticker) {
     // Ticker info
     norm,
     disp,
+    isIndex, exchangeGroup, // #292 Wave 0
     // #219 — non-null when we swapped to a Yahoo-tradeable ticker
     // (e.g. user typed JUMBO.AT, this resolves to BELA.AT). The detail
     // component renders a small banner explaining the remap.

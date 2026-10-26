@@ -122,9 +122,18 @@ function buildFundamentalsFallback(sym, fundamentals, quote, newsItems = []) {
   }
   if (f.marketCap != null) summaryParts.push(`Market cap ${fmtBig(f.marketCap)}.`);
   if (hasQuote) {
+    // #292 Wave 0 — "today" was asserted for any quote, including Friday's
+    // close on a Monday pre-open. Say what we know: change vs previous
+    // close, and the quote's own timestamp when the caller supplied one.
+    const asOfMs = quote.asOf || (quote.regularMarketTime ? quote.regularMarketTime * 1000 : null);
+    const ageH = asOfMs ? (Date.now() - asOfMs) / 3.6e6 : null;
+    const when = asOfMs
+      ? (ageH < 1 ? 'live' : ageH < 12 ? `as of ${new Date(asOfMs).toISOString().slice(11, 16)} UTC` : `last close ${new Date(asOfMs).toISOString().slice(0, 10)}`)
+      : 'timestamp unknown';
     const chg = quote.changePct != null
-      ? ` (${quote.changePct >= 0 ? '+' : ''}${quote.changePct.toFixed(2)}% today)` : '';
-    summaryParts.push(`Last price $${quote.price}${chg}.`);
+      ? ` (${quote.changePct >= 0 ? '+' : ''}${quote.changePct.toFixed(2)}% vs prev close)` : '';
+    const ccy = quote.currency && quote.currency !== 'USD' ? `${quote.currency} ` : '$';
+    summaryParts.push(`Last price ${ccy}${quote.price}${chg}, ${when}.`);
   }
 
   const highlights = [];
