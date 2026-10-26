@@ -150,19 +150,37 @@ router.get('/', async (req, res) => {
   }));
 
   const STALE_MS = 36 * 60 * 60 * 1000; // > 36h = older than any weekend close
-  function gridSummary(label, requested, quotes, failed) {
+  // Session-aware staleness: a quote older than STALE_MS is a FAILURE while
+  // that market should be printing, and only a WARNING outside its session
+  // (weekend / pre-open legitimately carry the last close).
+  function sessionOpen(market) {
+    const now = new Date();
+    if (market === 'b3') {           // Mon-Fri 10:00–17:00 BRT (UTC-3) + buffer
+      const t = new Date(now.getTime() - 3 * 3600e3); const d = t.getUTCDay(); const m = t.getUTCHours() * 60 + t.getUTCMinutes();
+      return d >= 1 && d <= 5 && m >= 615 && m <= 1080;
+    }
+    if (market === 'us') {           // Mon-Fri 09:30–16:00 ET — approximate with UTC-4/-5 midpoint
+      const t = new Date(now.getTime() - 4.5 * 3600e3); const d = t.getUTCDay(); const m = t.getUTCHours() * 60 + t.getUTCMinutes();
+      return d >= 1 && d <= 5 && m >= 585 && m <= 990;
+    }
+    return true;                     // fx/crypto: always
+  }
+  function gridSummary(label, requested, quotes, failed, market = 'always') {
     const received = quotes.length;
     const newest = quotes.reduce((m, q) => Math.max(m, (q.regularMarketTime || 0) * 1000), 0);
     const ageMs = newest ? Date.now() - newest : null;
     const priced = quotes.filter(q => typeof q.regularMarketPrice === 'number' && q.regularMarketPrice > 0).length;
-    const ok = received > 0 && priced >= Math.ceil(requested * 0.8) && (ageMs == null || ageMs < STALE_MS);
-    const warn = ok && (received < requested || priced < requested);
+    const isStale = ageMs != null && ageMs >= STALE_MS;
+    const open = sessionOpen(market);
+    const ok = received > 0 && priced >= Math.ceil(requested * 0.8) && !(isStale && open);
+    const warn = ok && (received < requested || priced < requested || (isStale && !open));
     return {
       ok, warn,
       requested, received, priced,
       missing: requested - received,
       newestQuoteAgeMs: ageMs,
-      stale: ageMs != null && ageMs >= STALE_MS,
+      stale: isStale,
+      sessionOpen: open,
       firstError: failed && failed[0] ? failed[0].error : null,
       label,
     };
@@ -171,7 +189,7 @@ router.get('/', async (req, res) => {
   checks.push(await check('grid.stocks', async () => {
     const stocks = require('./market/stocks');
     const d = await stocks.batchYahooQuoteDetailed(stocks.DEFAULT_STOCK_TICKERS);
-    return gridSummary('/snapshot/stocks', d.requested, d.quotes, d.failed);
+    return gridSummary('/snapshot/stocks', d.requested, d.quotes, d.failed, 'us');
   }));
   checks.push(await check('grid.forex', async () => {
     const syms = ['EURUSD=X','GBPUSD=X','USDJPY=X','USDBRL=X','USDCHF=X','AUDUSD=X'];
@@ -186,12 +204,38 @@ router.get('/', async (req, res) => {
   checks.push(await check('grid.brazil', async () => {
     const syms = ['PETR4.SA','VALE3.SA','ITUB4.SA','BBDC4.SA','ABEV3.SA','B3SA3.SA'];
     const q = await providers.yahooQuote(syms.join(','));
-    return gridSummary('/snapshot/brazil', syms.length, q || [], null);
+    return gridSummary('/snapshot/brazil', syms.length, q || [], null, 'b3');
   }));
+  // #292 incident — BR yield curve: must come from Tesouro Direto with a
+  // source quotation time; never fabricated. Stale (> 24h) is a failure on
+  // a B3 business day after 10:30 BRT, a warning otherwise (weekend/pre-open
+  // legitimately carries the last print).
+  checks.push(await check('curve.br', async () => {
+    const debt = require('./market/debt');
+    if (typeof debt.buildBrCurve !== 'function') return { ok: false, detail: 'buildBrCurve not exported' };
+    const [tdRes, selicRes] = await Promise.allSettled([
+      fetch(debt.TD_URL, { headers: debt.TD_HEADERS }).then(r => { if (!r.ok) throw new Error(`TD HTTP ${r.status}`); return r.json(); }),
+      fetch(debt.BCB_SELIC_URL, { headers: { Accept: 'application/json' } }).then(r => r.json()),
+    ]);
+    const br = await debt.buildBrCurve({ tdRes, selicRes });
+    const brt = new Date(Date.now() - 3 * 3600 * 1000); // BRT = UTC-3
+    const dow = brt.getUTCDay(), mins = brt.getUTCHours() * 60 + brt.getUTCMinutes();
+    const b3ShouldBeFresh = dow >= 1 && dow <= 5 && mins >= 630; // Mon-Fri after 10:30 BRT
+    const points = br.curve.length;
+    const slopeBps = points >= 2 ? Math.round((br.curve[points - 1].rate - br.curve[0].rate) * 100) : null;
+    return {
+      ok: br.source !== 'unavailable' && !(br.stale && b3ShouldBeFresh),
+      warn: br.stale && !b3ShouldBeFresh,
+      source: br.source, points, asOf: br.asOf, stale: br.stale, selic: br.selic,
+      slopeBps, error: br.error || null,
+      b3ShouldBeFresh,
+    };
+  }));
+
   checks.push(await check('grid.rates', async () => {
     const syms = ['^IRX','^FVX','^TNX','^TYX'];
     const q = await providers.yahooQuote(syms.join(','));
-    return gridSummary('/snapshot/rates', syms.length, q || [], null);
+    return gridSummary('/snapshot/rates', syms.length, q || [], null, 'us');
   }));
 
   const failed = checks.filter((c) => !c.ok).map((c) => c.name);

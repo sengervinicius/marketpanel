@@ -380,92 +380,114 @@ router.get('/snapshot/rates', async (req, res) => {
 });
 
 // ── /di-curve — Brazilian DI pre-fixed yield curve ──────────────────
+
+// ═══════════════════════════════════════════════════════════════════
+// #292 INCIDENT (26 Oct 2026, post-election open) — BR curve integrity
+//
+// What the panel labelled "DI" was: point 0 = BCB Selic target; the rest =
+// Tesouro Direto RETAIL Prefixado rates (daily, business hours); and when
+// that fetch failed or returned < 3 bonds, a HARDCODED curve of
+// Selic +0.15 / +0.10 / −0.50 / −1.50 / −2.50 / −3.50 — an inversion by
+// construction — stamped updatedAt = now. On the first trading morning
+// after the runoff, with DI futures gapping up, the panel drew a fabricated
+// downward curve and said it was fresh.
+//
+// Rules from here on:
+//   1. NEVER fabricate points. No data → source:'unavailable', curve:[].
+//   2. asOf comes from the SOURCE (Tesouro's TrsrBondMkt.qtnDtTm), never
+//      from the clock. fetchedAt is reported separately.
+//   3. stale:true when asOf is > 24h old (or unknown). The client renders
+//      the date and a STALE badge; it does not pretend.
+//   4. The label says what it is: Tesouro Prefixado, not "DI".
+// ═══════════════════════════════════════════════════════════════════
+const TD_URL = 'https://www.tesourodireto.com.br/json/br/com/b3/tesourodireto/service/api/treasurybondsfile.json';
+const TD_HEADERS = { 'User-Agent': YF_UA, 'Accept': 'application/json', 'Accept-Language': 'pt-BR,pt;q=0.9', 'Referer': 'https://www.tesourodireto.com.br/' };
+const BCB_SELIC_URL = 'https://api.bcb.gov.br/dados/serie/bcdata.sgs.4189/dados/ultimos/1?formato=json';
+const CURVE_STALE_MS = 24 * 60 * 60 * 1000;
+
+function tdQuotationTime(json) {
+  // Tesouro's payload carries the quotation timestamp of the price file.
+  // Try the known locations; any ISO-ish string wins. Returns ms or null.
+  const cands = [
+    json?.response?.TrsrBondMkt?.qtnDtTm,
+    json?.response?.TrsrBondMkt?.clsgDtTm,
+    json?.response?.BizSts?.dtTm,
+  ];
+  for (const c of cands) {
+    if (typeof c === 'string' && c.length >= 10) {
+      const t = Date.parse(c.includes('T') || c.includes(' ') ? c : c + 'T00:00:00');
+      if (!isNaN(t)) return t;
+    }
+  }
+  return null;
+}
+
+async function buildBrCurve({ tdRes, selicRes, now = new Date() }) {
+  const fetchedAt = now.toISOString();
+  let selic = null;
+  if (selicRes?.status === 'fulfilled' && Array.isArray(selicRes.value) && selicRes.value[0]?.valor) {
+    const v = parseFloat(selicRes.value[0].valor);
+    if (!isNaN(v) && v > 0) selic = parseFloat(v.toFixed(2));
+  }
+
+  if (tdRes?.status !== 'fulfilled') {
+    return {
+      curve: [], source: 'unavailable', selic,
+      asOf: null, fetchedAt, stale: true,
+      error: String(tdRes?.reason?.message || 'Tesouro Direto unreachable').slice(0, 120),
+      label: 'TESOURO PREFIXADO (daily) · BCB SELIC',
+    };
+  }
+
+  const json = tdRes.value;
+  const bonds = json?.response?.TrsrBdTradgList || [];
+  const prefixados = bonds
+    .filter(b => { const nm = (b.TrsrBd?.nm || '').toLowerCase(); return nm.includes('prefixado') && !nm.includes('juros') && b.TrsrBd?.anulInvstmtRate; })
+    .map(b => {
+      const matDate = new Date(b.TrsrBd.mtrtyDt);
+      const daysToMat = Math.round((matDate - now) / 86400000);
+      const months = Math.round(daysToMat / 30.44);
+      const rawRate = parseFloat(b.TrsrBd.anulInvstmtRate);
+      const rate = rawRate < 1 ? parseFloat((rawRate * 100).toFixed(2)) : parseFloat(rawRate.toFixed(2));
+      let tenor;
+      if (months < 4) tenor = '3M'; else if (months < 8) tenor = '6M';
+      else if (months < 18) tenor = '1Y'; else if (months < 30) tenor = '2Y';
+      else if (months < 42) tenor = '3Y'; else if (months < 54) tenor = '4Y';
+      else if (months < 66) tenor = '5Y'; else if (months < 90) tenor = '7Y';
+      else tenor = Math.round(months / 12) + 'Y';
+      return { tenor, months, rate, maturity: (b.TrsrBd.mtrtyDt || '').split('T')[0] };
+    })
+    .filter(b => b.months > 0 && b.rate > 0)
+    .sort((a, b) => a.months - b.months);
+
+  const asOfMs = tdQuotationTime(json);
+  const asOf = asOfMs ? new Date(asOfMs).toISOString() : null;
+  const stale = asOfMs == null || (now.getTime() - asOfMs) > CURVE_STALE_MS;
+
+  if (prefixados.length < 2) {
+    return {
+      curve: [], source: 'unavailable', selic, asOf, fetchedAt, stale: true,
+      error: `Tesouro Direto returned ${prefixados.length} prefixado bond(s)`,
+      label: 'TESOURO PREFIXADO (daily) · BCB SELIC',
+    };
+  }
+
+  const curve = [];
+  if (selic != null) curve.push({ tenor: 'SELIC', months: 0.5, rate: selic });
+  curve.push(...prefixados);
+  return { curve, source: 'Tesouro Direto', selic, asOf, fetchedAt, stale, label: 'TESOURO PREFIXADO (daily) · BCB SELIC' };
+}
+
 router.get('/di-curve', async (req, res) => {
   try {
     const [tdRes, selicRes] = await Promise.allSettled([
-      fetch(
-        'https://www.tesourodireto.com.br/json/br/com/b3/tesourodireto/service/api/treasurybondsfile.json',
-        {
-          headers: {
-            'User-Agent': YF_UA,
-            'Accept': 'application/json',
-            'Accept-Language': 'pt-BR,pt;q=0.9',
-            'Referer': 'https://www.tesourodireto.com.br/',
-          }
-        }
-      ).then(r => { if (!r.ok) throw new Error(`TD HTTP ${r.status}`); return r.json(); }),
-      // BCB series 4189 = Selic meta (annual target rate)
-      fetch(
-        'https://api.bcb.gov.br/dados/serie/bcdata.sgs.4189/dados/ultimos/1?formato=json',
-        { headers: { 'Accept': 'application/json' } }
-      ).then(r => r.json()),
+      fetch(TD_URL, { headers: TD_HEADERS }).then(r => { if (!r.ok) throw new Error(`TD HTTP ${r.status}`); return r.json(); }),
+      fetch(BCB_SELIC_URL, { headers: { 'Accept': 'application/json' } }).then(r => r.json()),
     ]);
-
-    const today = new Date();
-    const curve = [];
-
-    let diRate = 14.75;
-    if (selicRes.status === 'fulfilled' && Array.isArray(selicRes.value) && selicRes.value[0]?.valor) {
-      diRate = parseFloat(selicRes.value[0].valor);
-    }
-    curve.push({ tenor: 'DI', months: 0.5, rate: parseFloat(diRate.toFixed(2)) });
-
-    if (tdRes.status === 'fulfilled') {
-      const bonds = tdRes.value?.response?.TrsrBdTradgList || [];
-      const prefixados = bonds
-        .filter(b => {
-          const nm = (b.TrsrBd?.nm || '').toLowerCase();
-          return nm.includes('prefixado') && !nm.includes('juros') && b.TrsrBd?.anulInvstmtRate;
-        })
-        .map(b => {
-          const matDate = new Date(b.TrsrBd.mtrtyDt);
-          const daysToMat = Math.round((matDate - today) / 86400000);
-          const months = Math.round(daysToMat / 30.44);
-          const rawRate = parseFloat(b.TrsrBd.anulInvstmtRate);
-          const rate = rawRate < 1 ? parseFloat((rawRate * 100).toFixed(2)) : parseFloat(rawRate.toFixed(2));
-          let tenor;
-          if (months < 4)       tenor = '3M';
-          else if (months < 8)  tenor = '6M';
-          else if (months < 18) tenor = '1Y';
-          else if (months < 30) tenor = '2Y';
-          else if (months < 42) tenor = '3Y';
-          else if (months < 54) tenor = '4Y';
-          else if (months < 66) tenor = '5Y';
-          else if (months < 90) tenor = '7Y';
-          else                   tenor = Math.round(months / 12) + 'Y';
-          return {
-            tenor,
-            months,
-            rate,
-            maturity: (b.TrsrBd.mtrtyDt || '').split('T')[0],
-          };
-        })
-        .filter(b => b.months > 0 && b.rate > 0)
-        .sort((a, b) => a.months - b.months);
-
-      curve.push(...prefixados);
-    } else {
-      console.warn('[DI-Curve] Tesouro Direto failed:', tdRes.reason?.message);
-    }
-
-    if (curve.length < 3) {
-      const base = diRate;
-      const synth = [
-        { tenor: '3M',  months: 3,  rate: parseFloat((base + 0.15).toFixed(2)) },
-        { tenor: '6M',  months: 6,  rate: parseFloat((base + 0.10).toFixed(2)) },
-        { tenor: '1Y',  months: 12, rate: parseFloat((base - 0.50).toFixed(2)) },
-        { tenor: '2Y',  months: 24, rate: parseFloat((base - 1.50).toFixed(2)) },
-        { tenor: '3Y',  months: 36, rate: parseFloat((base - 2.50).toFixed(2)) },
-        { tenor: '5Y',  months: 60, rate: parseFloat((base - 3.50).toFixed(2)) },
-      ];
-      curve.push(...synth.filter(s => s.rate > 0));
-    }
-
-    res.json({
-      curve,
-      source: tdRes.status === 'fulfilled' ? 'Tesouro Direto' : 'BCB+synthetic',
-      updatedAt: new Date().toISOString(),
-    });
+    const br = await buildBrCurve({ tdRes, selicRes });
+    // Back-compat: callers of this legacy route read `updatedAt`; it now
+    // means the SOURCE's quotation time, not the clock.
+    res.json({ ...br, updatedAt: br.asOf });
   } catch (err) {
     console.error('[API] /di-curve error:', err.message);
     sendError(res, err);
@@ -968,52 +990,9 @@ router.get('/yield-curves', async (req, res) => {
       }).then(r => { if (!r.ok) throw new Error(`SNB ${r.status}`); return r.text(); }),
     ]);
 
-    // —— BR curve ——
-    // Default = current Selic target; used ONLY when BCB API is unreachable.
-    // No hardcoded bounds — we trust the authoritative source (BCB series 4189).
-    let diRate = 14.75;
-    if (selicRes.status === 'fulfilled' && Array.isArray(selicRes.value) && selicRes.value[0]?.valor) {
-      const parsed = parseFloat(selicRes.value[0].valor);
-      if (!isNaN(parsed) && parsed > 0) {
-        diRate = parsed;
-      } else {
-        console.warn(`[Yield] BCB Selic returned non-numeric/negative value: ${selicRes.value[0].valor}; using default ${diRate}`);
-      }
-    }
-    const brCurve = [{ tenor: 'DI', months: 0.5, rate: parseFloat(diRate.toFixed(2)) }];
-    if (tdRes.status === 'fulfilled') {
-      const bonds = tdRes.value?.response?.TrsrBdTradgList || [];
-      const prefixados = bonds
-        .filter(b => { const nm = (b.TrsrBd?.nm || '').toLowerCase(); return nm.includes('prefixado') && !nm.includes('juros') && b.TrsrBd?.anulInvstmtRate; })
-        .map(b => {
-          const matDate = new Date(b.TrsrBd.mtrtyDt);
-          const daysToMat = Math.round((matDate - now) / 86400000);
-          const months = Math.round(daysToMat / 30.44);
-          const rawRate = parseFloat(b.TrsrBd.anulInvstmtRate);
-          const rate = rawRate < 1 ? parseFloat((rawRate * 100).toFixed(2)) : parseFloat(rawRate.toFixed(2));
-          let tenor;
-          if (months < 4) tenor = '3M'; else if (months < 8) tenor = '6M';
-          else if (months < 18) tenor = '1Y'; else if (months < 30) tenor = '2Y';
-          else if (months < 42) tenor = '3Y'; else if (months < 54) tenor = '4Y';
-          else if (months < 66) tenor = '5Y'; else if (months < 90) tenor = '7Y';
-          else tenor = Math.round(months / 12) + 'Y';
-          return { tenor, months, rate, maturity: (b.TrsrBd.mtrtyDt || '').split('T')[0] };
-        })
-        .filter(b => b.months > 0 && b.rate > 0)
-        .sort((a, b_) => a.months - b_.months);
-      brCurve.push(...prefixados);
-    }
-    if (brCurve.length < 3) {
-      const base = diRate;
-      brCurve.push(
-        { tenor: '3M', months: 3, rate: parseFloat((base + 0.15).toFixed(2)) },
-        { tenor: '6M', months: 6, rate: parseFloat((base + 0.10).toFixed(2)) },
-        { tenor: '1Y', months: 12, rate: parseFloat((base - 0.50).toFixed(2)) },
-        { tenor: '2Y', months: 24, rate: parseFloat((base - 1.50).toFixed(2)) },
-        { tenor: '3Y', months: 36, rate: parseFloat((base - 2.50).toFixed(2)) },
-        { tenor: '5Y', months: 60, rate: parseFloat((base - 3.50).toFixed(2)) },
-      );
-    }
+    // —— BR curve —— (#292 incident: shared honest builder; see buildBrCurve)
+    const br = await buildBrCurve({ tdRes, selicRes, now });
+    const brCurve = br.curve;
 
     // —— US curve (Treasury XML → FRED CSV fallback) ——
     let usCurve = [];
@@ -1071,9 +1050,10 @@ router.get('/yield-curves', async (req, res) => {
       ukSource = ukCurve.length > 0 ? 'Bank of England' : 'synthetic';
     }
     if (ukCurve.length < 3) {
-      console.warn('[Yield] BoE parse failed, using synthetic:', ukBoeRes.reason?.message || 'no data');
-      ukCurve = ukSynthetic(4.50);
-      ukSource = 'BoE+synthetic';
+      // #292 incident — no fabricated curves anywhere. Unavailable is honest.
+      console.warn('[Yield] BoE parse failed — reporting unavailable:', ukBoeRes.reason?.message || 'no data');
+      ukCurve = [];
+      ukSource = 'unavailable';
     }
 
     // —— EU curve ——
@@ -1084,9 +1064,10 @@ router.get('/yield-curves', async (req, res) => {
       euSource = euCurve.length > 0 ? 'ECB' : 'synthetic';
     }
     if (euCurve.length < 3) {
-      console.warn('[Yield] ECB parse failed, using synthetic:', ecbYcRes.reason?.message || 'no data');
-      euCurve = euSynthetic(2.50);
-      euSource = 'ECB+synthetic';
+      // #292 incident — no fabricated curves anywhere.
+      console.warn('[Yield] ECB parse failed — reporting unavailable:', ecbYcRes.reason?.message || 'no data');
+      euCurve = [];
+      euSource = 'unavailable';
     }
 
     // —— CH curve (SNB rendoblim CSV → synthetic) ——————————————
@@ -1099,9 +1080,10 @@ router.get('/yield-curves', async (req, res) => {
       console.warn('[Yield] SNB rendoblim fetch failed:', chSnbRes.reason?.message);
     }
     if (chCurve.length < 3) {
-      console.warn('[Yield] SNB parse returned <3 points, using synthetic fallback:', chCurve.length);
-      chCurve = chSynthetic(0.50);
-      chSource = chSnbRes.status === 'fulfilled' ? 'SNB+synthetic' : 'synthetic';
+      // #292 incident — no fabricated curves anywhere.
+      console.warn('[Yield] SNB parse returned <3 points — reporting unavailable:', chCurve.length);
+      chCurve = [];
+      chSource = 'unavailable';
     }
 
     // #225 — derive Swiss implied 1Y forward curve from the spot curve.
@@ -1111,12 +1093,12 @@ router.get('/yield-curves', async (req, res) => {
     const chForwards = forwardsFromSpot(chCurve);
 
     // Log BR curve for debugging data integrity
-    const brSource = tdRes.status === 'fulfilled' ? 'Tesouro Direto' : 'BCB+synthetic';
-    console.log(`[Yield] BR curve: ${brCurve.length} points, source=${brSource}, DI=${diRate}, range=${brCurve.length > 0 ? brCurve[0].rate + '-' + brCurve[brCurve.length - 1].rate : 'empty'}`);
+    const brSource = br.source;
+    console.log(`[Yield] BR curve: ${brCurve.length} points, source=${brSource}, selic=${br.selic}, asOf=${br.asOf}, stale=${br.stale}, range=${brCurve.length > 0 ? brCurve[0].rate + '-' + brCurve[brCurve.length - 1].rate : 'empty'}`);
     console.log(`[Yield] CH curve: ${chCurve.length} points, source=${chSource}, forwards=${chForwards.length}`);
 
     const payload = {
-      BR: { curve: brCurve, source: brSource, updatedAt: now.toISOString() },
+      BR: { ...br, updatedAt: br.asOf },
       US: {
         curve: usCurve,
         source: usSource,
@@ -1172,3 +1154,9 @@ router.get('/data-integrity', (req, res) => {
 });
 
 module.exports = router;
+
+// #292 incident — selftest exercises the real BR curve builder.
+module.exports.buildBrCurve = buildBrCurve;
+module.exports.TD_URL = TD_URL;
+module.exports.TD_HEADERS = TD_HEADERS;
+module.exports.BCB_SELIC_URL = BCB_SELIC_URL;

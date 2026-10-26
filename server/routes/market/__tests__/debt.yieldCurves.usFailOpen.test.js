@@ -219,9 +219,16 @@ describe('/yield-curves — US entry is fail-open against FRED ghost outages', (
     assert.deepEqual(Object.keys(json.US).sort(), [...US_SHAPE_KEYS_BASE].sort(),
       'US key/shape identical to pre-change contract');
 
-    // Other countries unaffected either way
+    // Other countries unaffected either way. Their upstreams are not mocked
+    // here, so each must report the HONEST shape — source:'unavailable' with
+    // an empty curve — rather than the fabricated fallback curves this
+    // assertion used to (unknowingly) depend on (#292 incident).
     for (const k of ['BR', 'UK', 'EU', 'CH']) {
-      assert.ok(Array.isArray(json[k]?.curve) && json[k].curve.length >= 3, `${k} curve present`);
+      assert.ok(Array.isArray(json[k]?.curve), `${k} curve is an array`);
+      if (json[k].curve.length < 3) {
+        assert.equal(json[k].source, 'unavailable', `${k}: no fabricated points — source must be 'unavailable'`);
+        assert.equal(json[k].curve.length, 0, `${k}: unavailable means empty, never synthetic`);
+      }
     }
     assert.ok(events.includes('ghost-called'), 'ghost was attempted (and swallowed)');
   });

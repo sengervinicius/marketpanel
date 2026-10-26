@@ -29,7 +29,7 @@ import DesktopOnlyPlaceholder from '../common/DesktopOnlyPlaceholder';
 import './DICurvePanel.css';
 
 const CURVES = [
-  { id: 'BR', label: 'BRAZIL',         color: '#e8a020', note: 'TESOURO PREFIXADO + BCB DI · % P.A.' },
+  { id: 'BR', label: 'BRAZIL',         color: '#e8a020', note: 'TESOURO PREFIXADO (DAILY, NOT DI FUTURES) + BCB SELIC · % P.A.' },
   { id: 'US', label: 'UNITED STATES',  color: '#4d9fec', note: 'US TREASURY PAR YIELD CURVE · %' },
   { id: 'UK', label: 'UNITED KINGDOM', color: '#e05c8a', note: 'UK GILT SPOT · BANK OF ENGLAND · %' },
   { id: 'EU', label: 'EURO AREA',      color: '#7ec8a0', note: 'AAA SOVEREIGN BOND CURVE · ECB · %' },
@@ -100,7 +100,10 @@ function DICurvePanelInner() {
   }, []);
 
   const usCurve = all.US?.curve || [];
-  const source = all[CURVES[0].id]?.source || CURVES[0].note;
+  const brEntry = all[CURVES[0].id] || {};
+  const source = (brEntry.source && brEntry.source !== 'unavailable')
+    ? `${brEntry.label || CURVES[0].note} · ${brEntry.source}${brEntry.asOf ? ' · AS OF ' + new Date(brEntry.asOf).toLocaleString().toUpperCase() : ''}`
+    : (brEntry.source === 'unavailable' ? `${CURVES[0].note} · PROVIDER OFFLINE` : CURVES[0].note);
 
   return (
     <div className="dic-container">
@@ -152,6 +155,14 @@ function DICurvePanelInner() {
                     title={formatProviderMessage({ source: 'unavailable' })}
                   >
                     PROVIDER OFFLINE
+                  </span>
+                )}
+                {/* #292 incident — the server now carries the SOURCE's quotation
+                    time (asOf) and a stale flag (> 24h). On a Monday pre-open
+                    this reads "FRI 17:00 · STALE" instead of implying live. */}
+                {!isUnavailable && !isEmpty && entry.stale && (
+                  <span className="dic-row-badge dic-row-badge--stale" title={entry.asOf ? `Source quotation time ${new Date(entry.asOf).toLocaleString()}` : 'Source did not report a quotation time'}>
+                    STALE{entry.asOf ? ' · ' + new Date(entry.asOf).toLocaleDateString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase() : ''}
                   </span>
                 )}
                 {!isUnavailable && isEmpty && (
