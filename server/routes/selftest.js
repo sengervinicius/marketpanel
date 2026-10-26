@@ -291,7 +291,7 @@ router.get('/', async (req, res) => {
   // WARNs. A row whose provider gives no timestamp is flagged so the
   // "we don't know how old this is" state is visible, not assumed live.
   const CORE = new Set(['yahoo', 'yahoo_brazil', 'fred', 'bcb_sgs', 'ptax', 'coingecko']);
-  const STALE_MIN = { yahoo: 20, yahoo_brazil: 20, brapi: 20, twelvedata: 20, finnhub: 20, polygon: 20, coingecko: 15, commodities: 30, ptax: 36 * 60, fred: 5 * 24 * 60, bcb_sgs: 5 * 24 * 60, us_treasury_curve: 5 * 24 * 60 };
+  const STALE_MIN = { yahoo: 20, yahoo_brazil: 20, brapi: 20, twelvedata: 20, finnhub: 20, polygon: 20, coingecko: 15, commodities: 30, ptax: 75 * 60, fred: 5 * 24 * 60, bcb_sgs: 5 * 24 * 60, us_treasury_curve: 5 * 24 * 60 };
   try {
     const { providerMatrix } = require('../services/providerProbe');
     const m = await providerMatrix({ force: req.query.force === '1' });

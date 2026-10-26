@@ -59,8 +59,9 @@ const PROVIDERS = [
       const now = Math.floor(Date.now() / 1000);
       // v8 chart is uncached in-process and carries meta.regularMarketTime.
       const r = await P._yahooChartRaw('AAPL', now - 7 * 86400, now, '1d', crumb, cookie);
-      const meta = r?.meta || {};
-      return { value: meta.regularMarketPrice, asOf: meta.regularMarketTime, note: `circuit=${P.getYahooCircuitState?.()?.state ?? '?'}` };
+      const meta = r?.chart?.result?.[0]?.meta || r?.meta || {};
+      const cs = P.getYahooCircuitState?.() || {};
+      return { value: meta.regularMarketPrice, asOf: meta.regularMarketTime, note: `circuit=${cs.open ? 'OPEN' : 'closed'} crumb=${cs.crumbCached ? 'cached' : 'none'}` };
     },
   },
   {
@@ -204,7 +205,7 @@ const PROVIDERS = [
     probe: async () => {
       const e = require('../providers/eulerpool');
       const q = await e.getQuote('SAP.DE');
-      if (!q) throw new Error('null (auth or unknown symbol — module swallows both)');
+      if (!q) throw new Error(`null — ${e._lastError?.() || 'auth or unknown symbol (module swallows both)'}`);
       return { value: q.price, asOf: null };
     },
   },
@@ -216,7 +217,10 @@ const PROVIDERS = [
       const u = require('../services/unusualWhales');
       const t = await u.getMarketTide();
       if (!t) throw new Error('null (key, non-2xx or empty — module swallows all)');
-      return { value: t.callVolume, asOf: t.asOf };
+      // Pre-market the volumes are legitimately 0; presence of a ratio or
+      // any premium figure proves the feed answered.
+      const v = [t.callVolume, t.putVolume, Math.abs(t.netPremium || 0), t.ratio].find(x => Number.isFinite(x) && x > 0) ?? null;
+      return { value: v, asOf: t.asOf, note: `sentiment=${t.sentiment || '?'}` };
     },
   },
   {

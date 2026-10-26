@@ -191,18 +191,13 @@ async function fetchYahooFx(base, quote) {
 
   // Yahoo FX symbols: EURUSD=X, USDJPY=X, USDBRL=X
   const symbol = `${base}${quote}=X`;
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbol)}`;
-
+  // #292 Wave 3 — same no-crumb bug as commoditiesProvider: this leg has
+  // returned null since Yahoo started requiring a crumb (2023). Shared
+  // crumbed/cached/circuit-broken client now.
   try {
-    const res = await fetch(url, {
-      timeout: 5000,
-      headers: {
-        // Yahoo often 403s empty UA
-        'User-Agent': 'Mozilla/5.0 (compatible; Particle/1.0)',
-      },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
+    const { yahooQuote } = require('../routes/market/lib/providers');
+    const rows = await yahooQuote(symbol);
+    const data = { quoteResponse: { result: Array.isArray(rows) ? rows : [] } };
     const q = data?.quoteResponse?.result?.[0];
     if (!q || q.regularMarketPrice == null) return null;
 

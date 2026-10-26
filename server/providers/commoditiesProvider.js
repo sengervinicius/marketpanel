@@ -258,14 +258,15 @@ async function fetchYahooCommodity(sym) {
   const cached = cget(ck);
   if (cached) return cached;
 
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}`;
+  // #292 Wave 3 — this used to call v7 with no crumb; Yahoo has returned
+  // 401 "Invalid Crumb" for that since 2023, so this leg silently returned
+  // null for every commodity and the panel only worked while TwelveData
+  // was under its rate cap. Go through the shared crumbed/cached/
+  // circuit-broken client instead.
   try {
-    const res = await fetch(url, {
-      timeout: 5000,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Particle/1.0)' },
-    });
-    if (!res.ok) return null;
-    const d = await res.json();
+    const { yahooQuote } = require('../routes/market/lib/providers');
+    const rows = await yahooQuote(sym);
+    const d = { quoteResponse: { result: Array.isArray(rows) ? rows : [] } };
     const q = d?.quoteResponse?.result?.[0];
     if (!q || q.regularMarketPrice == null) return null;
 

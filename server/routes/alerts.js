@@ -364,18 +364,13 @@ router.post('/bulk-from-screener', async (req, res) => {
     // Fetch current prices for symbols
     const priceMap = {};
     try {
-      const fetch = require('node-fetch');
-      const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${toCreate.join(',')}`;
-      const r = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 MarketPanel/1.0' },
-        timeout: 10000,
-      });
-      if (r.ok) {
-        const data = await r.json();
-        for (const q of (data?.quoteResponse?.result || [])) {
-          if (q.regularMarketPrice) {
-            priceMap[q.symbol.toUpperCase()] = q.regularMarketPrice;
-          }
+      // #292 Wave 3 — was a crumb-less v7 call (401 since 2023): every bulk
+      // alert was created with no reference price. Shared client now.
+      const { yahooQuote } = require('./market/lib/providers');
+      const rows = await yahooQuote(toCreate.join(','));
+      for (const q of (Array.isArray(rows) ? rows : [])) {
+        if (q.regularMarketPrice) {
+          priceMap[q.symbol.toUpperCase()] = q.regularMarketPrice;
         }
       }
     } catch { /* proceed with whatever prices we got */ }

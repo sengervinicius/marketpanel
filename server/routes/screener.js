@@ -67,14 +67,11 @@ async function batchQuotes(symbols) {
     });
 
     try {
-      const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${yahooSymbols.join(',')}`;
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 MarketPanel/1.0' },
-        timeout: 10000,
-      });
-      if (!res.ok) continue;
-      const data = await res.json();
-      const quotes = data?.quoteResponse?.result || [];
+      // #292 Wave 3 — was a crumb-less v7 call (401 since 2023): the
+      // screener universe priced nothing from Yahoo. Shared client now.
+      const { yahooQuote } = require('./market/lib/providers');
+      const rows = await yahooQuote(yahooSymbols.join(','));
+      const quotes = Array.isArray(rows) ? rows : [];
       for (const q of quotes) {
         const sym = q.symbol;
         results[sym.toUpperCase()] = {

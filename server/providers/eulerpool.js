@@ -1,3 +1,5 @@
+// #292 Wave 3 — last non-2xx, so the provider probe can tell AUTH from 404.
+let _lastErr = null;
 /**
  * providers/eulerpool.js
  *
@@ -89,7 +91,9 @@ async function eulerFetch(path, extraParams = {}) {
     clearTimeout(timer);
   }
 
+  if (!res.ok) _lastErr = `HTTP ${res.status}`;
   if (res.status === 401 || res.status === 403) {
+    _lastErr = `AUTH ${res.status} — check EULERPOOL_API_KEY`;
     throw new Error(`[Eulerpool] Auth error (${res.status}) — check EULERPOOL_API_KEY`);
   }
   if (res.status === 429) {
@@ -618,6 +622,7 @@ function isConfigured() {
 }
 
 module.exports = {
+  _lastError: () => _lastErr,
   // Existing
   getQuote, getBatchQuotes, search, getForexRates, getMacroCalendar, isConfigured,
   // Phase D1 — new
