@@ -541,7 +541,32 @@ async function buildBrCurve({ tdRes, selicRes, now = new Date(), fetchImpl = fet
              seriesErrors: swap.errors.length ? swap.errors : undefined };
   }
 
-  // ── Secondary: Tesouro Direto retail Prefixado (if its endpoint is alive) ──
+  // ── Secondary: DI1 futures term structure (brapi Pro, end-of-day) ──
+  //
+  // #292 Wave 7 — every DI1 expiry with its last settlement rate IS the
+  // DI curve. EOD only (settles ~18:00 BRT), so it is the honest
+  // "yesterday's curve" until ANBIMA/Cedro are contracted. Same
+  // plausibility gate as ANBIMA: shortest contract within 3pp of Selic.
+  let di = { points: [], asOfMs: null, errors: [] };
+  try { di = await require('../../providers/brapi').getDiTermStructure({ now }); } catch (e) { di.errors.push(String(e.message).slice(0, 60)); }
+  const diSane = di.points.filter(p => p.rate > 0 && p.rate < 60 && p.days > 0);
+  const diShort = diSane[0];
+  const diNearSelic = selic == null || (diShort && Math.abs(diShort.rate - selic) <= 3);
+  if (diSane.length >= 4 && diNearSelic && diSane.length === di.points.length) {
+    const asOfMs = di.asOfMs || null;
+    const asOf = asOfMs ? new Date(asOfMs).toISOString() : null;
+    const stale = asOfMs == null || (now.getTime() - asOfMs) > CURVE_STALE_MS;
+    const curve = [];
+    if (selic != null) curve.push({ tenor: 'SELIC', months: 0.5, rate: selic });
+    curve.push(...diSane.map(p => ({ tenor: tenorLabel(p.days), months: p.months, days: p.days, rate: p.rate, contract: p.symbol, maturity: p.maturity, settlementPU: p.settlementPU })));
+    return { curve, source: 'B3 DI1 FUTURES (brapi, EOD)', selic, asOf, fetchedAt, stale,
+             label: 'DI1 FUTURES SETTLEMENT (EOD) · BCB SELIC', frequency: 'eod',
+             seriesErrors: swap.errors.length ? swap.errors : undefined };
+  } else if (di.points.length && !diNearSelic) {
+    di.errors.push(`implausible: short=${diShort?.rate} vs selic=${selic}`);
+  }
+
+  // ── Tertiary: Tesouro Direto retail Prefixado (if its endpoint is alive) ──
   if (tdRes?.status === 'fulfilled') {
     const json = tdRes.value;
     const bonds = json?.response?.TrsrBdTradgList || [];
@@ -574,6 +599,7 @@ async function buildBrCurve({ tdRes, selicRes, now = new Date(), fetchImpl = fet
     curve: [], source: 'unavailable', selic, asOf: null, fetchedAt, stale: true, label,
     error: [
       swap.points.length ? `anbima: only ${swap.points.length} tenors` : `anbima: ${swap.errors[0] || 'no data'}`,
+      di.errors.length ? `di1: ${di.errors[di.errors.length - 1]}` : di.points.length ? `di1: only ${di.points.length} contracts` : 'di1: no data',
       tdRes?.status === 'fulfilled' ? 'tesouro: <2 prefixado bonds' : `tesouro: ${String(tdRes?.reason?.message || 'unreachable').slice(0, 40)}`,
     ].join(' · '),
   };

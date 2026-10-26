@@ -17,7 +17,21 @@
 
 const fetch = require('node-fetch');
 
-const BASE = 'https://api.coingecko.com/api/v3';
+// #292 Wave 7 — paid keys (Basic, Analyst, Lite, Pro…) MUST use the pro
+// host with x-cg-pro-api-key; a Demo key stays on the public host with
+// x-cg-demo-api-key. No key = public host, 429s at the Demo cap.
+// Docs: https://docs.coingecko.com/reference/authentication
+const PRO_KEY  = process.env.COINGECKO_API_KEY || '';
+const DEMO_KEY = process.env.COINGECKO_DEMO_KEY || '';
+const BASE = PRO_KEY ? 'https://pro-api.coingecko.com/api/v3' : 'https://api.coingecko.com/api/v3';
+function authHeaders() {
+  const h = { Accept: 'application/json' };
+  if (PRO_KEY) h['x-cg-pro-api-key'] = PRO_KEY;
+  else if (DEMO_KEY) h['x-cg-demo-api-key'] = DEMO_KEY;
+  return h;
+}
+function isConfigured() { return !!(PRO_KEY || DEMO_KEY); }
+function tier() { return PRO_KEY ? 'pro' : DEMO_KEY ? 'demo' : 'anonymous'; }
 const TIMEOUT = 10000;
 
 // ── Cache ────────────────────────────────────────────────────────────────────
@@ -42,7 +56,7 @@ async function cgFetch(path) {
   const url = `${BASE}${path}`;
   const res = await fetch(url, {
     timeout: TIMEOUT,
-    headers: { Accept: 'application/json' },
+    headers: authHeaders(),
   });
   if (res.status === 429) {
     console.warn('[CoinGecko] Rate limited');
@@ -73,6 +87,7 @@ async function getTopCoins(limit = 50) {
     symbol: c.symbol?.toUpperCase(),
     name: c.name,
     price: c.current_price,
+    asOf: c.last_updated || null, // #292 — provider time (ISO Z)
     marketCap: c.market_cap,
     volume24h: c.total_volume,
     changePct1h: c.price_change_percentage_1h_in_currency,
@@ -197,6 +212,7 @@ async function getCoinDetail(coinId) {
     },
     marketData: {
       price: md.current_price?.usd,
+      lastUpdated: md.last_updated || null, // #292 — provider time (ISO Z)
       marketCap: md.market_cap?.usd,
       volume24h: md.total_volume?.usd,
       changePct24h: md.price_change_percentage_24h,
@@ -253,5 +269,4 @@ module.exports = {
   getDefiStats,
   getCoinDetail,
   symbolToId,
-  SYMBOL_TO_ID,
-};
+  SYMBOL_TO_ID, isConfigured, tier };

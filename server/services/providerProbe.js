@@ -76,6 +76,17 @@ const PROVIDERS = [
     },
   },
   {
+    name: 'cedro', role: 'B3 licensed real-time / delayed + BM&F futures (contract)',
+    symbol: 'PETR4',
+    configured: () => !!require('../providers/cedro').isConfigured(),
+    probe: async () => {
+      const c = require('../providers/cedro');
+      const q = await c.getQuote('PETR4');
+      if (!q) throw new Error(`null — ${c._lastError?.() || 'no row'}`);
+      return { value: q.price, asOf: q.asOf, note: `${q.source}${q.asOf ? '' : ' · timeUpdate not parseable'}` };
+    },
+  },
+  {
     name: 'brapi', role: 'B3 second source',
     symbol: 'PETR4',
     configured: () => true, // key optional
@@ -172,8 +183,8 @@ const PROVIDERS = [
     probe: async () => {
       const c = require('../providers/coingeckoProvider');
       const d = await c.getCoinDetail('bitcoin');
-      if (!d) throw new Error('null (429 or non-2xx)');
-      return { value: d?.marketData?.price, asOf: d?.marketData?.lastUpdated || d?.lastUpdated || null };
+      if (!d) throw new Error(`null (429 or non-2xx) — tier=${c.tier?.() || '?'}`);
+      return { value: d?.marketData?.price, asOf: d?.marketData?.lastUpdated || d?.lastUpdated || null, note: `tier=${c.tier?.() || '?'}` };
     },
   },
   {

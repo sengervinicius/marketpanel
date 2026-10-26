@@ -96,7 +96,16 @@ let _requestsThisMinute = 0;
 let _minuteStart = Date.now();
 // Configurable so a plan upgrade does not need a code change. Keep a little
 // headroom below the real plan ceiling.
-const MAX_RPM = parseInt(process.env.TWELVEDATA_MAX_RPM, 10) || 28;
+// #292 Wave 7 — plan-aware default. Credits/min per plan (twelvedata.com/pricing.md,
+// Oct 2026): basic 8 · grow 55 · pro 610 · venture 610 (Business $149) ·
+// venture2 1597 · venture3 2584 · enterprise 10946. Set TWELVEDATA_PLAN on
+// Render after an upgrade; TWELVEDATA_MAX_RPM still overrides explicitly.
+// The local cap sits at ~50% of the plan's credits so that other callers
+// (WS, charts) and bursts don't 429 the whole key.
+const PLAN_CREDITS = { basic: 8, grow: 55, pro: 610, venture: 610, venture2: 1597, venture3: 2584, ultra: 2584, enterprise: 10946 };
+const PLAN = String(process.env.TWELVEDATA_PLAN || '').toLowerCase();
+const MAX_RPM = parseInt(process.env.TWELVEDATA_MAX_RPM, 10)
+  || (PLAN_CREDITS[PLAN] ? Math.max(8, Math.floor(PLAN_CREDITS[PLAN] * 0.5)) : 28);
 
 function _checkRateLimit() {
   const now = Date.now();
@@ -108,7 +117,7 @@ function _checkRateLimit() {
     // Report the ACTUAL cap. This said "750 req/min" for months while the cap
     // was 28, so every log line understated the problem by 27x and the real
     // constraint stayed invisible.
-    throw new Error(`[TwelveData] local rate cap reached — ${MAX_RPM} req/min (set TWELVEDATA_MAX_RPM to raise after a plan upgrade)`);
+    throw new Error(`[TwelveData] local rate cap reached — ${MAX_RPM} req/min (set TWELVEDATA_PLAN=venture or TWELVEDATA_MAX_RPM after a plan upgrade)`);
   }
   _requestsThisMinute++;
 }

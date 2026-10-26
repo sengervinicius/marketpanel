@@ -35,6 +35,15 @@ const TIMEOUT_MS = 10_000;
 function token() {
   return process.env.BRAPI_API_KEY || '';
 }
+// #292 — docs recommend the Authorization header over ?token= (which
+// lands in access logs).
+function authHeaders() {
+  const h = { 'Accept': 'application/json' };
+  const tk = token();
+  if (tk) h.Authorization = `Bearer ${tk}`;
+  return h;
+}
+function isConfigured() { return !!token(); }
 
 // ── Small TTL cache ─────────────────────────────────────────────────────────
 const _cache = new Map();
@@ -84,15 +93,13 @@ async function getQuote(symbol) {
   if (cached !== null && cached !== undefined) return cached;
 
   const url = new URL(`${BASE}/quote/${encodeURIComponent(t)}`);
-  const tk = token();
-  if (tk) url.searchParams.set('token', tk);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(url.toString(), {
       method: 'GET',
-      headers: { 'Accept': 'application/json' },
+      headers: authHeaders(),
       signal: controller.signal,
     });
     if (res.status === 404) {
@@ -166,12 +173,10 @@ async function getQuotes(symbols, { batchSize } = {}) {
   for (let i = 0; i < tickers.length; i += size) {
     const batch = tickers.slice(i, i + size);
     const url = new URL(`${BASE}/quote/${encodeURIComponent(batch.join(','))}`);
-    const tk = token();
-    if (tk) url.searchParams.set('token', tk);
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
-      const res = await fetch(url.toString(), { headers: { 'Accept': 'application/json' }, signal: controller.signal });
+      const res = await fetch(url.toString(), { headers: authHeaders(), signal: controller.signal });
       if (!res.ok) {
         out.failed.push({ batch, error: `brapi ${res.status}` });
         if (res.status === 429 || res.status === 401 || res.status === 403) break; // don't hammer
@@ -197,4 +202,84 @@ async function getQuotes(symbols, { batchSize } = {}) {
   return out;
 }
 
-module.exports = { getQuote, getQuotes, normaliseRow, _normaliseTicker: normaliseTicker };
+
+// ── #292 — B3 futures (brapi Pro) ──────────────────────────────────────
+// Docs: /api/v2/futures/term-structure?asset=DI1 returns every DI1 expiry
+// with the last settlement — i.e. the DI curve, end-of-day. For
+// quotationType "rate" contracts (DI1, DAP) close/high/low are % a.a.
+// and settlementRate is the settlement in %. `date` is UNIX seconds.
+async function fetchJson(pathAndQuery) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(`${BASE}${pathAndQuery}`, { headers: authHeaders(), signal: controller.signal });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      const err = new Error(`brapi ${res.status}${/plan|plano|pro/i.test(txt) ? ' (Pro plan required)' : ''}`);
+      err.status = res.status;
+      throw err;
+    }
+    return await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * DI1 term structure → curve points. Returns
+ *   { points: [{ symbol, maturity:'YYYY-MM-DD', days, months, rate, settlementPU, asOfMs }], asOfMs, errors: [] }
+ * Never throws. Empty when the key is missing or the plan lacks futures.
+ */
+async function getDiTermStructure({ now = new Date() } = {}) {
+  if (!isConfigured()) return { points: [], asOfMs: null, errors: ['BRAPI_API_KEY not set'] };
+  const ck = 'di:term';
+  const cached = cacheGet(ck);
+  if (cached) return cached;
+  try {
+    const j = await fetchJson('/v2/futures/term-structure?asset=DI1&includeExpired=false');
+    const contracts = Array.isArray(j?.contracts) ? j.contracts : [];
+    const points = [];
+    let asOfMs = null;
+    for (const c of contracts) {
+      const rate = Number.isFinite(c.settlementRate) ? c.settlementRate : (Number.isFinite(c.close) ? c.close : null);
+      const mat = (c.expirationDate || '').slice(0, 10);
+      if (!(rate > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(mat)) continue;
+      const days = Math.round((Date.parse(`${mat}T12:00:00Z`) - now.getTime()) / 86400000);
+      if (days <= 0) continue;
+      const ts = typeof c.date === 'number' ? (c.date < 1e12 ? c.date * 1000 : c.date) : (c.date ? Date.parse(c.date) : null);
+      if (ts) asOfMs = Math.max(asOfMs || 0, ts);
+      points.push({ symbol: c.symbol, maturity: mat, days, months: Math.round(days / 30.44), rate, settlementPU: c.settlement ?? null, asOfMs: ts || null });
+    }
+    points.sort((a, b) => a.days - b.days);
+    const out = { points, asOfMs, errors: [] };
+    if (points.length) cacheSet(ck, out);
+    return out;
+  } catch (e) {
+    logger.warn('brapi', 'DI term structure failed', { error: e.message });
+    return { points: [], asOfMs: null, errors: [e.message] };
+  }
+}
+
+/** Futures quotes (max 20 symbols/request), e.g. ['WINZ26','WDOX26','DI1F27']. Never throws. */
+async function getFuturesQuotes(symbols) {
+  if (!isConfigured()) return { quotes: [], errors: ['BRAPI_API_KEY not set'] };
+  const syms = [...new Set((symbols || []).map(s => String(s).toUpperCase()).filter(Boolean))].slice(0, 20);
+  if (!syms.length) return { quotes: [], errors: [] };
+  try {
+    const j = await fetchJson(`/v2/futures/quote?symbols=${encodeURIComponent(syms.join(','))}`);
+    const quotes = (Array.isArray(j?.quotes) ? j.quotes : []).map(q => ({
+      symbol: q.symbol, underlying: q.underlyingAsset || null, quotationType: q.quotationType || null,
+      price: q.close ?? null, open: q.open ?? null, high: q.high ?? null, low: q.low ?? null,
+      settlement: q.settlement ?? null, settlementRate: q.settlementRate ?? null,
+      changePct: q.oscillationPct ?? null, volume: q.volume ?? null, trades: q.trades ?? null,
+      expiration: (q.expirationDate || '').slice(0, 10) || null,
+      asOf: typeof q.date === 'number' ? new Date((q.date < 1e12 ? q.date * 1000 : q.date)).toISOString() : (q.date || null),
+      source: 'brapi', frequency: 'eod',
+    }));
+    return { quotes, errors: [] };
+  } catch (e) {
+    return { quotes: [], errors: [e.message] };
+  }
+}
+
+module.exports = { getQuote, getQuotes, getDiTermStructure, getFuturesQuotes, normaliseRow, isConfigured, _normaliseTicker: normaliseTicker };

@@ -533,7 +533,10 @@ async function refreshBvspIfStale(quotes, staleMs = 20 * 60e3) {
     const row = i >= 0 ? quotes[i] : null;
     const stale = !row || !row.regularMarketTime || Date.now() - row.regularMarketTime * 1000 > staleMs;
     if (!stale) return quotes;
-    const b = await require('../../providers/brapi').getQuote('^BVSP');
+    const cedro = require('../../providers/cedro');
+    let b = cedro.isConfigured() ? await cedro.getIbov().catch(() => null) : null;
+    let src = 'cedro';
+    if (!b || !(b.price > 0)) { b = await require('../../providers/brapi').getQuote('^BVSP'); src = 'brapi'; }
     if (!b || b.error || !(b.price > 0)) return quotes;
     const bTime = b.asOf ? Math.floor(Date.parse(b.asOf) / 1000) : null;
     if (row && bTime && row.regularMarketTime && bTime <= row.regularMarketTime) return quotes;
@@ -542,7 +545,7 @@ async function refreshBvspIfStale(quotes, staleMs = 20 * 60e3) {
       regularMarketPrice: b.price, regularMarketChange: b.change, regularMarketChangePercent: b.chgPct,
       regularMarketOpen: b.open, regularMarketDayHigh: b.high, regularMarketDayLow: b.low,
       regularMarketPreviousClose: b.prevClose, regularMarketVolume: b.volume,
-      regularMarketTime: bTime, marketState: 'REGULAR', _source: 'brapi',
+      regularMarketTime: bTime, marketState: 'REGULAR', _source: src === 'cedro' ? b.source : 'brapi',
     };
     const out = quotes.slice();
     if (i >= 0) out[i] = fresh; else out.push(fresh);
@@ -567,9 +570,31 @@ router.get('/snapshot/brazil', async (req, res) => {
     const BATCH = 50;
     let quotes = [];
     let brazilDetail = null;
+    // #292 Wave 7 — licensed feed first. When CEDRO_LOGIN/PASSWORD are
+    // set, Cedro (B3-licensed, real-time or 15-min delayed) is the
+    // primary; Yahoo and brapi only fill what it did not return.
+    const cedro = require('../../providers/cedro');
+    let cedroDetail = null;
+    if (cedro.isConfigured()) {
+      try {
+        cedroDetail = await cedro.getQuotes(universe);
+        for (const c of cedroDetail.quotes) {
+          quotes.push({
+            symbol: `${c.symbol}.SA`, shortName: c.name, regularMarketPrice: c.price,
+            regularMarketChange: c.change, regularMarketChangePercent: c.changePct,
+            regularMarketVolume: c.volume, regularMarketOpen: c.open, regularMarketDayHigh: c.high,
+            regularMarketDayLow: c.low, regularMarketPreviousClose: c.prevClose,
+            regularMarketTime: c.asOf ? Math.floor(Date.parse(c.asOf) / 1000) : null,
+            _source: c.source,
+          });
+        }
+      } catch (e) { console.warn('[Brazil] Cedro failed:', e.message); }
+    }
+    const cedroGot = new Set(quotes.map(q => (q.symbol || '').replace(/\.SA$/i, '').toUpperCase()));
+    const askYahoo = cedroGot.size ? tickers.filter(t => !cedroGot.has(t.replace(/\.SA$/i, '').toUpperCase())) : tickers;
     try {
-      brazilDetail = await batchYahooQuoteDetailed(tickers, BATCH);
-      quotes = brazilDetail.quotes;
+      brazilDetail = askYahoo.length ? await batchYahooQuoteDetailed(askYahoo, BATCH) : { quotes: [], requested: 0, received: 0, missing: [], failed: [] };
+      quotes.push(...brazilDetail.quotes);
     } catch (e) {
       console.warn('[Brazil] Yahoo Finance failed:', e.message);
       brazilDetail = { quotes: [], requested: tickers.length, received: 0, missing: tickers, failed: [{ error: e.message }] };
@@ -716,17 +741,20 @@ router.get('/snapshot/brazil', async (req, res) => {
     }
 
     const fromBrapi = results.filter(r => r.source === 'brapi').length;
+    const fromCedro = results.filter(r => /^cedro/.test(r.source || '')).length;
     const newestAsOf = results.reduce((m, r) => Math.max(m, r.asOf || 0), 0) || null;
+    const srcNames = [fromCedro && 'cedro', (results.length - fromBrapi - fromCedro) && 'yahoo', fromBrapi && 'brapi'].filter(Boolean);
     const payload = {
       results,
-      source: fromBrapi === 0 ? 'yahoo' : fromBrapi === results.length ? 'brapi' : 'yahoo+brapi',
-      sources: { yahoo: results.length - fromBrapi, brapi: fromBrapi },
+      source: srcNames.join('+') || 'none',
+      sources: { cedro: fromCedro, yahoo: results.length - fromBrapi - fromCedro, brapi: fromBrapi },
+      licensed: fromCedro > 0 && fromCedro === results.length,
       missing: missingSymbols,
       metadata: B3_METADATA,
       // #292 grid — honest status for the client banner. PARTIAL if any
       // requested symbol is still missing after both sources.
       status: missingSymbols.length ? 'PARTIAL' : 'OK',
-      providerError: brazilDetail?.failed?.[0]?.error || brapiDetail?.failed?.[0]?.error || null,
+      providerError: cedroDetail?.failed?.[0]?.error || brazilDetail?.failed?.[0]?.error || brapiDetail?.failed?.[0]?.error || null,
       asOf: newestAsOf,
       validation: xs.report,
       b3Open,

@@ -98,6 +98,31 @@ services:
         sync: false
       - key: ANBIMA_CLIENT_SECRET
         sync: false
+      # #292 Wave 7 — vendor plug-ins. Each is optional; the server reports
+      # "not configured" in /api/selftest/providers until set.
+      # brapi Pro (R$139,99/mo): B3 ~5-min quotes in batches of 20, Ibovespa,
+      # FIIs, and the DI1 futures term structure = the DI curve (EOD).
+      - key: BRAPI_API_KEY
+        sync: false
+      # Cedro Market Data Cloud (contract): B3-licensed real-time or delayed
+      # equities + Ibovespa + BM&F futures. CEDRO_DELAYED=1 labels the feed
+      # as 15-min delayed (B3 "Delayed Continuous" — login-only display).
+      - key: CEDRO_LOGIN
+        sync: false
+      - key: CEDRO_PASSWORD
+        sync: false
+      - key: CEDRO_DELAYED
+        sync: false
+      # CoinGecko: a paid key (Basic $35+) uses pro-api.coingecko.com;
+      # a Demo key stays on the public host. Never both.
+      - key: COINGECKO_API_KEY
+        sync: false
+      - key: COINGECKO_DEMO_KEY
+        sync: false
+      # TwelveData plan name sets the local credit cap (basic|grow|pro|
+      # venture|venture2|venture3|enterprise). TWELVEDATA_MAX_RPM overrides.
+      - key: TWELVEDATA_PLAN
+        sync: false
       - key: APPLE_IAP_SHARED_SECRET
         sync: false
 
