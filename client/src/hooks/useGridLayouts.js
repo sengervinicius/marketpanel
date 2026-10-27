@@ -66,7 +66,7 @@ export function useGridLayouts(desktopRows) {
     // (persisted with the user's next grid edit, like the rows→grid move).
     if (isValidLayoutsState(local)) return migrateRetiredRow3(local);
     if (isValidLayoutsState(serverLayouts)) return migrateRetiredRow3(serverLayouts);
-    return makeDefaultLayoutsState(desktopRows); // one-time migration (persisted on first edit)
+    return migrateRetiredRow3(makeDefaultLayoutsState(desktopRows)); // rows→grid, then retired row-3 panels → new ones
   }, [local, serverLayouts, desktopRows]);
 
   const persist = useCallback((next, { debounce = false } = {}) => {
