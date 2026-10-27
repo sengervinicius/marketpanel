@@ -67,7 +67,7 @@
 }
 .scr-preset-act {
   padding: 2px 6px;
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 700;
   font-family: var(--font-ui);
   letter-spacing: 0.5px;
@@ -296,7 +296,7 @@
 }
 .scr-bulk-btn {
   padding: 3px 10px;
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 700;
   font-family: var(--font-ui);
   letter-spacing: 0.5px;
@@ -418,7 +418,7 @@
   background: none;
   border: none;
   color: var(--text-muted);
-  font-size: 18px;
+  font-size: var(--type-display);
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;

@@ -170,9 +170,9 @@ function VolCard({ symbol, label, thresholds, openDetail }) {
         transition: 'all 0.2s',
       }}
     >
-      <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color, marginBottom: 4 }}>{level != null ? fmt(level, 1) : '—'}</div>
-      <div style={{ fontSize: 10, color: q?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
+      <div style={{ fontSize: 'var(--type-micro)', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>{label}</div>
+      <div style={{ fontSize: 'var(--type-hero)', fontWeight: 700, color, marginBottom: 4 }}>{level != null ? fmt(level, 1) : '—'}</div>
+      <div style={{ fontSize: 'var(--type-micro)', color: q?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
         {q?.changePct != null ? fmtPct(q.changePct) : '—'}
       </div>
     </div>
@@ -213,9 +213,9 @@ function FxCell({ pair, openDetail }) {
         textAlign: 'center',
       }}
     >
-      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>{displayPair}</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{q?.price != null ? fmt(q.price, 4) : '—'}</div>
-      <div style={{ fontSize: 10, fontWeight: 500, color }}>{fmtPct(changePct)}</div>
+      <div style={{ fontSize: 'var(--type-micro)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>{displayPair}</div>
+      <div style={{ fontSize: 'var(--type-lead)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{q?.price != null ? fmt(q.price, 4) : '—'}</div>
+      <div style={{ fontSize: 'var(--type-micro)', fontWeight: 500, color }}>{fmtPct(changePct)}</div>
     </div>
   );
 }
@@ -276,7 +276,7 @@ function YieldCurveAnalysis() {
           borderRadius: 6,
           padding: '8px 12px',
           marginBottom: 12,
-          fontSize: 12,
+          fontSize: 'var(--type-body)',
           color: isInverted ? 'var(--semantic-down)' : 'var(--semantic-up)',
           fontWeight: 500,
         }}>
@@ -286,10 +286,10 @@ function YieldCurveAnalysis() {
       {chartData.length > 0 ? (
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={chartData}>
-            <XAxis dataKey="tenor" style={{ fontSize: 10, fill: 'var(--text-muted)' }} />
-            <YAxis style={{ fontSize: 10, fill: 'var(--text-muted)' }} label={{ value: 'Yield (%)', angle: -90, position: 'insideLeft' }} />
+            <XAxis dataKey="tenor" style={{ fontSize: 'var(--type-micro)', fill: 'var(--text-muted)' }} />
+            <YAxis style={{ fontSize: 'var(--type-micro)', fill: 'var(--text-muted)' }} label={{ value: 'Yield (%)', angle: -90, position: 'insideLeft' }} />
             <Tooltip
-              contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-default)', borderRadius: 3, fontSize: 10 }}
+              contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-default)', borderRadius: 3, fontSize: 'var(--type-micro)' }}
               formatter={(value) => value.toFixed(3)}
             />
             <Line
@@ -335,7 +335,7 @@ function CentralBankRates() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {(Array.isArray(data) ? data : []).map((row) => (
         <div key={row.country} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ minWidth: 60, fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>
+          <div style={{ minWidth: 60, fontSize: 'var(--type-row)', fontWeight: 600, color: 'var(--text-primary)' }}>
             {row.country}
           </div>
           <div style={{ flex: 1, height: 24, background: 'var(--border-default)', borderRadius: 3, position: 'relative', overflow: 'hidden' }}>
@@ -349,7 +349,7 @@ function CentralBankRates() {
               }}
             />
           </div>
-          <div style={{ minWidth: 50, textAlign: 'right', fontSize: 11, fontWeight: 600, color: 'var(--sector-macro)' }}>
+          <div style={{ minWidth: 50, textAlign: 'right', fontSize: 'var(--type-row)', fontWeight: 600, color: 'var(--sector-macro)' }}>
             {fmt(row.policyRate, 2)}%
           </div>
         </div>
@@ -384,9 +384,9 @@ function RiskAppetiteIndicators() {
           cursor: 'pointer',
         }}
       >
-        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>Credit Risk (HYG)</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{fmt(hyg?.price)}</div>
-        <div style={{ fontSize: 10, color: hyg?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
+        <div style={{ fontSize: 'var(--type-micro)', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>Credit Risk (HYG)</div>
+        <div style={{ fontSize: 'var(--type-display)', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{fmt(hyg?.price)}</div>
+        <div style={{ fontSize: 'var(--type-micro)', color: hyg?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
           {fmtPct(hyg?.changePct)}
         </div>
       </div>
@@ -402,9 +402,9 @@ function RiskAppetiteIndicators() {
           cursor: 'pointer',
         }}
       >
-        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>EM Risk Appetite</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{emRiskRatio || '—'}</div>
-        <div style={{ fontSize: 10, color: emRiskChange >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
+        <div style={{ fontSize: 'var(--type-micro)', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>EM Risk Appetite</div>
+        <div style={{ fontSize: 'var(--type-display)', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{emRiskRatio || '—'}</div>
+        <div style={{ fontSize: 'var(--type-micro)', color: emRiskChange >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
           EEM/SPY {emRiskChange != null ? (emRiskChange >= 0 ? '+' : '') + emRiskChange + '%' : '—'}
         </div>
       </div>
@@ -420,9 +420,9 @@ function RiskAppetiteIndicators() {
           cursor: 'pointer',
         }}
       >
-        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>Safe Haven (Gold)</div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{fmt(gld?.price)}</div>
-        <div style={{ fontSize: 10, color: gld?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
+        <div style={{ fontSize: 'var(--type-micro)', color: 'var(--text-muted)', marginBottom: 4, fontWeight: 500 }}>Safe Haven (Gold)</div>
+        <div style={{ fontSize: 'var(--type-display)', fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{fmt(gld?.price)}</div>
+        <div style={{ fontSize: 'var(--type-micro)', color: gld?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
           {fmtPct(gld?.changePct)}
         </div>
       </div>
@@ -457,7 +457,7 @@ function EuropeanMarkets() {
   return (
     <table className="ds-table">
       <thead>
-        <tr><th>Ticker</th><th>Name</th><th>Price</th><th>1D %</th><th style={{ fontSize: 9 }}>CCY</th></tr>
+        <tr><th>Ticker</th><th>Name</th><th>Price</th><th>1D %</th><th style={{ fontSize: 'var(--type-caption)' }}>CCY</th></tr>
       </thead>
       <tbody>
         {(Array.isArray(stocks) ? stocks : []).map(([sym, d]) => (
@@ -475,7 +475,7 @@ function EuropeanMarkets() {
             <td className={d.changePct != null && d.changePct >= 0 ? 'ds-up' : 'ds-down'}>
               {fmtPct(d.changePct)}
             </td>
-            <td style={{ color: 'var(--text-muted)', fontSize: 9 }}>{d.currency || '—'}</td>
+            <td style={{ color: 'var(--text-muted)', fontSize: 'var(--type-caption)' }}>{d.currency || '—'}</td>
           </tr>
         ))}
       </tbody>
@@ -501,9 +501,9 @@ function IndexCell({ symbol, onClick }) {
         textAlign: 'center',
       }}
     >
-      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{symbol}</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{q?.price != null ? fmt(q.price) : '—'}</div>
-      <div style={{ fontSize: 9, color: q?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
+      <div style={{ fontSize: 'var(--type-micro)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{symbol}</div>
+      <div style={{ fontSize: 'var(--type-lead)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{q?.price != null ? fmt(q.price) : '—'}</div>
+      <div style={{ fontSize: 'var(--type-caption)', color: q?.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)' }}>
         {fmtPct(q?.changePct)}
       </div>
     </div>
@@ -579,12 +579,12 @@ function MacroCalendar() {
             onTouchMove={tapMove}
             onTouchEnd={(e) => tapEnd(e, () => ev.country && openDetail(ev.country, 'Global Macro'))}
           >
-            <td style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
+            <td style={{ fontSize: 'var(--type-micro)', color: 'var(--text-secondary)' }}>
               {ev.date ? new Date(ev.date).toLocaleDateString('en-US', { month: 'short', day: '2-digit' }) : '—'}
             </td>
-            <td style={{ fontSize: 11 }}>{ev.event || '—'}</td>
-            <td style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{ev.country || '—'}</td>
-            <td style={{ color: getImpactColor(ev.impact), fontSize: 10, fontWeight: 500 }}>
+            <td style={{ fontSize: 'var(--type-row)' }}>{ev.event || '—'}</td>
+            <td style={{ fontSize: 'var(--type-micro)', color: 'var(--text-secondary)' }}>{ev.country || '—'}</td>
+            <td style={{ color: getImpactColor(ev.impact), fontSize: 'var(--type-micro)', fontWeight: 500 }}>
               {ev.impact || '—'}
             </td>
           </tr>

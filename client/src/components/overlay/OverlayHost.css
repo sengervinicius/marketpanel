@@ -33,7 +33,7 @@
 
 .ol-title {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--type-body);
   font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--accent);
@@ -44,7 +44,7 @@
 
 .ol-chip {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.06em;
   color: var(--text-muted);
   border: 1px solid var(--border-strong);
@@ -61,7 +61,7 @@
 
 .ol-esc {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.06em;
   color: var(--text-muted);
   border: 1px solid var(--border-strong);
@@ -81,7 +81,7 @@
 
 .ol-loading {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-row);
   color: var(--text-muted);
   padding: 40px;
   text-align: center;
@@ -107,7 +107,7 @@
 
 .ol-cell-h {
   font-family: var(--font-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   letter-spacing: 0.12em;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -118,7 +118,7 @@
 }
 .ol-cell-h .ol-cell-note { color: var(--text-faint); letter-spacing: 0.04em; text-transform: none; }
 
-.ol-mini { font-size: 11px; color: var(--text-secondary); line-height: 1.7; font-family: var(--font-mono); }
+.ol-mini { font-size: var(--type-row); color: var(--text-secondary); line-height: 1.7; font-family: var(--font-mono); }
 .ol-mini .num { color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .ol-up   { color: var(--color-up); }
 .ol-down { color: var(--color-down); }
@@ -132,14 +132,14 @@
   gap: 8px;
   padding: 2px 0;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--type-row);
 }
 .ol-row .sym { font-weight: 700; color: var(--text-primary); }
-.ol-row .nm  { color: var(--text-muted); font-size: 9.5px; margin-left: 6px; font-family: var(--font-ui); }
+.ol-row .nm  { color: var(--text-muted); font-size: var(--type-micro); margin-left: 6px; font-family: var(--font-ui); }
 
 .ol-placeholder {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--text-muted);
   padding: 6px 0;
   line-height: 1.6;
@@ -148,7 +148,7 @@
 /* Section head inside wide tabs (RATES / FILINGS) */
 .ol-sechead {
   font-family: var(--font-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   letter-spacing: 0.12em;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -161,9 +161,9 @@
 .ol-sechead:first-child { margin-top: 0; }
 
 /* Simple mono table (Tesouro / spreads matrix / filings) */
-.ol-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; }
+.ol-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: var(--type-row); }
 .ol-table th {
-  text-align: right; font-size: 8.5px; letter-spacing: 0.1em; color: var(--text-muted);
+  text-align: right; font-size: var(--type-caption); letter-spacing: 0.1em; color: var(--text-muted);
   font-weight: 400; text-transform: uppercase; padding: 3px 8px; border-bottom: 1px solid var(--border-subtle);
 }
 .ol-table th:first-child, .ol-table td:first-child { text-align: left; }

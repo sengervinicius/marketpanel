@@ -48,7 +48,7 @@ export const ImpliedVolatilityCard = memo(function ImpliedVolatilityCard({
       minWidth: 160,
     }}>
       <div style={{
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         fontWeight: 600,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
@@ -61,25 +61,25 @@ export const ImpliedVolatilityCard = memo(function ImpliedVolatilityCard({
       </div>
 
       {loading ? (
-        <div style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 9 }}>
+        <div style={{ height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-faint)', fontSize: 'var(--type-caption)' }}>
           Loading…
         </div>
       ) : !data || data.source === 'unavailable' ? (
         // #285d — distinguish "options provider not configured" from "no
         // option chain on this name". Both render compactly here, but
         // copy is unambiguous about which condition we're in.
-        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 10, padding: '10px 0', lineHeight: 1.5 }}>
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--type-micro)', padding: '10px 0', lineHeight: 1.5 }}>
           Options provider not configured
           <br />
-          <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>
+          <span style={{ fontSize: 'var(--type-caption)', color: 'var(--text-faint)' }}>
             Contact your admin to enable the options data feed
           </span>
         </div>
       ) : (data.iv == null && data.ivRank == null && data.putCallRatio == null) ? (
-        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 10, padding: '10px 0', lineHeight: 1.5 }}>
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--type-micro)', padding: '10px 0', lineHeight: 1.5 }}>
           No options data for this ticker
           <br />
-          <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>
+          <span style={{ fontSize: 'var(--type-caption)', color: 'var(--text-faint)' }}>
             Provider responded but no chain available
           </span>
         </div>
@@ -87,31 +87,31 @@ export const ImpliedVolatilityCard = memo(function ImpliedVolatilityCard({
         <table className="ds-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <tbody>
             <tr>
-              <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>TICKER</td>
-              <td style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }} className="ds-ticker-col">{displayTicker}</td>
+              <td style={{ fontSize: 'var(--type-caption)', color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>TICKER</td>
+              <td style={{ fontSize: 'var(--type-micro)', fontWeight: 700, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }} className="ds-ticker-col">{displayTicker}</td>
             </tr>
             {data.iv != null && (
               <tr>
-                <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>IV</td>
-                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }}>{(data.iv * 100).toFixed(1)}%</td>
+                <td style={{ fontSize: 'var(--type-caption)', color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>IV</td>
+                <td style={{ fontSize: 'var(--type-micro)', color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }}>{(data.iv * 100).toFixed(1)}%</td>
               </tr>
             )}
             {data.ivRank != null && (
               <tr>
-                <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>IV RANK</td>
-                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }}>{data.ivRank.toFixed(0)}</td>
+                <td style={{ fontSize: 'var(--type-caption)', color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>IV RANK</td>
+                <td style={{ fontSize: 'var(--type-micro)', color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }}>{data.ivRank.toFixed(0)}</td>
               </tr>
             )}
             {data.ivPercentile != null && (
               <tr>
-                <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>IV PERCENTILE</td>
-                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }}>{data.ivPercentile.toFixed(0)}th</td>
+                <td style={{ fontSize: 'var(--type-caption)', color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>IV PERCENTILE</td>
+                <td style={{ fontSize: 'var(--type-micro)', color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }}>{data.ivPercentile.toFixed(0)}th</td>
               </tr>
             )}
             {data.putCallRatio != null && (
               <tr>
-                <td style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>PUT/CALL RATIO</td>
-                <td style={{ fontSize: 10, color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }}>{data.putCallRatio.toFixed(2)}</td>
+                <td style={{ fontSize: 'var(--type-caption)', color: 'var(--text-secondary)', textTransform: 'uppercase', padding: '2px 0' }}>PUT/CALL RATIO</td>
+                <td style={{ fontSize: 'var(--type-micro)', color: 'var(--text-primary)', textAlign: 'right', padding: '2px 4px', fontFamily: 'var(--font-mono)' }}>{data.putCallRatio.toFixed(2)}</td>
               </tr>
             )}
           </tbody>

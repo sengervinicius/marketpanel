@@ -520,7 +520,7 @@ export default function ParticleScreen() {
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '4px 12px', borderRadius: 20,
               background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.15)',
-              fontSize: 10, fontWeight: 600, color: 'var(--color-vault-accent)',
+              fontSize: 'var(--type-micro)', fontWeight: 600, color: 'var(--color-vault-accent)',
               margin: '8px auto 0', letterSpacing: '0.2px',
             }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -723,7 +723,7 @@ export default function ParticleScreen() {
                   )}
                   {/* Context completeness indicator */}
                   {msg.role === 'assistant' && msg.contextMeta && msg.contextMeta.score < 70 && !msg.streaming && (
-                    <div style={{ fontSize: 10, color: '#666', marginTop: 6, fontStyle: 'italic' }}>
+                    <div style={{ fontSize: 'var(--type-micro)', color: '#666', marginTop: 6, fontStyle: 'italic' }}>
                       Partial context ({msg.contextMeta.score}/100)
                     </div>
                   )}

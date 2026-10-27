@@ -29,14 +29,14 @@ const BannerTick = memo(function BannerTick({ ticker, label, accentColor }) {
       gap: 6,
       padding: '0 16px',
       whiteSpace: 'nowrap',
-      fontSize: 11,
+      fontSize: 'var(--type-row)',
       fontFamily: 'var(--font-mono)',
       letterSpacing: '0.3px',
     }}>
       <span style={{
         fontWeight: 700,
         color: accentColor || 'var(--text-primary)',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         letterSpacing: '0.5px',
       }}>
         {label || displayTicker}
@@ -55,7 +55,7 @@ const BannerTick = memo(function BannerTick({ ticker, label, accentColor }) {
       {q?.changePct != null && (
         <span style={{
           fontWeight: 700,
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
           color: isUp ? 'var(--semantic-up)' : 'var(--semantic-down)',
         }}>
           {isUp ? '▲' : '▼'} {Math.abs(q.changePct).toFixed(2)}%
@@ -63,7 +63,7 @@ const BannerTick = memo(function BannerTick({ ticker, label, accentColor }) {
       )}
       <span style={{
         color: 'rgba(255,255,255,0.08)',
-        fontSize: 8.5,
+        fontSize: 'var(--type-caption)',
         padding: '0 4px',
       }}>│</span>
     </span>
@@ -200,7 +200,7 @@ class SectionErrorBoundary extends Component {
           minHeight: 80,
         }}>
           <div style={{
-            fontSize: 11,
+            fontSize: 'var(--type-row)',
             fontWeight: 700,
             color: 'var(--text-primary)',
             textTransform: 'uppercase',
@@ -209,10 +209,10 @@ class SectionErrorBoundary extends Component {
           }}>
             {sectionTitle}
           </div>
-          <div style={{ color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, marginBottom: 4 }}>
+          <div style={{ color: 'var(--text-muted)', fontSize: 'var(--type-row)', fontWeight: 600, marginBottom: 4 }}>
             Loading issue
           </div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: 10, marginBottom: 10, maxWidth: 300, margin: '0 auto 10px' }}>
+          <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--type-micro)', marginBottom: 10, maxWidth: 300, margin: '0 auto 10px' }}>
             Something went wrong loading this section. Try refreshing.
           </div>
           <button
@@ -224,7 +224,7 @@ class SectionErrorBoundary extends Component {
               padding: '5px 16px',
               borderRadius: 4,
               cursor: 'pointer',
-              fontSize: 10,
+              fontSize: 'var(--type-micro)',
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: 0.8,
@@ -326,7 +326,7 @@ function FullPageScreenLayout({
             <div className="fsl-header-time">
               Last updated
               <br />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9 }}>{formattedTime}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--type-caption)' }}>{formattedTime}</span>
             </div>
           )}
         </div>

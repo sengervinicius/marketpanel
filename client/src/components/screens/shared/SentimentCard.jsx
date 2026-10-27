@@ -42,7 +42,7 @@ function TickerSentimentRow({ ticker, data, accentColor }) {
     <tr>
       <td style={{
         padding: '4px 8px',
-        fontSize: 11,
+        fontSize: 'var(--type-row)',
         fontWeight: 700,
         color: accentColor || 'var(--accent)',
         fontFamily: 'var(--font-mono)',
@@ -54,7 +54,7 @@ function TickerSentimentRow({ ticker, data, accentColor }) {
       <td style={{
         padding: '4px 8px',
         textAlign: 'center',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         fontWeight: 600,
         color: sentimentColor(score),
       }}>
@@ -63,7 +63,7 @@ function TickerSentimentRow({ ticker, data, accentColor }) {
       <td style={{
         padding: '4px 8px',
         textAlign: 'right',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         fontFamily: 'var(--font-mono)',
         color: 'var(--text-primary)',
         fontWeight: 600,
@@ -130,7 +130,7 @@ export const SentimentCard = memo(function SentimentCard({
   return (
     <div style={{ padding: '4px' }}>
       <div style={{
-        fontSize: 9,
+        fontSize: 'var(--type-caption)',
         color: accentColor || 'var(--text-muted)',
         marginBottom: 8,
         textTransform: 'uppercase',
@@ -147,7 +147,7 @@ export const SentimentCard = memo(function SentimentCard({
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text-muted)',
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
         }}>
           Loading sentiment data…
         </div>
@@ -158,7 +158,7 @@ export const SentimentCard = memo(function SentimentCard({
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text-muted)',
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
         }}>
           Sentiment data unavailable
         </div>
@@ -173,7 +173,7 @@ export const SentimentCard = memo(function SentimentCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8.5,
+                  fontSize: 'var(--type-caption)',
                   fontWeight: 500,
                   textAlign: 'left',
                   textTransform: 'uppercase',
@@ -185,7 +185,7 @@ export const SentimentCard = memo(function SentimentCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8.5,
+                  fontSize: 'var(--type-caption)',
                   fontWeight: 500,
                   textAlign: 'center',
                   textTransform: 'uppercase',
@@ -197,7 +197,7 @@ export const SentimentCard = memo(function SentimentCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8.5,
+                  fontSize: 'var(--type-caption)',
                   fontWeight: 500,
                   textAlign: 'right',
                   textTransform: 'uppercase',

@@ -29,7 +29,7 @@ function SectorPriceLabel({ ticker, accentColor }) {
         display: 'flex',
         alignItems: 'baseline',
         gap: 8,
-        fontSize: 12,
+        fontSize: 'var(--type-body)',
         fontWeight: 500,
       }}
     >

@@ -131,14 +131,14 @@ export default function LandingPage() {
             boxSizing: 'border-box',
           }}
         >
-          <div style={{ fontSize: 11, letterSpacing: '3px', fontWeight: 700, color: COLORS.accent }}>PARTICLE</div>
+          <div style={{ fontSize: 'var(--type-row)', letterSpacing: '3px', fontWeight: 700, color: COLORS.accent }}>PARTICLE</div>
           <button
             onClick={handleStartTrial}
             style={{
               background: 'none',
               border: 'none',
               color: COLORS.textSecondary,
-              fontSize: 13,
+              fontSize: 'var(--type-title)',
               cursor: 'pointer',
               transition: 'color 0.3s ease',
             }}
@@ -168,7 +168,7 @@ export default function LandingPage() {
           <p
             ref={registerRef('hero-subtitle')}
             style={{
-              fontSize: 16,
+              fontSize: 'var(--type-display)',
               color: COLORS.textSecondary,
               margin: '0 0 40px 0',
               fontWeight: 400,
@@ -190,7 +190,7 @@ export default function LandingPage() {
               color: '#0a0a0f',
               border: 'none',
               padding: '12px 36px',
-              fontSize: 14,
+              fontSize: 'var(--type-lead)',
               fontWeight: 600,
               borderRadius: 4,
               cursor: 'pointer',
@@ -227,7 +227,7 @@ export default function LandingPage() {
             gap: 8,
           }}
         >
-          <div style={{ fontSize: 11, color: COLORS.textTertiary, letterSpacing: '1px' }}>SCROLL</div>
+          <div style={{ fontSize: 'var(--type-row)', color: COLORS.textTertiary, letterSpacing: '1px' }}>SCROLL</div>
           <div
             style={{
               width: 1,
@@ -299,8 +299,8 @@ export default function LandingPage() {
           <div style={{ position: 'relative', zIndex: 1, padding: 24, height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24, paddingBottom: 16, borderBottom: `1px solid ${COLORS.textTertiary}` }}>
-              <div style={{ fontSize: 11, color: COLORS.textSecondary, letterSpacing: '1px' }}>MARKET TERMINAL</div>
-              <div style={{ fontSize: 11, color: COLORS.accent, fontWeight: 700 }}>LIVE</div>
+              <div style={{ fontSize: 'var(--type-row)', color: COLORS.textSecondary, letterSpacing: '1px' }}>MARKET TERMINAL</div>
+              <div style={{ fontSize: 'var(--type-row)', color: COLORS.accent, fontWeight: 700 }}>LIVE</div>
             </div>
 
             {/* Data panels grid */}
@@ -331,7 +331,7 @@ export default function LandingPage() {
         <p
           ref={registerRef('product-desc')}
           style={{
-            fontSize: 13,
+            fontSize: 'var(--type-title)',
             color: COLORS.textSecondary,
             textAlign: 'center',
             margin: 0,
@@ -388,7 +388,7 @@ export default function LandingPage() {
                   flexShrink: 0,
                 }}
               />
-              <p style={{ fontSize: 16, color: COLORS.textSecondary, margin: 0, lineHeight: 1.6 }}>
+              <p style={{ fontSize: 'var(--type-display)', color: COLORS.textSecondary, margin: 0, lineHeight: 1.6 }}>
                 {feature}
               </p>
             </div>
@@ -418,12 +418,12 @@ export default function LandingPage() {
             transition: 'opacity 0.8s ease 200ms, transform 0.8s ease 200ms',
           }}
         >
-          <p style={{ fontSize: 16, color: COLORS.textSecondary, margin: '0 0 16px 0' }}>
+          <p style={{ fontSize: 'var(--type-display)', color: COLORS.textSecondary, margin: '0 0 16px 0' }}>
             Used by traders in 40+ countries
           </p>
           <p
             style={{
-              fontSize: 12,
+              fontSize: 'var(--type-body)',
               color: COLORS.textTertiary,
               margin: 0,
               letterSpacing: '0.5px',
@@ -474,7 +474,7 @@ export default function LandingPage() {
             color: '#0a0a0f',
             border: 'none',
             padding: '12px 36px',
-            fontSize: 14,
+            fontSize: 'var(--type-lead)',
             fontWeight: 600,
             borderRadius: 4,
             cursor: 'pointer',
@@ -500,7 +500,7 @@ export default function LandingPage() {
         <footer
           style={{
             textAlign: 'center',
-            fontSize: 11,
+            fontSize: 'var(--type-row)',
             color: COLORS.textTertiary,
             marginTop: 40,
             paddingTop: 40,

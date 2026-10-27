@@ -536,7 +536,7 @@ function CalendarPanel() {
         {tab === 'MACRO' && (
           <>
             {macroLoading && !macroEvents && (
-              <div style={{ padding: 12, fontSize: 10, color: 'var(--text-muted)' }}>Loading events...</div>
+              <div style={{ padding: 12, fontSize: 'var(--type-micro)', color: 'var(--text-muted)' }}>Loading events...</div>
             )}
             {/* #UX-3 — honest provider state: the curated schedule below is
                 static, so say why the live feed is off (missing env var). */}
@@ -568,14 +568,14 @@ function CalendarPanel() {
         {tab === 'EARNINGS' && (
           <>
             {earningsLoading && (
-              <div style={{ padding: 12, fontSize: 10, color: 'var(--text-muted)' }}>Loading earnings...</div>
+              <div style={{ padding: 12, fontSize: 'var(--type-micro)', color: 'var(--text-muted)' }}>Loading earnings...</div>
             )}
             {/* Calendar-defect fix: the server now tags empty envelopes
                 with empty:'no-data' (a provider answered; week is quiet)
                 vs empty:'no-provider'/source:'unavailable' (every feed is
                 unconfigured or down) — render the honest reason. */}
             {!earningsLoading && earningsList.length === 0 && (
-              <div className="cp-provider-note" style={{ padding: 12, fontSize: 10, color: 'var(--text-muted)' }}>
+              <div className="cp-provider-note" style={{ padding: 12, fontSize: 'var(--type-micro)', color: 'var(--text-muted)' }}>
                 {capFilter === 'MINE' && earningsAll.length > 0
                   ? 'No upcoming earnings for your watchlist tickers.'
                   : capFilter === '10B' && hasCapData && earningsAll.length > 0

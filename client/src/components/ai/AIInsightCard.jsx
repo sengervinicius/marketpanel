@@ -50,7 +50,7 @@ function renderMarkdown(text) {
           display: 'flex',
           gap: '6px',
           marginBottom: '3px',
-          fontSize: '12.5px',
+          fontSize: 'var(--type-title)',
           lineHeight: '1.5',
         }}>
           <span style={{ color: 'var(--color-ai)', flexShrink: 0 }}>•</span>
@@ -69,7 +69,7 @@ function renderMarkdown(text) {
           display: 'flex',
           gap: '6px',
           marginBottom: '3px',
-          fontSize: '12.5px',
+          fontSize: 'var(--type-title)',
           lineHeight: '1.5',
         }}>
           <span style={{ color: 'var(--color-ai)', flexShrink: 0, fontWeight: 600 }}>{num}.</span>
@@ -82,7 +82,7 @@ function renderMarkdown(text) {
     // Regular paragraph
     elements.push(
       <p key={key++} style={{
-        fontSize: '12.5px',
+        fontSize: 'var(--type-title)',
         lineHeight: '1.5',
         color: 'var(--text-secondary)',
         marginBottom: '4px',

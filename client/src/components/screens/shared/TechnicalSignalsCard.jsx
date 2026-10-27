@@ -26,7 +26,7 @@ function RSIBadge({ rsi }) {
       <span style={{
         color: textColor,
         fontFamily: 'var(--font-mono)',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         fontWeight: 600,
       }}>
         {label}
@@ -34,7 +34,7 @@ function RSIBadge({ rsi }) {
       <span style={{
         color: 'var(--text-primary)',
         fontFamily: 'var(--font-mono)',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
       }}>
         {rsi.toFixed(1)}
       </span>
@@ -56,7 +56,7 @@ function MACDSignal({ macd, signal }) {
       <span style={{
         color: color,
         fontFamily: 'var(--font-mono)',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         fontWeight: 600,
       }}>
         {label}
@@ -64,7 +64,7 @@ function MACDSignal({ macd, signal }) {
       <span style={{
         color: 'var(--text-secondary)',
         fontFamily: 'var(--font-mono)',
-        fontSize: 9,
+        fontSize: 'var(--type-caption)',
       }}>
         {(macd - signal).toFixed(3)}
       </span>
@@ -77,7 +77,7 @@ function TechnicalRow({ ticker, technicals, accentColor }) {
     <tr>
       <td style={{
         padding: '4px 8px',
-        fontSize: 11,
+        fontSize: 'var(--type-row)',
         fontWeight: 700,
         color: accentColor || 'var(--accent)',
         fontFamily: 'var(--font-mono)',
@@ -182,7 +182,7 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
   return (
     <div style={{ padding: '4px' }}>
       <div style={{
-        fontSize: 9,
+        fontSize: 'var(--type-caption)',
         color: accentColor || 'var(--text-muted)',
         marginBottom: 8,
         textTransform: 'uppercase',
@@ -199,7 +199,7 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text-faint)',
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
         }}>
           Loading technicals…
         </div>
@@ -210,7 +210,7 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text-muted)',
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
         }}>
           No technical data available
         </div>
@@ -225,7 +225,7 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8.5,
+                  fontSize: 'var(--type-caption)',
                   fontWeight: 500,
                   textAlign: 'left',
                   textTransform: 'uppercase',
@@ -237,7 +237,7 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8.5,
+                  fontSize: 'var(--type-caption)',
                   fontWeight: 500,
                   textAlign: 'center',
                   textTransform: 'uppercase',
@@ -249,7 +249,7 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({
                 <th style={{
                   padding: '4px 8px',
                   color: 'var(--text-faint)',
-                  fontSize: 8.5,
+                  fontSize: 'var(--type-caption)',
                   fontWeight: 500,
                   textAlign: 'center',
                   textTransform: 'uppercase',

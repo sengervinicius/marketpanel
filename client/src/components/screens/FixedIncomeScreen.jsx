@@ -227,13 +227,13 @@ function USTreasuryCurveSection() {
           padding: '6px 8px',
           marginBottom: '8px',
           borderRadius: '3px',
-          fontSize: '9px',
+          fontSize: 'var(--type-caption)',
           fontWeight: 600,
         }}>
           INVERSION WARNING: 2s10s spread = {spread2s10s.toFixed(2)} bps
         </div>
       )}
-      <div style={{ fontSize: '9px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+      <div style={{ fontSize: 'var(--type-caption)', color: 'var(--text-secondary)', marginBottom: '6px' }}>
         2s10s Spread: <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
           {spread2s10s != null ? spread2s10s.toFixed(2) + ' bps' : '—'}
         </span>
@@ -241,8 +241,8 @@ function USTreasuryCurveSection() {
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 20, left: 50 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" />
-          <XAxis dataKey="tenor" stroke="var(--text-muted)" style={{ fontSize: 9 }} />
-          <YAxis stroke="var(--text-muted)" style={{ fontSize: 9 }} />
+          <XAxis dataKey="tenor" stroke="var(--text-muted)" style={{ fontSize: 'var(--type-caption)' }} />
+          <YAxis stroke="var(--text-muted)" style={{ fontSize: 'var(--type-caption)' }} />
           <Tooltip
             contentStyle={{
               background: 'var(--bg-panel)',
@@ -314,8 +314,8 @@ function MultiCountryCurvesSection() {
     <ResponsiveContainer width="100%" height={220}>
       <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 20, left: 50 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" />
-        <XAxis dataKey="tenor" stroke="var(--text-muted)" style={{ fontSize: 9 }} />
-        <YAxis stroke="var(--text-muted)" style={{ fontSize: 9 }} />
+        <XAxis dataKey="tenor" stroke="var(--text-muted)" style={{ fontSize: 'var(--type-caption)' }} />
+        <YAxis stroke="var(--text-muted)" style={{ fontSize: 'var(--type-caption)' }} />
         <Tooltip
           contentStyle={{
             background: 'var(--bg-panel)',
@@ -325,7 +325,7 @@ function MultiCountryCurvesSection() {
           formatter={(val) => fmtYield(val)}
           labelStyle={{ color: 'var(--text-primary)' }}
         />
-        <Legend wrapperStyle={{ fontSize: 9, color: 'var(--text-secondary)' }} />
+        <Legend wrapperStyle={{ fontSize: 'var(--type-caption)', color: 'var(--text-secondary)' }} />
         <Line type="monotone" dataKey="US" stroke={CURVE_COLORS.US} strokeWidth={2} dot={{ r: 2 }} />
         <Line type="monotone" dataKey="DE" stroke={CURVE_COLORS.DE} strokeWidth={2} dot={{ r: 2 }} />
         <Line type="monotone" dataKey="JP" stroke={CURVE_COLORS.JP} strokeWidth={2} dot={{ r: 2 }} />
@@ -638,14 +638,14 @@ function CentralBankRatesSection() {
                 <td style={{ color: 'var(--semantic-info)', fontWeight: 600 }}>
                   {loading ? 'Loading...' : (rate != null ? rate.toFixed(2) + '%' : '—')}
                 </td>
-                <td style={{ fontSize: 9, color: 'var(--text-secondary)' }}>{cb.tenor}</td>
-                <td style={{ fontSize: 9, color: 'var(--text-muted)' }}>{date || '—'}</td>
+                <td style={{ fontSize: 'var(--type-caption)', color: 'var(--text-secondary)' }}>{cb.tenor}</td>
+                <td style={{ fontSize: 'var(--type-caption)', color: 'var(--text-muted)' }}>{date || '—'}</td>
               </tr>
             );
           })}
         </tbody>
       </table>
-      <div style={{ fontSize: 8.5, color: 'var(--text-muted)', marginTop: 6, textAlign: 'right' }}>
+      <div style={{ fontSize: 'var(--type-caption)', color: 'var(--text-muted)', marginTop: 6, textAlign: 'right' }}>
         {error
           ? <span style={{ color: 'var(--semantic-down)' }}>Live policy rates unavailable — retrying shortly.</span>
           : 'Policy rates fetched from central bank feeds.'}
@@ -684,14 +684,14 @@ function EurBondETFCell({ ticker }) {
         transition: 'border-color 0.15s',
       }}
     >
-      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{ticker}</div>
-      <div style={{ fontSize: 8.5, color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 'var(--type-micro)', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{ticker}</div>
+      <div style={{ fontSize: 'var(--type-caption)', color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500 }}>
+        <span style={{ fontSize: 'var(--type-row)', color: 'var(--text-primary)', fontWeight: 500 }}>
           {p?.price ? p.price.toFixed(2) : '—'}
         </span>
         <span style={{
-          fontSize: 9,
+          fontSize: 'var(--type-caption)',
           color: (p?.change_pct ?? 0) >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)',
           fontWeight: 500,
         }}>

@@ -18,7 +18,7 @@
 /* ── Header chips ─────────────────────────────────────────────────── */
 .bp-chip {
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.06em;
   color: var(--text-muted);
   border: 1px solid var(--border-strong);
@@ -50,13 +50,13 @@
 
 .bp-onething-label {
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.1em;
   color: var(--color-brief-accent);
 }
 
 .bp-onething-text {
-  font-size: 12.5px;
+  font-size: var(--type-title);
   color: var(--text-primary);
   margin-top: 4px;
   line-height: 1.4;
@@ -65,7 +65,7 @@
 /* ── Bucket section heads: "EQUITIES · 3 of 12 names active" ──────── */
 .bp-sechead {
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   letter-spacing: 0.12em;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -102,7 +102,7 @@
 .bp-sym {
   font-family: var(--font-family-mono);
   font-weight: 700;
-  font-size: 11.5px;
+  font-size: var(--type-body);
   color: var(--text-primary);
   flex: none;
   width: 64px;
@@ -121,7 +121,7 @@
 /* wave-nov Phase Z — NEW badge for vault docs ingested in the last 48h */
 .bp-new {
   font-family: var(--font-family-mono);
-  font-size: 8px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.5px;
   color: var(--bg-base, #0a0a0a);
@@ -136,7 +136,7 @@
 /* Polish W2 item 6 — live day-% mono chip after the symbol */
 .bp-daypct {
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-variant-numeric: tabular-nums;
   flex: none;
   padding: 0 3px;
@@ -147,7 +147,7 @@
 .bp-daypct--dn { color: var(--color-down); border-color: color-mix(in srgb, var(--color-down) 35%, transparent); }
 
 .bp-why {
-  font-size: 12px;
+  font-size: var(--type-body);
   color: var(--text-secondary);
   line-height: 1.35;
   flex: 1;
@@ -157,7 +157,7 @@
 /* ── Reason chips — color = SOURCE, never sentiment (mockup note 3) ── */
 .bp-rsn {
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   padding: 0 5px;
   border-radius: 2px;
   flex: none;
@@ -174,7 +174,7 @@
 /* ── Odds chip (prediction-market implied) ─────────────────────────── */
 .bp-odds {
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--text-secondary);
   border: 1px solid var(--border-strong);
   border-radius: 2px;
@@ -187,7 +187,7 @@
 /* ── Honest empty / error line ─────────────────────────────────────── */
 .bp-empty {
   font-family: var(--font-family-mono);
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--text-muted);
   padding: 12px 10px;
   line-height: 1.5;
@@ -239,12 +239,12 @@
 }
 .bp-email-pop-head {
   display: flex; align-items: center; justify-content: space-between;
-  font-size: 9px; letter-spacing: 0.12em; color: var(--text-secondary);
+  font-size: var(--type-caption); letter-spacing: 0.12em; color: var(--text-secondary);
   margin-bottom: 8px;
 }
 .bp-email-pop-close {
   background: none; border: none; color: var(--text-faint);
-  font-size: 10px; cursor: pointer; padding: 0 2px;
+  font-size: var(--type-micro); cursor: pointer; padding: 0 2px;
 }
 .bp-email-pop-close:hover { color: var(--text-primary); }
 .bp-email-field {
@@ -252,7 +252,7 @@
 }
 .bp-email-label {
   width: 58px; flex-shrink: 0;
-  font-size: 8px; letter-spacing: 0.1em; color: var(--text-faint);
+  font-size: var(--type-caption); letter-spacing: 0.1em; color: var(--text-faint);
 }
 .bp-email-input {
   flex: 1; min-width: 0;
@@ -261,14 +261,14 @@
   border-radius: 2px;
   color: var(--text-primary, #ddd);
   font-family: var(--font-family-mono);
-  font-size: 10px;
+  font-size: var(--type-micro);
   padding: 3px 5px;
 }
 .bp-email-input:focus { outline: none; border-color: var(--border-strong, #333); }
 .bp-email-input--time { flex: 0 0 auto; width: 84px; }
 .bp-email-toggle {
   font-family: var(--font-family-mono);
-  font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+  font-size: var(--type-caption); font-weight: 700; letter-spacing: 0.08em;
   padding: 1px 8px; border-radius: 2px; cursor: pointer;
   background: none; border: 1px solid var(--border-strong);
   color: var(--text-muted);
@@ -279,17 +279,17 @@
   display: flex; align-items: center; justify-content: flex-end; gap: 8px;
   margin-top: 2px;
 }
-.bp-email-status { font-size: 8px; letter-spacing: 0.08em; color: var(--semantic-up, #2ecc71); }
+.bp-email-status { font-size: var(--type-caption); letter-spacing: 0.08em; color: var(--semantic-up, #2ecc71); }
 .bp-email-status--err { color: var(--semantic-down, #e74c3c); }
 .bp-email-save {
   font-family: var(--font-family-mono);
-  font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+  font-size: var(--type-caption); font-weight: 700; letter-spacing: 0.08em;
   padding: 2px 10px; border-radius: 2px; cursor: pointer;
   background: none; border: 1px solid var(--border-strong);
   color: var(--text-secondary);
 }
 .bp-email-save:hover { color: var(--text-primary); border-color: var(--text-muted); }
 .bp-email-note {
-  margin-top: 5px; font-size: 7.5px; letter-spacing: 0.05em;
+  margin-top: 5px; font-size: var(--type-caption); letter-spacing: 0.05em;
   color: var(--text-faint);
 }

@@ -407,7 +407,7 @@ export default function InstrumentOptionsPanel({ symbol, spot, isMobile }) {
         <div className="opt-empty">
           Options chain not available right now.
           <br />
-          <span style={{ fontSize: 10, color: 'var(--text-faint)', display: 'inline-block', marginTop: 4 }}>
+          <span style={{ fontSize: 'var(--type-micro)', color: 'var(--text-faint)', display: 'inline-block', marginTop: 4 }}>
             Either no listed options for this instrument, or the options
             data feed is not configured.
           </span>

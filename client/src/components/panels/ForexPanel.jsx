@@ -272,7 +272,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
         <button className="btn"
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
-          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 9, padding: '1px 5px' }}
+          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 'var(--type-caption)', padding: '1px 5px' }}
         >{collapsed ? '+' : '−'}</button>
       </EditablePanelHeader>
 
@@ -354,7 +354,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
             })}
 
             {moversOnly && filteredForex.length === 0 && (
-              <div style={{ padding: 'var(--sp-2) var(--sp-3)', color: 'var(--text-faint)', fontSize: 9 }}>No FX movers ≥ 1%</div>
+              <div style={{ padding: 'var(--sp-2) var(--sp-3)', color: 'var(--text-faint)', fontSize: 'var(--type-caption)' }}>No FX movers ≥ 1%</div>
             )}
 
             {!hiddenSubsections.includes('crypto') && (
@@ -392,7 +392,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
               );
             })}
                 {moversOnly && filteredCrypto.length === 0 && (
-                  <div style={{ padding: 'var(--sp-2) var(--sp-3)', color: 'var(--text-faint)', fontSize: 9 }}>No crypto movers ≥ 1%</div>
+                  <div style={{ padding: 'var(--sp-2) var(--sp-3)', color: 'var(--text-faint)', fontSize: 'var(--type-caption)' }}>No crypto movers ≥ 1%</div>
                 )}
               </>
             )}

@@ -28,7 +28,7 @@ function EarningsChip({ event, accentColor }) {
       background: 'rgba(255,255,255,0.05)',
       border: '1px solid rgba(255,255,255,0.08)',
       borderRadius: 4,
-      fontSize: 10,
+      fontSize: 'var(--type-micro)',
       whiteSpace: 'nowrap',
       lineHeight: 1,
       flexShrink: 0,
@@ -111,7 +111,7 @@ export const EarningsCalendarStrip = memo(function EarningsCalendarStrip({
   return (
     <div style={{ padding: '4px' }}>
       <div style={{
-        fontSize: 9,
+        fontSize: 'var(--type-caption)',
         color: 'var(--color-table-header, var(--text-muted))',
         marginBottom: 8,
         textTransform: 'uppercase',
@@ -127,7 +127,7 @@ export const EarningsCalendarStrip = memo(function EarningsCalendarStrip({
           display: 'flex',
           alignItems: 'center',
           color: 'var(--text-faint)',
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
         }}>
           Loading earnings…
         </div>
@@ -137,7 +137,7 @@ export const EarningsCalendarStrip = memo(function EarningsCalendarStrip({
           display: 'flex',
           alignItems: 'center',
           color: 'var(--text-muted)',
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
         }}>
           No upcoming earnings found
         </div>

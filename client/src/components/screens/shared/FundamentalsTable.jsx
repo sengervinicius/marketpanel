@@ -199,7 +199,7 @@ export function FundamentalsTable({ tickers, metrics = null, title, onTickerClic
 
   if (loading) return <DeepSkeleton rows={8} />;
   if (error) return <DeepError message={`Error: ${error}`} />;
-  if (!mergedData || mergedData.length === 0) return <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 12 }}>No data</div>;
+  if (!mergedData || mergedData.length === 0) return <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 'var(--type-body)' }}>No data</div>;
 
   return (
     <div style={{ overflow: 'auto' }}>

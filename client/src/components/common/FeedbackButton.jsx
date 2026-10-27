@@ -242,7 +242,7 @@ function FeedbackModal({ open, onClose }) {
         }
         .particle-feedback-modal__title {
           margin: 0;
-          font-size: 16px;
+          font-size: var(--type-display);
           font-weight: 600;
           color: #e6e6e6;
         }
@@ -250,7 +250,7 @@ function FeedbackModal({ open, onClose }) {
           background: none;
           border: none;
           color: var(--text-secondary);
-          font-size: 22px;
+          font-size: var(--type-hero);
           line-height: 1;
           cursor: pointer;
           padding: 4px 8px;
@@ -259,7 +259,7 @@ function FeedbackModal({ open, onClose }) {
 
         .particle-feedback-modal__label {
           display: block;
-          font-size: 11px;
+          font-size: var(--type-row);
           letter-spacing: 0.04em;
           text-transform: uppercase;
           color: #888;
@@ -276,7 +276,7 @@ function FeedbackModal({ open, onClose }) {
           border: 1px solid #2a2d36;
           background: #1c1e25;
           color: #e6e6e6;
-          font-size: 13px;
+          font-size: var(--type-title);
           font-family: inherit;
           box-sizing: border-box;
         }
@@ -298,13 +298,13 @@ function FeedbackModal({ open, onClose }) {
           color: #f0a0a0;
           padding: 8px 10px;
           border-radius: 6px;
-          font-size: 12px;
+          font-size: var(--type-body);
           margin-bottom: 12px;
         }
         .particle-feedback-modal__done {
           padding: 20px 8px;
           color: #cfd4dc;
-          font-size: 14px;
+          font-size: var(--type-lead);
           text-align: center;
         }
         .particle-feedback-modal__actions {
@@ -316,7 +316,7 @@ function FeedbackModal({ open, onClose }) {
         .particle-feedback-modal__btn {
           padding: 8px 16px;
           border-radius: 6px;
-          font-size: 13px;
+          font-size: var(--type-title);
           font-weight: 500;
           cursor: pointer;
           font-family: inherit;

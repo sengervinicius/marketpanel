@@ -27,7 +27,7 @@
 
 .admin-dashboard-header h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: var(--type-hero);
   font-weight: 600;
   color: var(--color-text-primary);
   letter-spacing: 1px;
@@ -40,7 +40,7 @@
 }
 
 .admin-dashboard-updated {
-  font-size: 12px;
+  font-size: var(--type-body);
   color: var(--color-admin-text-muted);
   font-family: var(--font-family-mono);
 }
@@ -52,7 +52,7 @@
   border-radius: 4px;
   color: var(--color-admin-accent);
   font-family: var(--font-family-mono);
-  font-size: 12px;
+  font-size: var(--type-body);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -72,7 +72,7 @@
   padding: 32px;
   text-align: center;
   color: var(--color-admin-text-muted);
-  font-size: 14px;
+  font-size: var(--type-lead);
   background: rgba(15, 15, 20, 0.5);
   border: 1px solid rgba(0, 255, 136, 0.1);
   border-radius: 6px;
@@ -85,7 +85,7 @@
   border-radius: 6px;
   color: var(--color-admin-danger);
   margin-bottom: 16px;
-  font-size: 14px;
+  font-size: var(--type-lead);
 }
 
 .admin-error-retry {
@@ -117,7 +117,7 @@
 
 .admin-section-title {
   margin: 0 0 16px 0;
-  font-size: 16px;
+  font-size: var(--type-display);
   font-weight: 600;
   color: var(--color-admin-accent);
   letter-spacing: 0.5px;
@@ -157,11 +157,11 @@
 }
 
 .admin-overview-card-icon {
-  font-size: 16px;
+  font-size: var(--type-display);
 }
 
 .admin-overview-card-label {
-  font-size: 12px;
+  font-size: var(--type-body);
   color: var(--color-admin-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -169,14 +169,14 @@
 }
 
 .admin-overview-card-value {
-  font-size: 24px;
+  font-size: var(--type-hero);
   font-weight: 700;
   color: var(--color-admin-accent);
   font-family: var(--font-family-mono);
 }
 
 .admin-overview-card-trend {
-  font-size: 11px;
+  font-size: var(--type-row);
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid rgba(0, 255, 136, 0.1);
@@ -205,7 +205,7 @@
 
 .admin-chart-title {
   margin: 0 0 12px 0;
-  font-size: 13px;
+  font-size: var(--type-title);
   color: var(--color-admin-accent);
   font-weight: 600;
   text-transform: uppercase;
@@ -266,7 +266,7 @@
 }
 
 .admin-heatmap-hour-label {
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--color-admin-text-faint);
   width: 30px;
   text-align: right;
@@ -289,7 +289,7 @@
 }
 
 .admin-heatmap-day-label {
-  font-size: 11px;
+  font-size: var(--type-row);
   color: var(--color-admin-text-muted);
   margin-bottom: 8px;
   font-weight: 600;
@@ -333,7 +333,7 @@
 .admin-tickers-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--type-body);
 }
 
 .admin-tickers-table thead {
@@ -347,7 +347,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-size: 11px;
+  font-size: var(--type-row);
 }
 
 .admin-tickers-table td {
@@ -400,7 +400,7 @@
   border-radius: 4px;
   color: var(--color-terminal);
   font-family: var(--font-family-mono);
-  font-size: 12px;
+  font-size: var(--type-body);
   transition: all 0.2s ease;
 }
 
@@ -419,7 +419,7 @@
 .admin-users-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--type-body);
 }
 
 .admin-users-table thead {
@@ -433,7 +433,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-size: 11px;
+  font-size: var(--type-row);
 }
 
 .admin-users-table td {
@@ -449,7 +449,7 @@
 .admin-users-id {
   color: var(--color-admin-text-muted);
   font-family: var(--font-family-mono);
-  font-size: 11px;
+  font-size: var(--type-row);
 }
 
 .admin-users-username {
@@ -460,11 +460,11 @@
 
 .admin-users-email {
   color: var(--color-admin-text-subtle);
-  font-size: 11px;
+  font-size: var(--type-row);
 }
 
 .admin-users-plan {
-  font-size: 11px;
+  font-size: var(--type-row);
 }
 
 .admin-users-plan-badge {
@@ -472,7 +472,7 @@
   padding: 4px 8px;
   border-radius: 3px;
   font-weight: 600;
-  font-size: 10px;
+  font-size: var(--type-micro);
   letter-spacing: 0.5px;
 }
 
@@ -496,7 +496,7 @@
 
 .admin-users-last-active {
   color: var(--color-admin-text-muted);
-  font-size: 11px;
+  font-size: var(--type-row);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -519,7 +519,7 @@
   border-radius: 4px;
   color: var(--color-admin-accent);
   font-family: var(--font-family-mono);
-  font-size: 12px;
+  font-size: var(--type-body);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -536,7 +536,7 @@
 }
 
 .admin-pagination-info {
-  font-size: 12px;
+  font-size: var(--type-body);
   color: var(--color-admin-text-muted);
   font-family: var(--font-family-mono);
 }
@@ -571,7 +571,7 @@
 }
 
 .admin-health-label {
-  font-size: 11px;
+  font-size: var(--type-row);
   color: var(--color-admin-text-muted);
   text-transform: uppercase;
   font-weight: 600;
@@ -579,7 +579,7 @@
 }
 
 .admin-health-value {
-  font-size: 16px;
+  font-size: var(--type-display);
   font-weight: 700;
   color: var(--color-admin-accent);
   font-family: var(--font-family-mono);
@@ -594,7 +594,7 @@
 }
 
 .admin-health-detail {
-  font-size: 11px;
+  font-size: var(--type-row);
   color: var(--color-admin-text-faint);
   font-family: var(--font-family-mono);
 }
@@ -607,7 +607,7 @@
 
 .admin-health-tables-title {
   margin: 0 0 12px 0;
-  font-size: 12px;
+  font-size: var(--type-body);
   color: var(--color-admin-accent);
   text-transform: uppercase;
   font-weight: 600;
@@ -631,14 +631,14 @@
 }
 
 .admin-health-table-name {
-  font-size: 11px;
+  font-size: var(--type-row);
   color: var(--color-admin-text-muted);
   font-weight: 600;
   font-family: var(--font-family-mono);
 }
 
 .admin-health-table-count {
-  font-size: 13px;
+  font-size: var(--type-title);
   color: var(--color-admin-accent);
   font-weight: 700;
   font-family: var(--font-family-mono);

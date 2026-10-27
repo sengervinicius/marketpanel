@@ -159,7 +159,7 @@ function MacroDashboard() {
   if (error) return <DeepError message={`Error: ${error}`} />;
   if (!data || data.length === 0) {
     return (
-      <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>
+      <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 'var(--type-micro)', textAlign: 'center' }}>
         No macro data available
       </div>
     );

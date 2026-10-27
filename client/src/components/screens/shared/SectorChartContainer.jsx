@@ -74,26 +74,26 @@ function RichTooltip({ active, payload, label }) {
           border: '1px solid var(--border-strong)',
           borderRadius: '4px',
           padding: '8px 12px',
-          fontSize: '10px',
+          fontSize: 'var(--type-micro)',
           color: 'var(--text-primary)',
           backdropFilter: 'blur(8px)',
           boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
         }}
       >
-        <div style={{ color: 'var(--text-muted)', marginBottom: 4, fontSize: '9px' }}>
+        <div style={{ color: 'var(--text-muted)', marginBottom: 4, fontSize: 'var(--type-caption)' }}>
           {data.dateLabel || label}
         </div>
         <div style={{
           fontFamily: 'var(--font-mono)',
           fontVariantNumeric: 'tabular-nums',
-          fontSize: '12px',
+          fontSize: 'var(--type-body)',
           fontWeight: 600,
           letterSpacing: '0.3px',
         }}>
           {formatDisplayPrice(price)}
         </div>
         {volume != null && volume > 0 && (
-          <div style={{ fontSize: '9px', color: 'var(--text-faint)', marginTop: 3 }}>
+          <div style={{ fontSize: 'var(--type-caption)', color: 'var(--text-faint)', marginTop: 3 }}>
             Vol: {formatPrice(volume, 0)}
           </div>
         )}
@@ -178,7 +178,7 @@ const PriceLabel = memo(function PriceLabel({ ticker, openPrice, closePrice, acc
       marginBottom: '6px',
     }}>
       <span style={{
-        fontSize: '13px',
+        fontSize: 'var(--type-title)',
         fontWeight: 700,
         color: accentColor || 'var(--accent)',
         letterSpacing: '0.8px',
@@ -187,7 +187,7 @@ const PriceLabel = memo(function PriceLabel({ ticker, openPrice, closePrice, acc
         {ticker}
       </span>
       <span style={{
-        fontSize: '13px',
+        fontSize: 'var(--type-title)',
         fontWeight: 600,
         color: 'var(--text-primary)',
         fontFamily: 'var(--font-mono)',
@@ -196,7 +196,7 @@ const PriceLabel = memo(function PriceLabel({ ticker, openPrice, closePrice, acc
         {formatDisplayPrice(closePrice)}
       </span>
       <span style={{
-        fontSize: '11px',
+        fontSize: 'var(--type-row)',
         fontWeight: 600,
         color: isUp ? 'var(--semantic-up)' : 'var(--semantic-down)',
         fontVariantNumeric: 'tabular-nums',
@@ -304,7 +304,7 @@ const ChartSection = memo(function ChartSection({
             {/* Axes */}
             <XAxis
               dataKey="dateLabel"
-              tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 9, fontFamily: 'var(--font-mono)' }}
+              tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 'var(--type-caption)', fontFamily: 'var(--font-mono)' }}
               interval={Math.max(0, Math.floor(data.length / 6))}
               tickLine={false}
               axisLine={{ stroke: 'rgba(255,255,255,0.06)' }}
@@ -312,7 +312,7 @@ const ChartSection = memo(function ChartSection({
             <YAxis
               yAxisId="price"
               orientation="right"
-              tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 9, fontFamily: 'var(--font-mono)' }}
+              tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 'var(--type-caption)', fontFamily: 'var(--font-mono)' }}
               width={52}
               tickFormatter={(v) => '$' + formatPrice(v, 0)}
               axisLine={false}
@@ -560,7 +560,7 @@ export function SectorChartContainer({
             position: 'absolute',
             bottom: 8,
             right: 10,
-            fontSize: 9,
+            fontSize: 'var(--type-caption)',
             color: 'var(--text-muted)',
             letterSpacing: '0.02em',
           }}>

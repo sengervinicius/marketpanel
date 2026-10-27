@@ -14,7 +14,7 @@
   padding: 20px;
   margin: 12px 0;
   font-family: var(--font-family-mono);
-  font-size: 13px;
+  font-size: var(--type-title);
   line-height: 1.5;
   color: var(--color-text-primary);
   backdrop-filter: blur(10px);
@@ -55,7 +55,7 @@
 .analysis-card-sentiment {
   display: inline-block;
   font-weight: 600;
-  font-size: 11px;
+  font-size: var(--type-row);
   letter-spacing: 1px;
   padding: 4px 8px;
   border-radius: 3px;
@@ -82,7 +82,7 @@
 
 .analysis-card-headline {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--type-display);
   font-weight: 600;
   color: var(--color-text-primary);
   letter-spacing: 0.5px;
@@ -90,7 +90,7 @@
 
 .analysis-card-original-thesis {
   margin: 8px 0 0 0;
-  font-size: 12px;
+  font-size: var(--type-body);
   color: #a0a0a0;
   font-style: italic;
 }
@@ -105,7 +105,7 @@
 
 .analysis-card-section-title {
   display: block;
-  font-size: 11px;
+  font-size: var(--type-row);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -146,14 +146,14 @@
 }
 
 .analysis-card-metric-label {
-  font-size: 11px;
+  font-size: var(--type-row);
   color: #888;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .analysis-card-metric-value {
-  font-size: 14px;
+  font-size: var(--type-lead);
   color: #78c878;
   font-weight: 500;
   font-family: var(--font-family-mono);
@@ -193,7 +193,7 @@
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  font-size: 13px;
+  font-size: var(--type-title);
   color: #c0c0c0;
   line-height: 1.4;
 }
@@ -229,7 +229,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--type-body);
 }
 
 .analysis-card-rec-item--reduce {
@@ -252,7 +252,7 @@
 
 .analysis-card-rec-action {
   font-weight: 600;
-  font-size: 11px;
+  font-size: var(--type-row);
   text-transform: uppercase;
   color: #78c878;
   letter-spacing: 0.5px;
@@ -262,11 +262,11 @@
   font-family: var(--font-family-mono);
   font-weight: 600;
   color: var(--color-text-primary);
-  font-size: 13px;
+  font-size: var(--type-title);
 }
 
 .analysis-card-rec-reason {
-  font-size: 12px;
+  font-size: var(--type-body);
   color: #a0a0a0;
 }
 
@@ -286,7 +286,7 @@
   border-left: 3px solid rgba(120, 200, 120, 0.3);
   border-radius: 3px;
   padding: 10px 12px;
-  font-size: 12px;
+  font-size: var(--type-body);
   position: relative;
 }
 
@@ -317,14 +317,14 @@
 
 .analysis-card-argument-evidence {
   color: #a0a0a0;
-  font-size: 11px;
+  font-size: var(--type-row);
   margin-bottom: 6px;
   font-style: italic;
 }
 
 .analysis-card-argument-severity {
   display: inline-block;
-  font-size: 10px;
+  font-size: var(--type-micro);
   text-transform: uppercase;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -360,7 +360,7 @@
 }
 
 .analysis-card-assessment-label {
-  font-size: 11px;
+  font-size: var(--type-row);
   text-transform: uppercase;
   letter-spacing: 1px;
   color: #78c878;
@@ -369,7 +369,7 @@
 
 .analysis-card-assessment-value {
   font-family: var(--font-family-mono);
-  font-size: 14px;
+  font-size: var(--type-lead);
   color: #78c878;
   font-weight: 600;
 }
@@ -426,7 +426,7 @@
 
 .analysis-card-scenario-name {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--type-title);
   font-weight: 600;
   color: var(--color-text-primary);
   flex: 1;
@@ -434,7 +434,7 @@
 
 .analysis-card-scenario-prob {
   display: inline-block;
-  font-size: 11px;
+  font-size: var(--type-row);
   font-weight: 600;
   font-family: var(--font-family-mono);
   padding: 2px 6px;
@@ -461,7 +461,7 @@
 
 .analysis-card-scenario-outcome {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--type-body);
   color: #c0c0c0;
   line-height: 1.4;
 }
@@ -473,7 +473,7 @@
 }
 
 .analysis-card-scenario-drivers-label {
-  font-size: 10px;
+  font-size: var(--type-micro);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: #888;
@@ -490,7 +490,7 @@
 }
 
 .analysis-card-scenario-drivers-list li {
-  font-size: 11px;
+  font-size: var(--type-row);
   color: #a0a0a0;
   padding-left: 8px;
   border-left: 2px solid rgba(120, 200, 120, 0.2);
@@ -514,7 +514,7 @@
 }
 
 .analysis-card-scenario-target-label {
-  font-size: 10px;
+  font-size: var(--type-micro);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: #888;
@@ -523,7 +523,7 @@
 
 .analysis-card-scenario-target-value {
   font-family: var(--font-family-mono);
-  font-size: 12px;
+  font-size: var(--type-body);
   font-weight: 600;
   color: #78c878;
 }
@@ -553,7 +553,7 @@
 }
 
 .analysis-card-bottom-line-label {
-  font-size: 10px;
+  font-size: var(--type-micro);
   text-transform: uppercase;
   letter-spacing: 1px;
   color: #78c878;
@@ -561,7 +561,7 @@
 }
 
 .analysis-card-bottom-line-text {
-  font-size: 13px;
+  font-size: var(--type-title);
   color: var(--color-text-primary);
   line-height: 1.5;
   font-weight: 500;
@@ -574,12 +574,12 @@
 @media (max-width: 640px) {
   .analysis-card {
     padding: 14px;
-    font-size: 12px;
+    font-size: var(--type-body);
     margin: 8px 0;
   }
 
   .analysis-card-headline {
-    font-size: 14px;
+    font-size: var(--type-lead);
   }
 
   .analysis-card-metrics-grid {

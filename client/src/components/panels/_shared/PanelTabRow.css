@@ -27,7 +27,7 @@
   border-bottom: 2px solid transparent;
   color: var(--color-text-muted);
   font-family: var(--font-family-mono);
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -45,7 +45,7 @@
 }
 
 .pp-tab-count {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;

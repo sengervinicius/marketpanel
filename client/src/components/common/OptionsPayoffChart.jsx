@@ -124,25 +124,25 @@ export default function OptionsPayoffChart({ strategy }) {
               dataKey="price"
               type="number"
               domain={[lo, hi]}
-              tick={{ fontSize: 10, fill: '#888' }}
+              tick={{ fontSize: 'var(--type-micro)', fill: '#888' }}
               tickFormatter={v => `$${v}`}
               stroke="rgba(255,255,255,0.1)"
             />
             <YAxis
-              tick={{ fontSize: 10, fill: '#888' }}
+              tick={{ fontSize: 'var(--type-micro)', fill: '#888' }}
               tickFormatter={v => v >= 0 ? `+${v}` : v}
               stroke="rgba(255,255,255,0.1)"
               width={55}
             />
             <Tooltip
-              contentStyle={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border-strong)', fontSize: 11, borderRadius: 4 }}
+              contentStyle={{ background: 'var(--color-surface-3)', border: '1px solid var(--color-border-strong)', fontSize: 'var(--type-row)', borderRadius: 4 }}
               labelFormatter={v => `Price: $${v}`}
               formatter={v => [fmt(v), 'P&L']}
             />
             {/* Zero line */}
             <ReferenceLine y={0} stroke={ZERO} strokeDasharray="4 4" />
             {/* Current spot */}
-            <ReferenceLine x={spot} stroke={SPOT} strokeDasharray="3 3" label={{ value: 'Spot', fill: ORANGE, fontSize: 9, position: 'top' }} />
+            <ReferenceLine x={spot} stroke={SPOT} strokeDasharray="3 3" label={{ value: 'Spot', fill: ORANGE, fontSize: 'var(--type-caption)', position: 'top' }} />
             {/* Break-even markers */}
             {breakEvens.map((be, i) => (
               <ReferenceLine key={i} x={be} stroke="rgba(255,255,255,0.3)" strokeDasharray="2 4" />

@@ -237,7 +237,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
         <button className="btn"
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
-          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 9, padding: '1px 5px' }}
+          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 'var(--type-caption)', padding: '1px 5px' }}
         >{collapsed ? '+' : '−'}</button>
         <button className="btn"
           onClick={() => setMoversOnly(v => !v)}

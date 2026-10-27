@@ -67,7 +67,7 @@
   color: var(--bg-app);
   border-radius: 8px;
   padding: 0 5px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 700;
   min-width: 16px;
   text-align: center;
@@ -108,7 +108,7 @@
 .ac-row-channels {
   display: flex;
   gap: 2px;
-  font-size: 12px;
+  font-size: var(--type-body);
   margin-left: auto;
 }
 
@@ -165,7 +165,7 @@
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
   padding: 1px 6px;
-  font-size: 12px;
+  font-size: var(--type-body);
   border-radius: 3px;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s;
@@ -194,7 +194,7 @@
   border: 1px solid var(--border-default);
   color: var(--text-secondary);
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: var(--type-row);
   border-radius: 3px;
   cursor: pointer;
 }
@@ -212,6 +212,6 @@
   }
   .ac-action-btn {
     padding: 4px 10px;
-    font-size: 13px;
+    font-size: var(--type-title);
   }
 }

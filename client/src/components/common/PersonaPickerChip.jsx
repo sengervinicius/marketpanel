@@ -104,7 +104,7 @@ export default function PersonaPickerChip({ selected, onSelect }) {
     color: selectedPersona
       ? 'var(--accent)'
       : 'var(--text-secondary)',
-    fontSize: 12,
+    fontSize: 'var(--type-body)',
     display: 'inline-flex',
     alignItems: 'center',
     gap: 4,
@@ -133,7 +133,7 @@ export default function PersonaPickerChip({ selected, onSelect }) {
     cursor: 'pointer',
     padding: '6px 8px',
     borderRadius: 3,
-    fontSize: 12,
+    fontSize: 'var(--type-body)',
     textAlign: 'left',
   });
 
@@ -163,7 +163,7 @@ export default function PersonaPickerChip({ selected, onSelect }) {
             role="menuitem"
           >
             <div style={{ fontWeight: 600 }}>Default (Particle AI)</div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+            <div style={{ fontSize: 'var(--type-row)', color: 'var(--text-secondary)' }}>
               Tools + context, no persona lens
             </div>
           </button>
@@ -176,7 +176,7 @@ export default function PersonaPickerChip({ selected, onSelect }) {
               role="menuitem"
             >
               <div style={{ fontWeight: 600 }}>{p.name}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.3 }}>
+              <div style={{ fontSize: 'var(--type-row)', color: 'var(--text-secondary)', lineHeight: 1.3 }}>
                 {p.one_liner}
               </div>
             </button>

@@ -65,7 +65,7 @@ const brChipStyle = (on) => ({
   border: `1px solid ${on ? 'var(--accent)' : 'var(--border-strong)'}`,
   color: on ? 'var(--accent)' : 'var(--text-muted)',
   fontFamily: 'var(--font-mono)',
-  fontSize: 9,
+  fontSize: 'var(--type-caption)',
   letterSpacing: '0.06em',
   padding: '1px 6px',
   borderRadius: 2,
@@ -152,7 +152,7 @@ const FII_COLS = '56px 1fr 72px 60px 62px';
 const fiiStyles = {
   sechead: {
     display: 'flex', alignItems: 'center', gap: 8,
-    padding: '3px 8px', fontFamily: 'var(--font-mono)', fontSize: 9.5,
+    padding: '3px 8px', fontFamily: 'var(--font-mono)', fontSize: 'var(--type-micro)',
     fontWeight: 700, letterSpacing: '0.08em', color: 'var(--section-brazil)',
     borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)',
     background: 'var(--bg-surface)',
@@ -160,20 +160,20 @@ const fiiStyles = {
   editBtn: (on) => ({
     marginLeft: 'auto', background: 'none',
     border: `1px solid ${on ? 'var(--accent)' : 'var(--border-strong)'}`,
-    color: on ? 'var(--accent)' : 'var(--text-muted)', fontSize: 9,
+    color: on ? 'var(--accent)' : 'var(--text-muted)', fontSize: 'var(--type-caption)',
     padding: '0 5px', cursor: 'pointer', borderRadius: 2,
     fontFamily: 'var(--font-mono)', letterSpacing: '0.05em',
   }),
   row: {
     display: 'grid', gridTemplateColumns: FII_COLS, gap: 4,
-    padding: '2px 8px', fontFamily: 'var(--font-mono)', fontSize: 11,
+    padding: '2px 8px', fontFamily: 'var(--font-mono)', fontSize: 'var(--type-row)',
     alignItems: 'baseline', cursor: 'pointer',
   },
   right: { textAlign: 'right', fontVariantNumeric: 'tabular-nums' },
   addForm: { display: 'flex', gap: 4, padding: '3px 8px', borderBottom: '1px solid var(--border-subtle)' },
   addInput: {
     flex: 1, background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)',
-    color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: 10,
+    color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontSize: 'var(--type-micro)',
     padding: '1px 6px', borderRadius: 2, minWidth: 0,
   },
 };
@@ -223,7 +223,7 @@ function FiiRow({ sym, meta, editMode, onRemove, onTickerClick, openDetail }) {
       <span style={{ ...fiiStyles.right, color: upDownColor(chg) }}>
         {editMode ? (
           <button
-            style={{ background: 'none', border: 'none', color: 'var(--semantic-down)', cursor: 'pointer', fontSize: 11, padding: 0 }}
+            style={{ background: 'none', border: 'none', color: 'var(--semantic-down)', cursor: 'pointer', fontSize: 'var(--type-row)', padding: 0 }}
             title={`Remove ${sym}`}
             onClick={(e) => { e.stopPropagation(); onRemove(sym); }}
           >✕</button>
@@ -301,17 +301,17 @@ const focusStyles = {
   strip: {
     display: 'flex', alignItems: 'center', gap: 8, padding: '2px 8px',
     borderBottom: '1px solid var(--border-subtle)', fontFamily: 'var(--font-mono)',
-    fontSize: 10, color: 'var(--text-secondary)', whiteSpace: 'nowrap',
+    fontSize: 'var(--type-micro)', color: 'var(--text-secondary)', whiteSpace: 'nowrap',
     overflowX: 'auto', flexShrink: 0,
   },
   tag: { fontWeight: 700, letterSpacing: '0.08em', color: 'var(--sector-brazil)' },
   item: { display: 'inline-flex', gap: 3, alignItems: 'baseline' },
-  label: { color: 'var(--text-faint)', fontSize: 9, letterSpacing: '0.05em' },
+  label: { color: 'var(--text-faint)', fontSize: 'var(--type-caption)', letterSpacing: '0.05em' },
   value: { color: 'var(--text-primary)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' },
   sep: { color: 'var(--text-faint)' },
   yearBtn: {
     marginLeft: 'auto', background: 'none', border: '1px solid var(--border-strong)',
-    color: 'var(--text-muted)', fontSize: 9, padding: '0 5px', cursor: 'pointer',
+    color: 'var(--text-muted)', fontSize: 'var(--type-caption)', padding: '0 5px', cursor: 'pointer',
     borderRadius: 2, fontFamily: 'var(--font-mono)', letterSpacing: '0.05em', flexShrink: 0,
   },
 };
@@ -381,13 +381,13 @@ const ADR_PREMIUM_HIGHLIGHT_PCT = 1.5; // mockup note 3 — accent threshold
 const adrStyles = {
   headerRow: {
     display: 'grid', gridTemplateColumns: ADR_COLS, gap: 4,
-    padding: '2px 8px', fontFamily: 'var(--font-mono)', fontSize: 9,
+    padding: '2px 8px', fontFamily: 'var(--font-mono)', fontSize: 'var(--type-caption)',
     color: 'var(--text-faint)', letterSpacing: '0.06em',
     borderBottom: '1px solid var(--border-subtle)',
   },
   row: {
     display: 'grid', gridTemplateColumns: ADR_COLS, gap: 4,
-    padding: '2px 8px', fontFamily: 'var(--font-mono)', fontSize: 11,
+    padding: '2px 8px', fontFamily: 'var(--font-mono)', fontSize: 'var(--type-row)',
     alignItems: 'baseline', cursor: 'pointer',
   },
   right: { textAlign: 'right', fontVariantNumeric: 'tabular-nums' },
@@ -441,7 +441,7 @@ function AdrPremiumSection({ batchMap, onTickerClick, openDetail }) {
   return (
     <>
       <div style={{
-        padding: '3px 8px', fontFamily: 'var(--font-mono)', fontSize: 9.5,
+        padding: '3px 8px', fontFamily: 'var(--font-mono)', fontSize: 'var(--type-micro)',
         fontWeight: 700, letterSpacing: '0.08em', color: 'var(--section-brazil)',
         borderTop: '1px solid var(--border-subtle)', borderBottom: '1px solid var(--border-subtle)',
         background: 'var(--bg-surface)',
@@ -684,7 +684,7 @@ function BrazilPanel({ onTickerClick }) {
         <button className="btn"
           onClick={() => setCollapsed(v => !v)}
           title={collapsed ? 'Expand' : 'Collapse'}
-          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 9, padding: '1px 5px' }}
+          style={{ background: 'none', border: '1px solid var(--border-strong)', color: 'var(--text-muted)', fontSize: 'var(--type-caption)', padding: '1px 5px' }}
         >{collapsed ? '+' : '−'}</button>
       </EditablePanelHeader>
 
@@ -712,7 +712,7 @@ function BrazilPanel({ onTickerClick }) {
             <div style={{ padding: 'var(--sp-5)', color: 'var(--text-muted)', textAlign: 'center' }}>LOADING...</div>
           )}
           {brSections.b3 && !loading && !error && !displayedStocks.length && (
-            <div style={{ padding: 'var(--sp-5)', color: 'var(--text-faint)', textAlign: 'center', fontSize: 11 }}>Loading B3 data...</div>
+            <div style={{ padding: 'var(--sp-5)', color: 'var(--text-faint)', textAlign: 'center', fontSize: 'var(--type-row)' }}>Loading B3 data...</div>
           )}
           {brSections.b3 && displayedStocks.map(s => {
             const sym = s.symbol.endsWith('.SA') ? s.symbol : s.symbol + '.SA';

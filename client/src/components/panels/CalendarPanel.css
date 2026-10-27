@@ -29,7 +29,7 @@
   line-height: 1;
 }
 .cp-subtitle {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
 }
 
@@ -39,7 +39,7 @@
   background: transparent;
   border: 1px solid var(--border-strong);
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-family: var(--font-family-mono);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -56,7 +56,7 @@
 
 /* H2 W1.2 — macro surprise coloring (actual vs consensus) */
 .cp-event-actual {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   color: var(--text-secondary);
   white-space: nowrap;
@@ -72,7 +72,7 @@
 
 .cp-footer {
   padding: 6px 10px;
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   color: var(--text-faint, var(--text-faint));
   text-align: center;
   border-top: 1px solid var(--border-subtle, var(--bg-elevated));
@@ -106,7 +106,7 @@
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -120,7 +120,7 @@
 /* Mono date/time chip (leftmost cell of both row kinds) */
 .cp-chip-date {
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--text-muted);
@@ -151,7 +151,7 @@
 
 .cp-ern-tim {
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-align: center;
@@ -165,7 +165,7 @@
 
 .cp-ern-tkr {
   font-family: var(--font-family-mono);
-  font-size: 12px;
+  font-size: var(--type-body);
   font-weight: 700;
   color: var(--text-primary);
   min-width: 0;
@@ -175,7 +175,7 @@
 }
 
 .cp-ern-co {
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   min-width: 0;
   overflow: hidden;
@@ -185,7 +185,7 @@
 
 .cp-ern-eps {
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -213,7 +213,7 @@
 .cp-imp-dot--low    { background: var(--price-up, var(--semantic-up)); }
 
 .cp-mac-name {
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 600;
   color: var(--text-primary);
   min-width: 0;
@@ -227,7 +227,7 @@
   align-items: baseline;
   gap: 8px;
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -235,7 +235,7 @@
 .cp-mac-prev { color: var(--text-muted); }
 
 .cp-event-chevron {
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--text-faint);
   flex-shrink: 0;
   width: 12px;
@@ -248,7 +248,7 @@
 }
 
 .cp-ai-preview-btn {
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.5px;
   padding: 4px 12px;
@@ -264,7 +264,7 @@
 }
 
 .cp-ai-loading {
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--text-muted, var(--text-faint));
   padding: 8px 0;
   animation: cp-pulse 1.5s ease-in-out infinite;
@@ -275,7 +275,7 @@
 }
 
 .cp-ai-error {
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--semantic-down);
   padding: 4px 0;
   display: flex;
@@ -283,7 +283,7 @@
   gap: 8px;
 }
 .cp-ai-retry-btn {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   padding: 2px 8px;
   border: 1px solid var(--semantic-down);
   border-radius: 3px;
@@ -304,7 +304,7 @@
 }
 
 .cp-ai-impact {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.5px;
   padding: 2px 6px;
@@ -324,14 +324,14 @@
 }
 
 .cp-ai-summary {
-  font-size: 10px;
+  font-size: var(--type-micro);
   line-height: 1.4;
   color: var(--text-primary);
   margin: 0 0 6px;
 }
 
 .cp-ai-expectation {
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--text-muted, var(--text-faint));
   font-style: italic;
   margin: 0 0 6px;
@@ -345,12 +345,12 @@
   margin-bottom: 4px;
 }
 .cp-ai-tag-label {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   font-weight: 600;
 }
 .cp-ai-tag {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   padding: 1px 5px;
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.05);
@@ -369,7 +369,7 @@
   border-top: 1px solid var(--border-subtle, var(--bg-elevated));
 }
 .cp-ai-consideration {
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--text-secondary);
   line-height: 1.4;
   margin-bottom: 2px;
@@ -378,7 +378,7 @@
 /* #UX-3 — one-line provider-offline note above the curated macro list */
 .cp-provider-note {
   padding: 6px 12px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--text-muted);
   border-bottom: 1px solid var(--border-subtle);
   line-height: 1.4;
@@ -388,7 +388,7 @@
 /* ── Earnings: market-cap column, expand caret, AI preview (item 2) ── */
 .cp-ern-cap {
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
@@ -397,7 +397,7 @@
 }
 .cp-ern-caret {
   color: var(--text-faint);
-  font-size: 9px;
+  font-size: var(--type-caption);
   transition: transform 120ms;
   text-align: center;
 }
@@ -413,7 +413,7 @@
   gap: 16px;
   margin: 4px 0;
   font-family: var(--font-family-mono);
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--text-secondary);
 }
 .cp-ern-cons b {
@@ -423,7 +423,7 @@
 }
 .cp-ai-src-note {
   margin-top: 6px;
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   color: var(--text-faint);
   font-style: italic;
 }

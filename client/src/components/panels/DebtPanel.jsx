@@ -629,7 +629,7 @@ function DebtPanel() {
                   <CartesianGrid strokeDasharray="3 3" stroke={TOKEN_HEX.borderSubtle} vertical={false} />
                   <XAxis
                     dataKey="tenor"
-                    tick={{ fill: TOKEN_HEX.textFaint, fontSize: 8.5, fontFamily: 'var(--font-mono)' }}
+                    tick={{ fill: TOKEN_HEX.textFaint, fontSize: 'var(--type-caption)', fontFamily: 'var(--font-mono)' }}
                     axisLine={false}
                     tickLine={false}
                     height={14}
@@ -637,7 +637,7 @@ function DebtPanel() {
                     interval="preserveStartEnd"
                   />
                   <YAxis
-                    tick={{ fill: TOKEN_HEX.textFaint, fontSize: 8.5, fontFamily: 'var(--font-mono)' }}
+                    tick={{ fill: TOKEN_HEX.textFaint, fontSize: 'var(--type-caption)', fontFamily: 'var(--font-mono)' }}
                     domain={['auto', 'auto']}
                     tickFormatter={v => fmtCompactPct(v, 1)}
                     width={32}
@@ -649,7 +649,7 @@ function DebtPanel() {
                       background: TOKEN_HEX.bgTooltip,
                       border: '1px solid var(--border-strong)',
                       borderRadius: 3,
-                      fontSize: 10,
+                      fontSize: 'var(--type-micro)',
                       fontFamily: 'var(--font-mono)',
                       padding: '4px 8px',
                     }}

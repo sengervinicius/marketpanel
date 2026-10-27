@@ -15,7 +15,7 @@ import React from 'react';
 
 const BASE_STYLE = {
   fontFamily: 'var(--font-family-sans)',
-  fontSize: 10,
+  fontSize: 'var(--type-micro)',
   letterSpacing: '0.3px',
   lineHeight: 1.4,
 };

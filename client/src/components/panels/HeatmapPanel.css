@@ -42,7 +42,7 @@
   border: none;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 600;
   padding: 2px 8px;
   border-radius: 2px;
@@ -66,7 +66,7 @@
 }
 
 .hm-sector-label {
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 1.5px;
   color: var(--text-muted);
@@ -97,7 +97,7 @@
 }
 
 .hm-tile-sym {
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: 0.5px;
@@ -105,7 +105,7 @@
 }
 
 .hm-tile-chg {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: rgba(255,255,255,0.8);
   font-variant-numeric: tabular-nums;
@@ -121,7 +121,7 @@
    always daily change; no weekly series exists client-side). */
 .hm-tf-badge {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 600;
   color: var(--text-muted);
   padding: 2px 8px;

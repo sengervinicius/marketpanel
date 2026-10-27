@@ -62,7 +62,7 @@
 /* Full sector name — 9px mono uppercase (never the XL* code). */
 .mm-name {
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-secondary);
@@ -75,7 +75,7 @@
 /* %chg — 12px bold mono. */
 .mm-chg {
   font-family: var(--font-family-mono);
-  font-size: 12px;
+  font-size: var(--type-body);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
@@ -91,7 +91,7 @@
   gap: 5px;
   align-items: baseline;
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   max-width: 100%;
   white-space: nowrap;
@@ -121,14 +121,14 @@
   gap: 10px;
   color: var(--text-faint);
   font-family: var(--font-family-mono);
-  font-size: 11px;
+  font-size: var(--type-row);
 }
 .mm-retry-btn {
   background: none;
   border: 1px solid var(--border-strong);
   color: var(--text-muted);
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   padding: 1px 7px;
   cursor: pointer;
   border-radius: 2px;
@@ -140,7 +140,7 @@
   padding: 3px 8px;
   border-top: 1px solid var(--border-subtle);
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   color: var(--text-faint);
   letter-spacing: 0.04em;
   white-space: nowrap;

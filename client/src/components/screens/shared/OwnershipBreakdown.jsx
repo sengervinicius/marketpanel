@@ -87,7 +87,7 @@ export const OwnershipBreakdown = memo(function OwnershipBreakdown({
   return (
     <div style={{ padding: '8px' }}>
       <div style={{
-        fontSize: 9,
+        fontSize: 'var(--type-caption)',
         color: 'var(--text-primary)',
         marginBottom: 10,
         textTransform: 'uppercase',
@@ -104,7 +104,7 @@ export const OwnershipBreakdown = memo(function OwnershipBreakdown({
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text-muted)',
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
         }}>
           Loading ownership…
         </div>
@@ -115,7 +115,7 @@ export const OwnershipBreakdown = memo(function OwnershipBreakdown({
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text-muted)',
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
         }}>
           No ownership data available
         </div>

@@ -45,20 +45,20 @@ export function FeedStatusBar({ feedStatus }) {
       position: 'fixed', bottom: 0, left: 0, right: 0,
       zIndex: 50,
     }} className="flex-row">
-      <span style={{ color: 'var(--color-text-muted)', fontSize: 8.5, letterSpacing: '1px' }}>FEED</span>
+      <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--type-caption)', letterSpacing: '1px' }}>FEED</span>
       {feeds.map(({ key, label }) => {
         const val = feedStatus?.[key];
         const level = getLevel(val);
         const latency = getLatencyText(val);
         return (
           <span key={key} className="flex-row gap-4">
-            <span style={{ color: color(level), fontSize: 9 }}>{dot(level)}</span>
-            <span style={{ color: 'var(--color-text-muted)', fontSize: 8.5, letterSpacing: '0.8px' }}>{label}</span>
-            <span style={{ color: color(level), fontSize: 8.5, fontWeight: 700, letterSpacing: '0.5px', opacity: 0.9 }}>
+            <span style={{ color: color(level), fontSize: 'var(--type-caption)' }}>{dot(level)}</span>
+            <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--type-caption)', letterSpacing: '0.8px' }}>{label}</span>
+            <span style={{ color: color(level), fontSize: 'var(--type-caption)', fontWeight: 700, letterSpacing: '0.5px', opacity: 0.9 }}>
               {level.toUpperCase()}
             </span>
             {latency && (
-              <span style={{ color: 'var(--color-text-muted)', fontSize: 8.5, letterSpacing: '0.3px' }}>{latency}</span>
+              <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--type-caption)', letterSpacing: '0.3px' }}>{latency}</span>
             )}
           </span>
         );
@@ -163,15 +163,15 @@ export function TrialBanner({ subscription, onUpgrade, onManageBilling, billingS
       padding: '3px 12px', flexShrink: 0, flexWrap: 'wrap',
     }}>
       {checkoutError && (
-        <span style={{ color: 'var(--color-down)', fontSize: 8.5, letterSpacing: '0.5px', fontWeight: 600 }}>
+        <span style={{ color: 'var(--color-down)', fontSize: 'var(--type-caption)', letterSpacing: '0.5px', fontWeight: 600 }}>
           Error: {checkoutError}
         </span>
       )}
       {!checkoutError && (
         <>
-          <span style={{ color: clr, fontSize: 8.5, letterSpacing: '0.8px', fontWeight: 700 }}>{msg}</span>
+          <span style={{ color: clr, fontSize: 'var(--type-caption)', letterSpacing: '0.8px', fontWeight: 700 }}>{msg}</span>
           {isLoading ? (
-            <span style={{ color: clr, fontSize: 8.5, fontWeight: 600 }}>Setting up...</span>
+            <span style={{ color: clr, fontSize: 'var(--type-caption)', fontWeight: 600 }}>Setting up...</span>
           ) : (
             <>
               {!isPaid && !showSuccess && (
@@ -327,16 +327,16 @@ export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss })
         fontFamily: 'var(--font-ui)',
         boxShadow: '0 24px 80px rgba(0, 0, 0, 0.6)',
       }}>
-        <div style={{ fontSize: 32, color: 'var(--color-accent)', fontWeight: 800, letterSpacing: '0.06em', marginBottom: 8 }}>
+        <div style={{ fontSize: 'var(--type-hero)', color: 'var(--color-accent)', fontWeight: 800, letterSpacing: '0.06em', marginBottom: 8 }}>
           PARTICLE
         </div>
-        <div style={{ fontSize: 13, color: '#888', marginBottom: 28, lineHeight: 1.6 }}>
+        <div style={{ fontSize: 'var(--type-title)', color: '#888', marginBottom: 28, lineHeight: 1.6 }}>
           Real-time market data, AI insights, and deep sector analysis — all in one terminal.
         </div>
 
         {/* Error message */}
         {error && (
-          <div style={{ color: '#ff6666', fontSize: 11, marginBottom: 12, lineHeight: 1.5 }}>
+          <div style={{ color: '#ff6666', fontSize: 'var(--type-row)', marginBottom: 12, lineHeight: 1.5 }}>
             {error}
           </div>
         )}
@@ -349,7 +349,7 @@ export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss })
             width: '100%', padding: '13px 20px', marginBottom: 10,
             background: loading ? 'var(--color-accent-hover)' : 'linear-gradient(180deg, var(--color-accent) 0%, var(--color-accent-hover) 100%)',
             color: '#000', border: 'none', borderRadius: 8,
-            fontWeight: 700, fontSize: 12, letterSpacing: '0.1em',
+            fontWeight: 700, fontSize: 'var(--type-body)', letterSpacing: '0.1em',
             cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: 'var(--font-ui)',
           }}
@@ -364,7 +364,7 @@ export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss })
             width: '100%', padding: '11px 20px', marginBottom: 0,
             background: 'transparent', color: '#666',
             border: '1px solid #1a1a1a', borderRadius: 8,
-            fontWeight: 600, fontSize: 11, letterSpacing: '0.08em',
+            fontWeight: 600, fontSize: 'var(--type-row)', letterSpacing: '0.08em',
             cursor: 'pointer',
             fontFamily: 'var(--font-ui)',
           }}
@@ -372,7 +372,7 @@ export function WelcomeSubscriptionModal({ subscription, onUpgrade, onDismiss })
           START FREE TRIAL ({days} DAYS)
         </button>
 
-        <div style={{ marginTop: 16, fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.05em' }}>
+        <div style={{ marginTop: 16, fontSize: 'var(--type-caption)', color: 'var(--color-text-muted)', letterSpacing: '0.05em' }}>
           Cancel anytime. No commitment.
         </div>
       </div>

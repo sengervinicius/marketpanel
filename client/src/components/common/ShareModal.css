@@ -40,7 +40,7 @@
   background: none;
   border: none;
   color: var(--text-muted);
-  font-size: 18px;
+  font-size: var(--type-display);
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;
@@ -90,7 +90,7 @@
 .share-text {
   flex: 1;
   padding: 6px 10px;
-  font-size: 11px;
+  font-size: var(--type-row);
   font-family: var(--font-mono);
   background: var(--bg-surface, var(--bg-active));
   border: 1px solid var(--border-default, var(--text-faint));
@@ -102,7 +102,7 @@
 }
 .share-copy-btn {
   padding: 4px 10px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 700;
   font-family: var(--font-ui);
   letter-spacing: 0.5px;
@@ -130,7 +130,7 @@
   flex: 1;
   min-width: 80px;
   padding: 8px 12px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 700;
   font-family: var(--font-ui);
   letter-spacing: 0.5px;
@@ -153,7 +153,7 @@
 /* ── Download button ───────────────────────────────── */
 .share-download {
   padding: 8px 16px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 700;
   font-family: var(--font-ui);
   letter-spacing: 0.8px;
@@ -172,5 +172,5 @@
 @media (max-width: 768px) {
   .share-modal { max-width: 100%; margin: 0 8px; }
   .share-social { gap: 6px; }
-  .share-social-btn { min-width: 70px; font-size: 9px; }
+  .share-social-btn { min-width: 70px; font-size: var(--type-caption); }
 }

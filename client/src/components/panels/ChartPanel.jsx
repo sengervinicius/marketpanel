@@ -487,7 +487,7 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           {(hoverPrice ?? dispPrice) != null && (
             <span className={`mc-price${hoverPrice != null ? ' mc-price--hover' : ''}`} title={isGBX ? 'Quoted in pence (GBX); shown in pounds' : undefined}>
-              {fmtPrice(hoverPrice ?? dispPrice)}{isGBX && <span style={{ fontSize: 8, marginLeft: 3, color: 'var(--text-muted)', fontWeight: 400 }}>GBP</span>}
+              {fmtPrice(hoverPrice ?? dispPrice)}{isGBX && <span style={{ fontSize: 'var(--type-caption)', marginLeft: 3, color: 'var(--text-muted)', fontWeight: 400 }}>GBP</span>}
             </span>
           )}
           {dispChgPct != null && (
@@ -539,17 +539,17 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
         {loading ? (
           <div className="mc-msg mc-skeleton-shimmer" style={{ opacity: 0.4 }}>&nbsp;</div>
         ) : fetchError ? (
-          <div className="mc-msg" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, height: '100%', color: 'var(--text-muted)', fontSize: 10 }}>
+          <div className="mc-msg" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, height: '100%', color: 'var(--text-muted)', fontSize: 'var(--type-micro)' }}>
             <span style={{ color: 'var(--accent-danger, #d54a3f)' }}>{fetchError}</span>
             <button
               type="button"
               className="btn"
               onClick={() => fetchData(rangeIdx)}
-              style={{ padding: '3px 10px', fontSize: 10, border: '1px solid var(--border-default)', borderRadius: 3, background: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+              style={{ padding: '3px 10px', fontSize: 'var(--type-micro)', border: '1px solid var(--border-default)', borderRadius: 3, background: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
             >Retry</button>
           </div>
         ) : data.length === 0 ? (
-          <div className="mc-msg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 10 }}>
+          <div className="mc-msg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 'var(--type-micro)' }}>
             No chart data for this range{emptyReason ? ` — ${emptyReason}` : ''}
           </div>
         ) : (
@@ -562,8 +562,8 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
                   <stop offset="95%" stopColor={lineColor} stopOpacity={0.0}  />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fill: 'var(--text-muted)', fontSize: 8.5 }} tickLine={false} axisLine={false} interval={Math.max(0, Math.ceil(chartBars.length / 4) - 1)} height={14} />
-              <YAxis orientation="right" domain={['auto','auto']} tickFormatter={fmtK} tick={{ fill: 'var(--text-muted)', fontSize: 8.5 }} tickLine={false} axisLine={false} width={32} />
+              <XAxis dataKey="t" tickFormatter={xFmt} tick={{ fill: 'var(--text-muted)', fontSize: 'var(--type-caption)' }} tickLine={false} axisLine={false} interval={Math.max(0, Math.ceil(chartBars.length / 4) - 1)} height={14} />
+              <YAxis orientation="right" domain={['auto','auto']} tickFormatter={fmtK} tick={{ fill: 'var(--text-muted)', fontSize: 'var(--type-caption)' }} tickLine={false} axisLine={false} width={32} />
               {openPrice && <ReferenceLine y={openPrice} stroke="var(--accent-text)" strokeDasharray="3 3" strokeWidth={1} />}
               <Area type="monotone" dataKey="v" stroke={lineColor} strokeWidth={1.5} fill={`url(#${gradId})`} dot={false} isAnimationActive={false} />
 

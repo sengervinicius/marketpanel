@@ -48,7 +48,7 @@
 }
 
 .pricing-brand {
-  font-size: 11px;
+  font-size: var(--type-row);
   font-weight: 700;
   letter-spacing: 0.14em;
   color: var(--color-particle);
@@ -57,7 +57,7 @@
 
 .pricing-title {
   font-family: var(--font-display);
-  font-size: 26px;
+  font-size: var(--type-hero);
   font-weight: 500;
   color: var(--color-text-primary);
   letter-spacing: -0.02em;
@@ -65,7 +65,7 @@
 }
 
 .pricing-subtitle {
-  font-size: 12px;
+  font-size: var(--type-body);
   color: var(--color-text-muted);
   line-height: 1.5;
 }
@@ -81,7 +81,7 @@
 }
 
 .pricing-toggle-label {
-  font-size: 11px;
+  font-size: var(--type-row);
   font-weight: 600;
   letter-spacing: 0.06em;
   color: var(--color-text-muted);
@@ -127,7 +127,7 @@
 }
 
 .pricing-save-badge {
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--color-particle);
@@ -185,7 +185,7 @@
   top: -10px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.12em;
   color: #000;
@@ -196,7 +196,7 @@
 }
 
 .pricing-card-name {
-  font-size: 14px;
+  font-size: var(--type-lead);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--color-text-primary);
@@ -211,7 +211,7 @@
 }
 
 .pricing-card-amount {
-  font-size: 32px;
+  font-size: var(--type-hero);
   font-weight: 700;
   color: var(--color-text-primary);
   letter-spacing: -0.02em;
@@ -219,7 +219,7 @@
 }
 
 .pricing-card-amount-was {
-  font-size: 18px;
+  font-size: var(--type-display);
   font-weight: 600;
   color: var(--color-text-muted);
   text-decoration: line-through;
@@ -229,7 +229,7 @@
 
 .pricing-card-promo-badge {
   display: inline-block;
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 800;
   letter-spacing: 0.08em;
   color: #0a0a0f;
@@ -240,12 +240,12 @@
 }
 
 .pricing-card-period {
-  font-size: 11px;
+  font-size: var(--type-row);
   color: var(--color-text-muted);
 }
 
 .pricing-card-annual-note {
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--color-text-muted);
   margin-bottom: 16px;
 }
@@ -264,7 +264,7 @@
 }
 
 .pricing-card-feature {
-  font-size: 11px;
+  font-size: var(--type-row);
   color: var(--color-text-secondary);
   padding: 4px 0;
   display: flex;
@@ -276,7 +276,7 @@
 .pricing-card-feature::before {
   content: '✓';
   color: var(--color-particle);
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 700;
   flex-shrink: 0;
   margin-top: 1px;
@@ -305,7 +305,7 @@
   border: none;
   border-radius: var(--radius-md);
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: var(--type-body);
   font-weight: 700;
   letter-spacing: 0.10em;
   cursor: pointer;
@@ -332,7 +332,7 @@
   border: none;
   color: var(--color-text-muted);
   font-family: var(--font-body);
-  font-size: 11px;
+  font-size: var(--type-row);
   cursor: pointer;
   padding: 4px 8px;
   letter-spacing: 0.04em;
@@ -345,13 +345,13 @@
 .pricing-error {
   text-align: center;
   color: #ff6666;
-  font-size: 11px;
+  font-size: var(--type-row);
   margin-bottom: 12px;
 }
 
 .pricing-fine-print {
   text-align: center;
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   letter-spacing: 0.04em;
   margin-top: 4px;
@@ -372,7 +372,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
-  font-size: 14px;
+  font-size: var(--type-lead);
   cursor: pointer;
   transition: color var(--duration-fast), border-color var(--duration-fast);
 }

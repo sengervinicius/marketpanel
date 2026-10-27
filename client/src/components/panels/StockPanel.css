@@ -36,7 +36,7 @@
   background: none;
   border: 1px solid var(--border-strong);
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
   padding: 1px 5px;
   cursor: pointer;
   font-family: var(--font-ui);
@@ -83,12 +83,12 @@
 
 .stp-no-movers {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
   padding: var(--sp-3);
 }
 
 .stp-section-empty {
   padding: var(--sp-2) var(--sp-3);
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
 }

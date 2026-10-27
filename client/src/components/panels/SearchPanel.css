@@ -117,7 +117,7 @@
 
 .sp-ai-label {
   color: var(--accent, var(--accent));
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.15em;
 }
@@ -175,7 +175,7 @@
 }
 
 .sp-ai-citation {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   padding: 2px 7px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
@@ -274,7 +274,7 @@
 
 .sp-drag-icon {
   color: var(--text-faint);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   flex-shrink: 0;
   cursor: grab;
   letter-spacing: 1px;
@@ -367,7 +367,7 @@
 }
 
 .sp-type-badge {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   padding: 2px 6px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -386,7 +386,7 @@
 }
 
 .sp-add-home-btn {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   padding: 2px 6px;
   letter-spacing: 0.1em;
   transition: all 0.2s;
@@ -408,7 +408,7 @@
 
 .sp-empty-state-hint {
   color: var(--border-subtle);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
 }
 
 .sp-no-results {
@@ -486,7 +486,7 @@
 .sp-ticker {
   color: var(--accent);
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--type-title);
 }
 
 .sp-ticker-badge {
@@ -498,7 +498,7 @@
 
 .sp-ticker-name {
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -521,7 +521,7 @@
 }
 
 .sp-change {
-  font-size: 13px;
+  font-size: var(--type-title);
   margin-top: 3px;
   margin-bottom: 10px;
 }
@@ -564,7 +564,7 @@
 /* ── AI Semantic Search ── */
 .sp-ai-loading {
   padding: 10px 14px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 600;
   letter-spacing: 0.5px;
   color: var(--text-muted);
@@ -576,7 +576,7 @@
 }
 .sp-ai-error {
   padding: 8px 14px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--color-down);
 }
 .sp-ai-results {
@@ -590,7 +590,7 @@
   padding: 6px 14px;
 }
 .sp-ai-badge {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.5px;
   padding: 1px 5px;
@@ -600,7 +600,7 @@
   border: 1px solid rgba(229, 90, 0, 0.25);
 }
 .sp-ai-header-text {
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.8px;
   color: var(--text-muted);
@@ -609,7 +609,7 @@
   border-left: 2px solid rgba(229, 90, 0, 0.3);
 }
 .sp-ai-reason {
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   font-style: italic;
   white-space: nowrap;
@@ -623,7 +623,7 @@
   gap: 4px;
   margin: 4px 14px;
   padding: 4px 10px;
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.5px;
   font-family: inherit;
@@ -683,7 +683,7 @@
 /* ── FEAT-4: primary-ticker ranking ─────────────────────────────────── */
 .sp-primary-badge {
   font-family: var(--font-family-mono);
-  font-size: 8px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   padding: 1px 4px;
@@ -702,7 +702,7 @@
   border-bottom: 1px solid var(--border-subtle, #141414);
   padding: 2px 12px 4px 44px; /* aligns under the symbol column */
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.05em;
   color: var(--text-muted, #777);
   cursor: pointer;

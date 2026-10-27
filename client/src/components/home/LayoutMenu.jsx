@@ -16,12 +16,12 @@ const S = {
     border: '1px solid var(--border-strong)',
     borderRadius: 4,
     boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
-    fontFamily: 'var(--font-mono)', fontSize: 11,
+    fontFamily: 'var(--font-mono)', fontSize: 'var(--type-row)',
     color: 'var(--text-secondary)',
     padding: 4,
   },
   head: {
-    padding: '6px 8px', fontSize: 9, letterSpacing: '1px',
+    padding: '6px 8px', fontSize: 'var(--type-caption)', letterSpacing: '1px',
     color: 'var(--text-faint)',
   },
   row: {
@@ -31,7 +31,7 @@ const S = {
   name: { flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, fontFamily: 'inherit', fontSize: 'inherit' },
   iconBtn: {
     background: 'none', border: '1px solid transparent', color: 'var(--text-faint)',
-    cursor: 'pointer', padding: '1px 4px', borderRadius: 2, fontSize: 10, fontFamily: 'inherit',
+    cursor: 'pointer', padding: '1px 4px', borderRadius: 2, fontSize: 'var(--type-micro)', fontFamily: 'inherit',
   },
   input: {
     flex: 1, background: 'var(--bg-app)', color: 'var(--text-primary)',
@@ -44,7 +44,7 @@ const S = {
   newBtn: {
     width: '100%', background: 'none', border: '1px dashed var(--border-strong)',
     color: 'var(--text-faint)', cursor: 'pointer', padding: '5px 8px',
-    borderRadius: 3, fontFamily: 'inherit', fontSize: 11, letterSpacing: '0.5px',
+    borderRadius: 3, fontFamily: 'inherit', fontSize: 'var(--type-row)', letterSpacing: '0.5px',
   },
 };
 

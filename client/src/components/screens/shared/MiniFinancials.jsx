@@ -160,7 +160,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
     return (
       <div style={{
         opacity: 0.4,
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         color: 'var(--text-muted)',
         letterSpacing: '0.5px',
         whiteSpace: 'nowrap',
@@ -175,7 +175,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
     return (
       <div style={{
         opacity: 0.4,
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         color: 'var(--text-muted)',
         letterSpacing: '0.5px',
         whiteSpace: 'nowrap',
@@ -206,7 +206,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
         borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
         <span style={{
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
           fontWeight: 600,
           color: 'var(--text-secondary)',
           letterSpacing: '0.8px',
@@ -239,7 +239,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
             {/* Year */}
             <span style={{
               width: 28,
-              fontSize: 11,
+              fontSize: 'var(--type-row)',
               color: 'var(--text-muted)',
               fontWeight: 500,
               flexShrink: 0,
@@ -269,7 +269,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
             <span style={{
               width: 48,
               textAlign: 'right',
-              fontSize: 11,
+              fontSize: 'var(--type-row)',
               color: 'var(--text-primary)',
               fontWeight: 500,
               flexShrink: 0,
@@ -281,7 +281,7 @@ export const MiniFinancials = memo(function MiniFinancials({ ticker, accentColor
             <span style={{
               width: 38,
               textAlign: 'right',
-              fontSize: 10,
+              fontSize: 'var(--type-micro)',
               fontWeight: 600,
               flexShrink: 0,
               color: yoyGrowth == null ? 'transparent'

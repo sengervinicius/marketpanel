@@ -90,7 +90,7 @@ export default class PanelErrorBoundary extends Component {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             height: '100%', minHeight: 80, padding: 16,
             color: 'var(--color-text-muted, #666)',
-            fontFamily: 'var(--font-ui)', fontSize: 10, letterSpacing: '.5px',
+            fontFamily: 'var(--font-ui)', fontSize: 'var(--type-micro)', letterSpacing: '.5px',
             opacity: .55,
           }}>
             UPDATING…
@@ -110,19 +110,19 @@ export default class PanelErrorBoundary extends Component {
           padding: 16,
           color: '#888',
           fontFamily: 'var(--font-ui)',
-          fontSize: 11,
+          fontSize: 'var(--type-row)',
           textAlign: 'center',
         }}>
-          <span style={{ color: 'var(--color-text-secondary)', fontWeight: 600, fontSize: 12 }}>
+          <span style={{ color: 'var(--color-text-secondary)', fontWeight: 600, fontSize: 'var(--type-body)' }}>
             {`${this.props.name || 'Panel'} — loading issue`}
           </span>
-          <span style={{ color: '#666', fontSize: 10, maxWidth: 300, wordBreak: 'break-word' }}>
+          <span style={{ color: '#666', fontSize: 'var(--type-micro)', maxWidth: 300, wordBreak: 'break-word' }}>
             {this.state.error?.message || 'Something went wrong. Try refreshing this panel.'}
           </span>
           {import.meta.env.DEV && this.state.error?.stack && (
             <details style={{ marginTop: 4, maxWidth: 400, textAlign: 'left' }}>
-              <summary style={{ cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: 9 }}>Stack trace</summary>
-              <pre style={{ color: 'var(--color-text-muted)', fontSize: 8.5, whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 120, overflow: 'auto', marginTop: 4 }}>
+              <summary style={{ cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: 'var(--type-caption)' }}>Stack trace</summary>
+              <pre style={{ color: 'var(--color-text-muted)', fontSize: 'var(--type-caption)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 120, overflow: 'auto', marginTop: 4 }}>
                 {this.state.error.stack.split('\n').slice(0, 8).join('\n')}
               </pre>
             </details>
@@ -137,7 +137,7 @@ export default class PanelErrorBoundary extends Component {
               padding: '4px 12px',
               borderRadius: 3,
               cursor: 'pointer',
-              fontSize: 10,
+              fontSize: 'var(--type-micro)',
               letterSpacing: '0.5px',
             }}
           >

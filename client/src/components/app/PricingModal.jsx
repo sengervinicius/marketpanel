@@ -159,7 +159,7 @@ export default function PricingModal({ visible, onDismiss, onSelectTier, current
                 {meta.popular && <div className="pricing-popular-tag">MOST POPULAR</div>}
 
                 <div className="pricing-card-name">{tier.label}</div>
-                <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginBottom: 12, letterSpacing: '0.02em' }}>
+                <div style={{ fontSize: 'var(--type-micro)', color: 'var(--color-text-muted)', marginBottom: 12, letterSpacing: '0.02em' }}>
                   {meta.tagline}
                 </div>
 
@@ -200,7 +200,7 @@ export default function PricingModal({ visible, onDismiss, onSelectTier, current
                 {isCurrent && (
                   <div style={{
                     marginTop: 14, textAlign: 'center',
-                    fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                    fontSize: 'var(--type-micro)', fontWeight: 700, letterSpacing: '0.08em',
                     color: 'var(--color-text-muted)',
                   }}>
                     CURRENT PLAN

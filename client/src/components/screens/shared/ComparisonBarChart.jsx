@@ -24,7 +24,7 @@ function CustomTooltip({ active, payload, label, valueLabel }) {
         border: '1px solid var(--border-strong)',
         padding: '6px 10px',
         borderRadius: 4,
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         color: TOKEN_HEX.textPrimary,
         boxShadow: '0 2px 12px rgba(0,0,0,0.6)',
       }}>
@@ -55,7 +55,7 @@ export const ComparisonBarChart = memo(function ComparisonBarChart({
 
   if (!sortedData || sortedData.length === 0) {
     return (
-      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 10 }}>
+      <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 'var(--type-micro)' }}>
         No data available
       </div>
     );
@@ -67,7 +67,7 @@ export const ComparisonBarChart = memo(function ComparisonBarChart({
     <div style={{ padding: '8px' }}>
       {title && (
         <div style={{
-          fontSize: 9,
+          fontSize: 'var(--type-caption)',
           color: accentColor || 'var(--text-muted)',
           marginBottom: 10,
           textTransform: 'uppercase',
@@ -91,13 +91,13 @@ export const ComparisonBarChart = memo(function ComparisonBarChart({
               <XAxis
                 type="number"
                 stroke={TOKEN_HEX.borderDefault}
-                tick={{ fontSize: 9, fill: TOKEN_HEX.textMuted }}
+                tick={{ fontSize: 'var(--type-caption)', fill: TOKEN_HEX.textMuted }}
               />
               <YAxis
                 type="category"
                 dataKey="label"
                 stroke={TOKEN_HEX.borderDefault}
-                tick={{ fontSize: 9, fill: TOKEN_HEX.textSecondary }}
+                tick={{ fontSize: 'var(--type-caption)', fill: TOKEN_HEX.textSecondary }}
                 width={55}
               />
             </>
@@ -106,12 +106,12 @@ export const ComparisonBarChart = memo(function ComparisonBarChart({
               <XAxis
                 dataKey="label"
                 stroke={TOKEN_HEX.borderDefault}
-                tick={{ fontSize: 8.5, fill: TOKEN_HEX.textSecondary, angle: -45, textAnchor: 'end' }}
+                tick={{ fontSize: 'var(--type-caption)', fill: TOKEN_HEX.textSecondary, angle: -45, textAnchor: 'end' }}
                 height={40}
               />
               <YAxis
                 stroke={TOKEN_HEX.borderDefault}
-                tick={{ fontSize: 9, fill: TOKEN_HEX.textMuted }}
+                tick={{ fontSize: 'var(--type-caption)', fill: TOKEN_HEX.textMuted }}
               />
             </>
           )}

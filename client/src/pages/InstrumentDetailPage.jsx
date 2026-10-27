@@ -42,7 +42,7 @@ export default function InstrumentDetailPage() {
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         height: '100vh', background: '#0a0a0a', color: '#444',
-        fontSize: 11,
+        fontSize: 'var(--type-row)',
       }}>
         No symbol specified.
       </div>
@@ -74,21 +74,21 @@ export default function InstrumentDetailPage() {
         background: '#000', borderBottom: '1px solid #1e1e1e',
         padding: '0 12px', gap: 10,
       }}>
-        <span style={{ color: 'var(--color-particle)', fontWeight: 700, fontSize: 11, letterSpacing: '2px' }}>PARTICLE</span>
-        <span style={{ color: '#2a2a2a', fontSize: 9, letterSpacing: '1px' }}>INSTRUMENT DETAIL</span>
+        <span style={{ color: 'var(--color-particle)', fontWeight: 700, fontSize: 'var(--type-row)', letterSpacing: '2px' }}>PARTICLE</span>
+        <span style={{ color: '#2a2a2a', fontSize: 'var(--type-caption)', letterSpacing: '1px' }}>INSTRUMENT DETAIL</span>
         <span style={{
           color: 'var(--text-primary, #ddd)', fontFamily: 'var(--font-family-mono)',
-          fontWeight: 700, fontSize: 11, letterSpacing: '1px',
+          fontWeight: 700, fontSize: 'var(--type-row)', letterSpacing: '1px',
         }}>{decodedSymbol}</span>
         <div style={{ flex: 1 }} />
-        <span style={{ color: '#2a2a2a', fontSize: 8.5, letterSpacing: '0.5px' }}>SEPARATE WINDOW — CLOSE TO RETURN</span>
-        {user && <span style={{ color: '#2a2a2a', fontSize: 8.5 }}>{user.username?.toUpperCase()}</span>}
+        <span style={{ color: '#2a2a2a', fontSize: 'var(--type-caption)', letterSpacing: '0.5px' }}>SEPARATE WINDOW — CLOSE TO RETURN</span>
+        {user && <span style={{ color: '#2a2a2a', fontSize: 'var(--type-caption)' }}>{user.username?.toUpperCase()}</span>}
         <button className="btn"
           onClick={() => window.close()}
           title="Close this window"
           style={{
             background: 'none', border: '1px solid #1e1e1e', color: '#333',
-            fontSize: 9, padding: '2px 8px', }}
+            fontSize: 'var(--type-caption)', padding: '2px 8px', }}
         >CLOSE</button>
       </div>
 
@@ -120,7 +120,7 @@ export default function InstrumentDetailPage() {
             <PortfolioProvider>
               <WatchlistProvider>
                 <AlertsProvider>
-                  <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', fontSize: 11 }}>Loading...</div>}>
+                  <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', fontSize: 'var(--type-row)' }}>Loading...</div>}>
                     {/* #291 W2.16 HOTFIX — wrap in PanelErrorBoundary so a
                         render crash inside InstrumentDetail (recharts
                         bad-data, etc.) gets contained to a panel-level

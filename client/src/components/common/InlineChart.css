@@ -15,7 +15,7 @@
 }
 
 .inline-chart-title {
-  font-size: 12px;
+  font-size: var(--type-body);
   font-weight: 600;
   color: #aaaaaa;
   margin-bottom: 8px;
@@ -56,7 +56,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
+  font-size: var(--type-row);
   padding: 0 4px;
 }
 
@@ -103,7 +103,7 @@
   flex-wrap: wrap;
   justify-content: flex-start;
   padding: 4px;
-  font-size: 11px;
+  font-size: var(--type-row);
 }
 
 .inline-chart-legend-item {
@@ -157,7 +157,7 @@
 .inline-chart-error {
   padding: 12px;
   color: #ff8844;
-  font-size: 12px;
+  font-size: var(--type-body);
   text-align: center;
   background-color: rgba(255, 136, 68, 0.05);
   border-radius: 4px;
@@ -173,15 +173,15 @@
   }
 
   .inline-chart-title {
-    font-size: 11px;
+    font-size: var(--type-row);
   }
 
   .inline-chart-footer {
-    font-size: 10px;
+    font-size: var(--type-micro);
   }
 
   .inline-chart-legend {
-    font-size: 10px;
+    font-size: var(--type-micro);
     gap: 8px;
   }
 }

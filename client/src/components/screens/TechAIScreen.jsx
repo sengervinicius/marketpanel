@@ -202,7 +202,7 @@ function RevenueGrowthChart() {
         alignItems: 'center',
         justifyContent: 'center',
         color: 'var(--text-muted)',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
       }}>
         No revenue data available
       </div>
@@ -212,14 +212,14 @@ function RevenueGrowthChart() {
   return (
     <ResponsiveContainer width="100%" height={200}>
       <BarChart data={data} margin={{ top: 8, right: 16, bottom: 32, left: 40 }}>
-        <XAxis dataKey="ticker" style={{ fontSize: 9, fill: 'var(--text-muted)' }} />
-        <YAxis style={{ fontSize: 9, fill: 'var(--text-muted)' }} />
+        <XAxis dataKey="ticker" style={{ fontSize: 'var(--type-caption)', fill: 'var(--text-muted)' }} />
+        <YAxis style={{ fontSize: 'var(--type-caption)', fill: 'var(--text-muted)' }} />
         <Tooltip
           contentStyle={{
             background: 'var(--bg-panel)',
             border: '1px solid var(--border-default)',
             borderRadius: 3,
-            fontSize: 9,
+            fontSize: 'var(--type-caption)',
             color: 'var(--text-primary)',
           }}
           formatter={(value) => `${value.toFixed(2)}%`}
@@ -297,7 +297,7 @@ function MiniFinancialsStrip({ statsMap }) {
           }}
         >
           <div style={{
-            fontSize: 12,
+            fontSize: 'var(--type-body)',
             fontWeight: 600,
             color: 'var(--text-primary)',
             marginBottom: 8,
@@ -332,14 +332,14 @@ function EtfCell({ sym, onClick }) {
         transition: 'all 0.2s',
       }}
     >
-      <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-primary)' }}>
+      <div style={{ fontSize: 'var(--type-micro)', fontWeight: 600, color: 'var(--text-primary)' }}>
         {sym}
       </div>
-      <div style={{ fontSize: 9, color: 'var(--text-secondary)', marginTop: 2 }}>
+      <div style={{ fontSize: 'var(--type-caption)', color: 'var(--text-secondary)', marginTop: 2 }}>
         {q?.price != null ? fmt(q.price) : '—'}
       </div>
       <div style={{
-        fontSize: 9,
+        fontSize: 'var(--type-caption)',
         color: isUp ? 'var(--semantic-up)' : 'var(--semantic-down)',
         fontWeight: 500,
         marginTop: 2,

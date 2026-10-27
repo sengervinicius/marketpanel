@@ -83,7 +83,7 @@ export const KPICard = memo(function KPICard({
     }}>
       <span style={{
         fontFamily: 'var(--font-family-mono)',
-        fontSize: 8.5,
+        fontSize: 'var(--type-caption)',
         fontWeight: 500,
         color: 'var(--text-muted)',
         letterSpacing: '0.1em',
@@ -104,7 +104,7 @@ export const KPICard = memo(function KPICard({
       </span>
       {change != null && (
         <span style={{
-          fontSize: 11,
+          fontSize: 'var(--type-row)',
           fontWeight: 600,
           color: changeColor,
           fontFamily: 'var(--font-mono)',
@@ -195,7 +195,7 @@ export const LiveTickerRow = memo(function LiveTickerRow({
       </td>
       <td style={{
         color: 'var(--text-muted)',
-        fontSize: '9px',
+        fontSize: 'var(--type-caption)',
         maxWidth: 120,
         overflow: 'hidden',
         textOverflow: 'ellipsis',
@@ -254,7 +254,7 @@ export const SectorTable = memo(function SectorTable({
               <th key={i} style={{
                 padding: compact ? '4px 6px' : '6px 8px',
                 fontFamily: 'var(--font-family-mono)',
-                fontSize: 8.5,
+                fontSize: 'var(--type-caption)',
                 fontWeight: 500,
                 color: 'var(--color-table-header)',
                 letterSpacing: '0.1em',
@@ -305,7 +305,7 @@ function TickerChip({ ticker, onClick }) {
       }}
     >
       <span style={{
-        fontSize: 11,
+        fontSize: 'var(--type-row)',
         fontWeight: 700,
         color: 'var(--text-primary)',
         letterSpacing: '0.3px',
@@ -314,7 +314,7 @@ function TickerChip({ ticker, onClick }) {
       </span>
       {changePct != null && (
         <span style={{
-          fontSize: 11,
+          fontSize: 'var(--type-row)',
           fontWeight: 600,
           color: isUp ? 'var(--semantic-up)' : 'var(--semantic-down)',
         }}>
@@ -360,7 +360,7 @@ export function SectionDivider({ label }) {
       {label && (
         <span style={{
           fontFamily: 'var(--font-family-mono)',
-          fontSize: 8.5,
+          fontSize: 'var(--type-caption)',
           fontWeight: 500,
           color: 'var(--color-section-header)',
           letterSpacing: '0.12em',

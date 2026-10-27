@@ -109,7 +109,7 @@ function SectionHeader({
             color: 'var(--text-faint)',
             cursor: 'pointer',
             padding: '0 2px',
-            fontSize: 10,
+            fontSize: 'var(--type-micro)',
             lineHeight: 1,
             opacity: 0.7,
             display: 'flex',

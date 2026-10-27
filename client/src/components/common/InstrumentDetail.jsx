@@ -66,10 +66,10 @@ function VolumeHoverTip({ active, payload, label }) {
       pointerEvents: 'none',
       fontFamily: 'var(--font-family-mono)',
     }}>
-      <div style={{ color: 'var(--text-muted)', fontSize: 9 }}>{label}</div>
+      <div style={{ color: 'var(--text-muted)', fontSize: 'var(--type-caption)' }}>{label}</div>
       <div style={{
         color: 'var(--text-primary)',
-        fontSize: 13,
+        fontSize: 'var(--type-title)',
         fontWeight: 700,
         fontVariantNumeric: 'tabular-nums',
       }}>
@@ -689,7 +689,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             </div>
           )}
           {aiOverview?.body && (
-            <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: 14 }}>
+            <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: 'var(--type-lead)' }}>
               {aiOverview.body}
             </div>
           )}
@@ -793,14 +793,14 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
     const commonTooltipStyle = {
       background: 'var(--bg-surface)',
       border: '1px solid var(--border-strong)',
-      fontSize: 11,
+      fontSize: 'var(--type-row)',
       borderRadius: 3,
     };
 
     return (
       <>
         {barsNote && !customRangeBars && (
-          <div className="id-chart-note" style={{ fontSize: 9.5, letterSpacing: '0.06em', color: '#ffd54f', opacity: 0.9, padding: '2px 4px' }}>
+          <div className="id-chart-note" style={{ fontSize: 'var(--type-micro)', letterSpacing: '0.06em', color: '#ffd54f', opacity: 0.9, padding: '2px 4px' }}>
             {barsNote}
           </div>
         )}
@@ -831,7 +831,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 /* FEAT-1c: readable dates — 10px mono, secondary color,
                    smart per-range formatter (HH:MM intraday, "JUL 14"
                    ≤3M, "JUL 26" >3M), no rotation, ~40px min gap. */
-                tick={{ fill: 'var(--text-secondary)', fontSize: 10, fontFamily: 'var(--font-family-mono)' }}
+                tick={{ fill: 'var(--text-secondary)', fontSize: 'var(--type-micro)', fontFamily: 'var(--font-family-mono)' }}
                 tickFormatter={xAxisTickFormatter}
                 minTickGap={40}
                 angle={0}
@@ -857,7 +857,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 */
                 orientation="right"
                 domain={[yMin, yMax]}
-                tick={{ fill: 'var(--text-faint)', fontSize: 9 }}
+                tick={{ fill: 'var(--text-faint)', fontSize: 'var(--type-caption)' }}
                 width={isMobile ? 44 : 64}
                 tickFormatter={isComparisonMode ? (v => v != null && !isNaN(v) ? v.toFixed(1) : '') : (v => fmt(v, v > 999 ? 0 : 2))}
                 axisLine={{ stroke: 'var(--border-default)' }}
@@ -887,11 +887,11 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
               {deltaA !== null && chartBars[deltaA] && (
                 <ReferenceLine x={chartBars[deltaA].label} yAxisId="right" stroke={ORANGE} strokeDasharray="4 2" strokeWidth={1.5}
-                  label={{ value: 'A', fill: ORANGE, fontSize: 10, position: 'top' }} />
+                  label={{ value: 'A', fill: ORANGE, fontSize: 'var(--type-micro)', position: 'top' }} />
               )}
               {deltaB !== null && chartBars[deltaB] && (
                 <ReferenceLine x={chartBars[deltaB].label} yAxisId="right" stroke={ORANGE} strokeDasharray="4 2" strokeWidth={1.5}
-                  label={{ value: 'B', fill: ORANGE, fontSize: 10, position: 'top' }} />
+                  label={{ value: 'B', fill: ORANGE, fontSize: 'var(--type-micro)', position: 'top' }} />
               )}
 
               {/* Phase 4.10: Earnings Event Markers */}
@@ -924,7 +924,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                     label={{
                       value: 'E',
                       fill: '#ff9800',
-                      fontSize: 8.5,
+                      fontSize: 'var(--type-caption)',
                       position: 'bottom',
                       offset: 5,
                     }}
@@ -1089,7 +1089,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                    was on the left by default, producing two phantom
                    gutters on mobile and compressing the bars. */
                 orientation="right"
-                tick={{ fill: 'var(--text-faint)', fontSize: 8.5, fontFamily: 'var(--font-family-mono)' }} width={isMobile ? 44 : 64}
+                tick={{ fill: 'var(--text-faint)', fontSize: 'var(--type-caption)', fontFamily: 'var(--font-family-mono)' }} width={isMobile ? 44 : 64}
                 tickFormatter={v =>
                   v >= 1e9 ? (v/1e9).toFixed(1)+'B' :
                   v >= 1e6 ? (v/1e6).toFixed(0)+'M' :
@@ -1110,7 +1110,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               <ComposedChart data={chartBars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
                 <XAxis dataKey="label" hide axisLine={false} />
-                <YAxis orientation="right" domain={[0, 100]} ticks={[30, 50, 70]} tick={{ fill: 'var(--text-faint)', fontSize: 8.5 }} width={isMobile ? 44 : 64} axisLine={false} />
+                <YAxis orientation="right" domain={[0, 100]} ticks={[30, 50, 70]} tick={{ fill: 'var(--text-faint)', fontSize: 'var(--type-caption)' }} width={isMobile ? 44 : 64} axisLine={false} />
                 <ReferenceLine y={70} stroke="var(--price-down)" strokeDasharray="3 3" strokeOpacity={0.5} />
                 <ReferenceLine y={30} stroke="var(--price-up)" strokeDasharray="3 3" strokeOpacity={0.5} />
                 <Tooltip contentStyle={commonTooltipStyle} formatter={v => [v != null ? v.toFixed(1) : '--', 'RSI']} labelStyle={{ color: 'var(--text-muted)' }} />
@@ -1127,7 +1127,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               <ComposedChart data={chartBars} margin={{ top: 2, right: 6, bottom: 0, left: 6 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
                 <XAxis dataKey="label" hide axisLine={false} />
-                <YAxis orientation="right" tick={{ fill: 'var(--text-faint)', fontSize: 8.5 }} width={isMobile ? 44 : 64} axisLine={false} />
+                <YAxis orientation="right" tick={{ fill: 'var(--text-faint)', fontSize: 'var(--type-caption)' }} width={isMobile ? 44 : 64} axisLine={false} />
                 <ReferenceLine y={0} stroke="var(--border-default)" />
                 <Tooltip contentStyle={commonTooltipStyle} formatter={(v, n) => [v != null ? v.toFixed(3) : '--', n]} labelStyle={{ color: 'var(--text-muted)' }} />
                 <Bar dataKey="macdHist" name="Histogram" fill={IND_COLORS.MACD} opacity={0.35} radius={[1, 1, 0, 0]} />
@@ -1425,7 +1425,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             <StatRow label="DAY LOW" value={isZeroPlaceholder(dayLow) ? '--' : fmt(dayLow)} />
             {volume != null && <StatRow label="VOLUME" value={isZeroPlaceholder(volume) ? '--' : fmt(volume, 0)} />}
             {(sessionInfo.state === 'PRE' || sessionInfo.state === 'CLOSED') && (
-              <div style={{ gridColumn: '1 / -1', fontSize: 10, color: 'var(--text-muted)', paddingTop: 4 }}>
+              <div style={{ gridColumn: '1 / -1', fontSize: 'var(--type-micro)', color: 'var(--text-muted)', paddingTop: 4 }}>
                 {sessionInfo.state === 'PRE' ? 'Session not open — no trades yet today.' : 'Market closed — last session shown.'}
               </div>
             )}
@@ -1516,10 +1516,10 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
         {etfMeta?.contractNote && (
           <Section title="CONTRACT INFO">
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4, padding: '4px 0' }}>
+            <div style={{ fontSize: 'var(--type-row)', color: 'var(--text-secondary)', lineHeight: 1.4, padding: '4px 0' }}>
               {etfMeta.contractNote}
             </div>
-            <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 4 }}>
+            <div style={{ fontSize: 'var(--type-micro)', color: 'var(--text-faint)', marginTop: 4 }}>
               Front-month futures roll near expiry. Price reflects the nearest active contract.
             </div>
           </Section>
@@ -2226,7 +2226,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             <tbody>
               {rows.map(({ label, key }) => (
                 <tr key={key}>
-                  <td className={labelClass} style={{ fontSize: 9 }}>{label}</td>
+                  <td className={labelClass} style={{ fontSize: 'var(--type-caption)' }}>{label}</td>
                   {periods.map((p, i) => {
                     const val = p[key];
                     const num = parseFloat(val);
@@ -2425,7 +2425,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           {!isBond && !isFX && <span className="id-hero-ccy">{currencyLabel(displayCurrency)}</span>}
           <span className={`id-hero-change ${changeDirection}`}>{changeArrow} {formattedChange} {formattedChangePct}</span>
           {/* #292 Wave 0 — when this number is from. Never omitted. */}
-          <span className="id-hero-asof" title={sessionInfo.detail} style={{ display: 'block', fontSize: 10, letterSpacing: '0.06em', color: sessionInfo.color, marginTop: 2, fontFamily: 'var(--font-family-mono)' }}>
+          <span className="id-hero-asof" title={sessionInfo.detail} style={{ display: 'block', fontSize: 'var(--type-micro)', letterSpacing: '0.06em', color: sessionInfo.color, marginTop: 2, fontFamily: 'var(--font-family-mono)' }}>
             {sessionInfo.state === 'PRE' || sessionInfo.state === 'CLOSED' ? 'LAST CLOSE ' : 'AS OF '}{sessionInfo.asOfLabel}
             {sessionInfo.isStale && sessionInfo.state === 'OPEN' ? ' · FEED STALE' : ''}
             {sessionInfo.state === 'PRE' && exchangeGroup === 'B3' ? ' · B3 OPENS 10:00 BRT' : ''}
@@ -2437,7 +2437,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             const pc = e?.changePct ?? proxyPrice.changePct;
             const tag = proxyPrice.ext?.pre ? 'PRE-MKT' : proxyPrice.ext?.post ? 'AFTER-HRS' : 'LAST';
             return (
-              <span className="id-hero-proxy" style={{ display: 'block', fontSize: 11, marginTop: 4, color: (pc ?? 0) >= 0 ? 'var(--price-up)' : 'var(--price-down)', fontFamily: 'var(--font-family-mono)' }}
+              <span className="id-hero-proxy" style={{ display: 'block', fontSize: 'var(--type-row)', marginTop: 4, color: (pc ?? 0) >= 0 ? 'var(--price-up)' : 'var(--price-down)', fontFamily: 'var(--font-family-mono)' }}
                 title={`${proxyEtf} is the NYSE-listed ETF tracking this index — it trades when the index does not.`}>
                 {proxyEtf} {tag} {px != null ? Number(px).toFixed(2) : '—'}{pc != null ? ` (${pc >= 0 ? '+' : ''}${Number(pc).toFixed(2)}%)` : ''}
               </span>
@@ -2828,7 +2828,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
             <div className="id-comparison-panel">
               <div className="id-comparison-header">
                 <span>Add Comparison Tickers (Max 4)</span>
-                <button onClick={() => setShowComparisonSearch(false)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', fontSize: 16 }} aria-label="Close comparison search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                <button onClick={() => setShowComparisonSearch(false)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', fontSize: 'var(--type-display)' }} aria-label="Close comparison search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
               </div>
               <input
                 type="text"
@@ -2881,8 +2881,8 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           {showCustomRange && (
             <div className="id-custom-range-panel">
               <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #444', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h4 style={{ margin: 0, fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-primary)' }}>CUSTOM DATE RANGE</h4>
-                <button onClick={() => setShowCustomRange(false)} style={{ background: 'none', border: 'none', color: '#888', fontSize: 16, cursor: 'pointer', padding: '0 4px', lineHeight: 1 }} title="Close">&times;</button>
+                <h4 style={{ margin: 0, fontSize: 'var(--type-body)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--color-text-primary)' }}>CUSTOM DATE RANGE</h4>
+                <button onClick={() => setShowCustomRange(false)} style={{ background: 'none', border: 'none', color: '#888', fontSize: 'var(--type-display)', cursor: 'pointer', padding: '0 4px', lineHeight: 1 }} title="Close">&times;</button>
               </div>
 
               {/* Preset buttons */}
@@ -2893,7 +2893,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                     onClick={() => applyPresetRange(preset)}
                     style={{
                       padding: '6px 8px',
-                      fontSize: 11,
+                      fontSize: 'var(--type-row)',
                       fontWeight: 500,
                       backgroundColor: 'var(--color-surface-raised)',
                       color: '#aaa',
@@ -2919,7 +2919,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
               </div>
 
               <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', marginBottom: 4, fontSize: 12, fontWeight: 500, color: '#aaa' }}>FROM DATE</label>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 'var(--type-body)', fontWeight: 500, color: '#aaa' }}>FROM DATE</label>
                 <input
                   type="date"
                   value={customRangeFrom}
@@ -2928,7 +2928,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 />
               </div>
               <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', marginBottom: 4, fontSize: 12, fontWeight: 500, color: '#aaa' }}>TO DATE</label>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 'var(--type-body)', fontWeight: 500, color: '#aaa' }}>TO DATE</label>
                 <input
                   type="date"
                   value={customRangeTo}
@@ -2961,7 +2961,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
           {showInlineAlert && (
             <div className="id-inline-alert-panel">
               <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>TARGET PRICE</label>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 'var(--type-body)' }}>TARGET PRICE</label>
                 <input
                   type="number"
                   value={inlineAlertPrice}
@@ -2977,7 +2977,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
                 />
               </div>
               <div style={{ marginBottom: 12 }}>
-                <label style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>DIRECTION</label>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 'var(--type-body)' }}>DIRECTION</label>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     onClick={() => setInlineAlertDirection('above')}
@@ -3147,7 +3147,7 @@ export default function InstrumentDetail({ ticker, onClose, asPage = false, onOp
 
       {/* Link copied toast */}
       {copyToast && (
-        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--color-surface-3)', border: '1px solid var(--accent)', color: 'var(--color-text-primary)', padding: '8px 16px', borderRadius: 6, fontSize: 12, fontWeight: 600, zIndex: 99999, animation: 'fadeInUp 200ms ease-out' }}>
+        <div style={{ position: 'fixed', bottom: 80, left: '50%', transform: 'translateX(-50%)', background: 'var(--color-surface-3)', border: '1px solid var(--accent)', color: 'var(--color-text-primary)', padding: '8px 16px', borderRadius: 6, fontSize: 'var(--type-body)', fontWeight: 600, zIndex: 99999, animation: 'fadeInUp 200ms ease-out' }}>
           Link copied!
         </div>
       )}

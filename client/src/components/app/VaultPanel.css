@@ -80,19 +80,19 @@
   gap: 8px;
   margin-top: 6px;
   font-family: var(--font-family-mono);
-  font-size: 10px;
+  font-size: var(--type-micro);
 }
 .vault-inbox-label {
   color: var(--vault-gold, #d4af37);
   font-weight: 700;
   letter-spacing: 1px;
-  font-size: 9px;
+  font-size: var(--type-caption);
 }
 .vault-inbox-text { color: var(--text-muted); }
 .vault-inbox-text b { color: var(--text-secondary); font-weight: 600; user-select: all; }
 .vault-inbox-copy {
   color: var(--accent);
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.5px;
   cursor: pointer;
@@ -176,7 +176,7 @@
 
 .vault-doctype-label {
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   letter-spacing: 0.05em;
 }
 
@@ -184,7 +184,7 @@
   background: var(--bg-app);
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   padding: 1px 4px;
   font-family: var(--font-ui);
   outline: none;
@@ -192,7 +192,7 @@
 }
 
 .vault-upload-hint--version {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   opacity: 0.3;
 }
 
@@ -528,7 +528,7 @@
 
 .vault-section-label {
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: var(--font-weight-medium);
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -542,7 +542,7 @@
 }
 
 .vault-section-count {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-family: var(--font-family-mono);
   color: var(--color-text-muted);
 }
@@ -655,7 +655,7 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 6px;
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -966,7 +966,7 @@
   }
 
   .vault-hero-title {
-    font-size: 22px;
+    font-size: var(--type-hero);
   }
 
   .vault-hero-sub {
@@ -1093,7 +1093,7 @@
 }
 
 .vault-answer-text {
-  font-size: 12.5px;
+  font-size: var(--type-title);
   line-height: 1.65;
   color: var(--color-text-secondary);
   white-space: pre-wrap;
@@ -1132,7 +1132,7 @@
 }
 
 .vault-answer-empty {
-  font-size: 11.5px;
+  font-size: var(--type-body);
   font-style: italic;
   color: var(--color-text-muted);
 }

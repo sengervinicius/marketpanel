@@ -233,7 +233,7 @@ function SentimentPanel({ data, loading }) {
                 );
               })}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', fontSize: 9, color: 'var(--text-faint)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 0', fontSize: 'var(--type-caption)', color: 'var(--text-faint)' }}>
               <span>-5%</span>
               <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'linear-gradient(to right, rgba(239, 68, 68,0.6), rgba(239, 68, 68,0.15), rgba(255,255,255,0.05), rgba(34, 197, 94,0.15), rgba(34, 197, 94,0.6))' }} />
               <span>+5%</span>

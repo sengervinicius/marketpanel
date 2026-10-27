@@ -18,7 +18,7 @@
 
 .ds-tape-k {
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   letter-spacing: 0.08em;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -28,7 +28,7 @@
 .ds-tape-v {
   font-family: var(--font-family-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 14px;
+  font-size: var(--type-lead);
   font-weight: 700;
   color: var(--text-primary);
   margin-top: 2px;
@@ -38,7 +38,7 @@
 .ds-tape-d {
   font-family: var(--font-family-mono);
   font-variant-numeric: tabular-nums;
-  font-size: 9.5px;
+  font-size: var(--type-micro);
   color: var(--text-muted);
   min-height: 12px;
   white-space: nowrap;
@@ -60,7 +60,7 @@
  * the mixed provenance honest. */
 .ds-tape-src {
   display: inline-block;
-  font-size: 7px;
+  font-size: var(--type-caption);
   line-height: 1;
   padding: 1px 3px;
   margin-left: 3px;

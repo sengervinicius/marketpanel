@@ -223,7 +223,7 @@ export function LoginForm() {
           <div style={{ height: 3, background: '#1a1a1a', borderRadius: 2, overflow: 'hidden' }}>
             <div style={{ height: '100%', width: getPasswordStrength(password).width, background: getPasswordStrength(password).color, transition: 'all 0.3s', borderRadius: 2 }} />
           </div>
-          <span style={{ fontSize: 10, color: getPasswordStrength(password).color, letterSpacing: '0.5px' }}>{getPasswordStrength(password).label}</span>
+          <span style={{ fontSize: 'var(--type-micro)', color: getPasswordStrength(password).color, letterSpacing: '0.5px' }}>{getPasswordStrength(password).label}</span>
         </div>
       )}
 

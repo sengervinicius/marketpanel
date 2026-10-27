@@ -132,7 +132,7 @@ export const AnalystActionsCard = memo(function AnalystActionsCard({
   return (
     <div style={{ padding: '4px' }}>
       <div style={{
-        fontSize: 9,
+        fontSize: 'var(--type-caption)',
         color: 'var(--text-muted)',
         marginBottom: 8,
         textTransform: 'uppercase',
@@ -149,7 +149,7 @@ export const AnalystActionsCard = memo(function AnalystActionsCard({
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text-muted)',
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
         }}>
           Loading actions…
         </div>
@@ -160,7 +160,7 @@ export const AnalystActionsCard = memo(function AnalystActionsCard({
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text-muted)',
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
         }}>
           No analyst actions found
         </div>

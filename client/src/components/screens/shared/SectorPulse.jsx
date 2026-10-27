@@ -20,7 +20,7 @@ function PulseMetric({ label, value, color, mono = true }) {
       minWidth: 80,
     }}>
       <span style={{
-        fontSize: 8.5,
+        fontSize: 'var(--type-caption)',
         fontWeight: 600,
         letterSpacing: '1.2px',
         color: 'var(--text-faint)',
@@ -29,7 +29,7 @@ function PulseMetric({ label, value, color, mono = true }) {
         {label}
       </span>
       <span style={{
-        fontSize: 14,
+        fontSize: 'var(--type-lead)',
         fontWeight: 700,
         color: color || 'var(--text-primary)',
         fontFamily: mono ? 'var(--font-mono)' : 'inherit',
@@ -131,7 +131,7 @@ function SectorPulse({
         <div style={{
           flex: 1,
           minWidth: 120,
-          fontSize: 11,
+          fontSize: 'var(--type-row)',
           color: 'var(--text-secondary)',
           fontStyle: 'italic',
           lineHeight: 1.4,

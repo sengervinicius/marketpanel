@@ -44,7 +44,7 @@
 }
 
 .brief-notif-badge {
-  font-size: 11px;
+  font-size: var(--type-row);
   font-weight: 600;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -58,7 +58,7 @@
 }
 
 .brief-notif-btn {
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 600;
   letter-spacing: 0.3px;
   text-transform: uppercase;
@@ -108,13 +108,13 @@
 
 .brief-notif-headline {
   margin: 0 0 6px;
-  font-size: 13px;
+  font-size: var(--type-title);
   color: var(--text-primary);
   line-height: 1.4;
 }
 
 .brief-notif-expand {
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -130,7 +130,7 @@
 
 .brief-notif-content p {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: var(--type-title);
   color: var(--text-secondary);
   line-height: 1.5;
 }

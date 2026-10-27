@@ -1137,7 +1137,7 @@ function ChatPanel({ mobile, initialUserId }) {
                 marginRight: 6,
                 borderRadius: 4,
                 color: 'var(--text-secondary)',
-                fontSize: 12,
+                fontSize: 'var(--type-body)',
               }}
             >History</button>
           )}
@@ -1155,7 +1155,7 @@ function ChatPanel({ mobile, initialUserId }) {
                   marginRight: 6,
                   borderRadius: 4,
                   color: 'var(--text-secondary)',
-                  fontSize: 12,
+                  fontSize: 'var(--type-body)',
                 }}
               >
                 + New
@@ -1170,7 +1170,7 @@ function ChatPanel({ mobile, initialUserId }) {
                   cursor: 'pointer',
                   padding: '8px',
                   color: 'var(--text-secondary)',
-                  fontSize: '14px',
+                  fontSize: 'var(--type-lead)',
                 }}
               >
                 Clear
@@ -1250,7 +1250,7 @@ function ChatPanel({ mobile, initialUserId }) {
                           border: '1px solid var(--border-default)',
                           color: 'var(--text-secondary)',
                           padding: '5px 10px',
-                          fontSize: 11,
+                          fontSize: 'var(--type-row)',
                           borderRadius: 14,
                           cursor: 'pointer',
                           fontFamily: 'inherit',
@@ -1295,7 +1295,7 @@ function ChatPanel({ mobile, initialUserId }) {
                       className="chat-stream-error-tail"
                       style={{
                         marginTop: hasContent ? 8 : 0,
-                        fontSize: 12,
+                        fontSize: 'var(--type-body)',
                         color: 'var(--accent-danger, #d54a3f)',
                         fontStyle: 'italic',
                       }}

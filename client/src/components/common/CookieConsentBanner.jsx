@@ -145,7 +145,7 @@ function ConsentToggle({ label, sub, checked, disabled, onChange }) {
       />
       <span>
         <strong style={{ display: 'block' }}>{label}</strong>
-        <span style={{ color: '#9aa', fontSize: 12 }}>{sub}</span>
+        <span style={{ color: '#9aa', fontSize: 'var(--type-body)' }}>{sub}</span>
       </span>
     </label>
   );
@@ -194,18 +194,18 @@ const wrapperStyle = {
   boxShadow: '0 -4px 24px rgba(0,0,0,0.4)',
 };
 const bodyStyle    = { maxWidth: 820, margin: '0 auto', color: '#dfe6ef' };
-const titleStyle   = { margin: 0, fontSize: 14, letterSpacing: 0.3, textTransform: 'uppercase' };
-const textStyle    = { marginTop: 8, marginBottom: 12, fontSize: 13, lineHeight: 1.5, color: '#b9c1cc' };
+const titleStyle   = { margin: 0, fontSize: 'var(--type-lead)', letterSpacing: 0.3, textTransform: 'uppercase' };
+const textStyle    = { marginTop: 8, marginBottom: 12, fontSize: 'var(--type-title)', lineHeight: 1.5, color: '#b9c1cc' };
 const linkStyle    = { color: '#63b3ed', textDecoration: 'underline' };
 const gridStyle    = { display: 'grid', gap: 10, marginBottom: 12 };
 const toggleRowStyle = { display: 'grid', gridTemplateColumns: '20px 1fr', gap: 8, alignItems: 'start' };
 const btnRowStyle  = { display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' };
 const btnPrimaryStyle = {
   background: 'var(--color-info)', color: 'var(--color-text-primary)', border: 0, borderRadius: 6,
-  padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+  padding: '8px 14px', cursor: 'pointer', fontSize: 'var(--type-title)', fontWeight: 600,
 };
 const btnSecondaryStyle = {
   background: 'transparent', color: '#dfe6ef',
   border: '1px solid #2d3a4e', borderRadius: 6,
-  padding: '8px 14px', cursor: 'pointer', fontSize: 13,
+  padding: '8px 14px', cursor: 'pointer', fontSize: 'var(--type-title)',
 };

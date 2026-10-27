@@ -39,7 +39,7 @@
 }
 
 .pred-interests {
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   letter-spacing: 0.03em;
   overflow: hidden;
@@ -50,7 +50,7 @@
 }
 
 .pred-sources {
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   letter-spacing: 0.04em;
   margin-left: auto;
@@ -74,7 +74,7 @@
   align-items: center;
   gap: 4px;
   padding: 2px 6px;
-  font-size: 9.5px;
+  font-size: var(--type-micro);
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--text-muted);
@@ -105,7 +105,7 @@
 }
 
 .pred-cat-count {
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   opacity: 0.6;
 }
@@ -121,7 +121,7 @@
   padding: 3px 8px;
   border-bottom: 1px solid var(--border-subtle);
   transition: background 100ms ease;
-  font-size: 11px;
+  font-size: var(--type-row);
 }
 .pred-row:hover { background: var(--bg-hover); }
 
@@ -141,7 +141,7 @@
 .pred-row-hdr {
   background: var(--bg-surface);
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -161,7 +161,7 @@
 .pred-row-hdr .pred-col-q { color: var(--text-muted); font-weight: 700; }
 
 .pred-col-src {
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.05em;
   padding: 1px 3px;
@@ -225,7 +225,7 @@
 .pred-col-pct {
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 11px;
+  font-size: var(--type-row);
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -239,7 +239,7 @@
 .pred-col-close {
   color: var(--text-secondary);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-micro);
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -272,7 +272,7 @@
 .pred-error {
   padding: 16px 12px;
   text-align: center;
-  font-size: 11px;
+  font-size: var(--type-row);
   color: var(--text-muted);
 }
 

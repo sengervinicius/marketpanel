@@ -44,7 +44,7 @@
 .vault-doc-chat-subtitle {
   margin: 0;
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   color: var(--vault-gold-muted);
   text-transform: uppercase;
   letter-spacing: 0.12em;

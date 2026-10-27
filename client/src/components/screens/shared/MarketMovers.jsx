@@ -30,7 +30,7 @@ function MoverPanel({ title, movers, limit, accentColor, isGainer }) {
       minWidth: 200,
     }}>
       <div style={{
-        fontSize: 9,
+        fontSize: 'var(--type-caption)',
         color: 'var(--text-muted)',
         marginBottom: 6,
         textTransform: 'uppercase',
@@ -47,7 +47,7 @@ function MoverPanel({ title, movers, limit, accentColor, isGainer }) {
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text-muted)',
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
         }}>
           No data available
         </div>
@@ -137,7 +137,7 @@ export const MarketMovers = memo(function MarketMovers({
         justifyContent: 'center',
         height: 150,
         color: 'var(--text-faint)',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
       }}>
         Loading market movers…
       </div>

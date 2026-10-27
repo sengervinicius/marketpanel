@@ -58,12 +58,12 @@ export default function FeedbackInbox() {
       </div>
 
       {state === 'error' && (
-        <div style={{ padding: '8px 12px', fontSize: 9, color: 'var(--text-faint)' }}>
+        <div style={{ padding: '8px 12px', fontSize: 'var(--type-caption)', color: 'var(--text-faint)' }}>
           Couldn’t load feedback — try reopening settings.
         </div>
       )}
       {state === 'empty' && (
-        <div style={{ padding: '8px 12px', fontSize: 9, color: 'var(--text-faint)' }}>
+        <div style={{ padding: '8px 12px', fontSize: 'var(--type-caption)', color: 'var(--text-faint)' }}>
           No feedback submissions yet.
         </div>
       )}
@@ -75,18 +75,18 @@ export default function FeedbackInbox() {
           opacity: r.acknowledged ? 0.55 : 1,
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 8.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)' }}>
+            <span style={{ fontSize: 'var(--type-caption)', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)' }}>
               {r.category || 'general'}
             </span>
-            <span style={{ fontSize: 8.5, color: 'var(--text-faint)' }}>
+            <span style={{ fontSize: 'var(--type-caption)', color: 'var(--text-faint)' }}>
               {timeAgo(r.created_at)}{!r.emailed ? ' · not emailed' : ''}
             </span>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-primary)', margin: '4px 0', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
+          <div style={{ fontSize: 'var(--type-row)', color: 'var(--text-primary)', margin: '4px 0', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
             {r.message}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>
+            <span style={{ fontSize: 'var(--type-caption)', color: 'var(--text-muted)' }}>
               {r.reply_to ? `↩ ${r.reply_to}` : 'no reply address'}
             </span>
             {!r.acknowledged && (
@@ -95,7 +95,7 @@ export default function FeedbackInbox() {
                 style={{
                   background: 'transparent', border: '1px solid var(--border-strong)',
                   color: 'var(--text-muted)', borderRadius: 3, padding: '2px 8px',
-                  fontSize: 8.5, letterSpacing: '0.06em', cursor: 'pointer',
+                  fontSize: 'var(--type-caption)', letterSpacing: '0.06em', cursor: 'pointer',
                 }}
               >MARK DONE</button>
             )}

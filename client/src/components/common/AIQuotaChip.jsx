@@ -88,7 +88,7 @@ export default function AIQuotaChip({ refreshKey = 0 }) {
     marginRight: 6,
     borderRadius: 4,
     color: isAdmin ? 'var(--accent)' : colorByTone[tone],
-    fontSize: 12,
+    fontSize: 'var(--type-body)',
     fontVariantNumeric: 'tabular-nums',
     display: 'inline-flex',
     alignItems: 'center',
@@ -107,7 +107,7 @@ export default function AIQuotaChip({ refreshKey = 0 }) {
     padding: 10,
     boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
     zIndex: 20,
-    fontSize: 12,
+    fontSize: 'var(--type-body)',
     color: 'var(--text, #e6e6e6)',
     lineHeight: 1.5,
   };
@@ -144,7 +144,7 @@ export default function AIQuotaChip({ refreshKey = 0 }) {
         style={chipStyle}
         aria-label={titleText}
       >
-        <span aria-hidden="true" style={{ fontSize: 10, opacity: 0.7 }}>{'AI'}</span>
+        <span aria-hidden="true" style={{ fontSize: 'var(--type-micro)', opacity: 0.7 }}>{'AI'}</span>
         <span>{label}</span>
       </button>
       {open && (
@@ -171,12 +171,12 @@ export default function AIQuotaChip({ refreshKey = 0 }) {
                 </div>
               )}
               {resetLine && (
-                <div style={{ color: 'var(--text-secondary)', marginTop: 6, fontSize: 11 }}>
+                <div style={{ color: 'var(--text-secondary)', marginTop: 6, fontSize: 'var(--type-row)' }}>
                   {resetLine}
                 </div>
               )}
               {stats.tier && (
-                <div style={{ color: 'var(--text-secondary)', marginTop: 2, fontSize: 11 }}>
+                <div style={{ color: 'var(--text-secondary)', marginTop: 2, fontSize: 'var(--type-row)' }}>
                   Tier: {stats.tier}
                 </div>
               )}

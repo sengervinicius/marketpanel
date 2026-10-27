@@ -59,7 +59,7 @@ export function AllocationDonut({ positions }) {
           return el;
         })}
       </svg>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 8px', fontSize: 9, color: 'var(--text-muted)' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 8px', fontSize: 'var(--type-caption)', color: 'var(--text-muted)' }}>
         {segments.map((seg, i) => (
           <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: seg.color, flexShrink: 0 }} />

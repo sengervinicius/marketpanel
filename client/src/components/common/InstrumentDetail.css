@@ -491,7 +491,7 @@
   border-radius: 20px;
   border-bottom: none;
   background: var(--bg-elevated);
-  font-size: 11px;
+  font-size: var(--type-row);
   font-weight: 600;
   letter-spacing: 0.3px;
 }
@@ -862,7 +862,7 @@
 
 /* ── Mobile delta badge ────────────────────────── */
 .id-delta-badge--mobile {
-  font-size: 11px;
+  font-size: var(--type-row);
   font-weight: bold;
   margin-left: auto;
   flex-shrink: 0;
@@ -871,7 +871,7 @@
 }
 .id-delta-days {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
 }
 
 /* ── Hero Price Block ──────────────────────────────── */
@@ -1077,7 +1077,7 @@
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--type-row);
   font-weight: 500;
   font-family: var(--font-ui);
   letter-spacing: 0.02em;
@@ -1136,7 +1136,7 @@
     min-height: auto;
   }
   .id-close { min-height: 36px; min-width: 36px; }
-  .id-action-btn { min-height: 36px; padding: 6px 12px; font-size: 12px; }
+  .id-action-btn { min-height: 36px; padding: 6px 12px; font-size: var(--type-body); }
   .id-header--mobile {
     gap: 6px;
     padding: 6px 10px;
@@ -1145,12 +1145,12 @@
   }
   .id-range-btn {
     padding: 6px 8px;
-    font-size: 11px;
+    font-size: var(--type-row);
     min-height: 32px;
   }
   .id-ind-btn {
     padding: 4px 8px;
-    font-size: 10px;
+    font-size: var(--type-micro);
     min-height: 28px;
   }
   .id-stat-row {
@@ -1183,7 +1183,7 @@
   color: var(--accent);
 }
 .id-ai-badge {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.06em;
   padding: 1px 6px;
@@ -1202,7 +1202,7 @@
   margin-top: var(--sp-2);
 }
 .id-ai-block-title {
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--text-muted, var(--text-faint));
@@ -1286,7 +1286,7 @@
   padding: 0;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--type-lead);
   font-weight: 600;
   transition: all 0.15s ease;
   display: flex;
@@ -1418,7 +1418,7 @@
   line-height: 1.5;
 }
 .id-chart-insight-badge {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 1px 5px;
@@ -1513,7 +1513,7 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border-default);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--type-row);
   padding: 4px 10px;
   border-radius: 4px;
   cursor: pointer;
@@ -1546,7 +1546,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
-  font-size: 12px;
+  font-size: var(--type-body);
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -1557,7 +1557,7 @@
   border: 1px solid var(--border-default);
   border-radius: 3px;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--type-body);
   margin-bottom: 8px;
 }
 .id-comparison-search-input:focus {
@@ -1575,7 +1575,7 @@
 }
 .id-comparison-result-item {
   padding: 8px 10px;
-  font-size: 11px;
+  font-size: var(--type-row);
   cursor: pointer;
   border-bottom: 1px solid var(--border-subtle);
   transition: background 0.1s ease;
@@ -1597,7 +1597,7 @@
   letter-spacing: 0.3px;
 }
 .id-comparison-result-badge {
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.5px;
   padding: 1px 5px;
@@ -1614,7 +1614,7 @@
   color: rgba(255, 255, 255, 0.6);
 }
 .id-comparison-result-exchange {
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: rgba(255, 255, 255, 0.35);
   flex-shrink: 0;
   text-transform: uppercase;
@@ -1633,7 +1633,7 @@
   border: 1px solid var(--border-default);
   border-left: 3px solid;
   border-radius: 3px;
-  font-size: 11px;
+  font-size: var(--type-row);
   color: var(--text-primary);
 }
 .id-comparison-pill button {
@@ -1658,13 +1658,13 @@
   width: 100%;
   border-collapse: collapse;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--type-micro);
   letter-spacing: 0.3px;
 }
 .id-comp-stats-table th {
   color: #777;
   font-weight: 500;
-  font-size: 9px;
+  font-size: var(--type-caption);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   padding: 3px 8px;
@@ -1695,7 +1695,7 @@
   border: 1px solid var(--border-default);
   border-radius: 3px;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--type-body);
 }
 .id-date-input:focus {
   outline: none;
@@ -1717,7 +1717,7 @@
   border: 1px solid var(--border-default);
   border-radius: 3px;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--type-body);
 }
 .id-price-input:focus {
   outline: none;
@@ -1729,7 +1729,7 @@
   color: var(--text-secondary);
   padding: 6px;
   border-radius: 3px;
-  font-size: 11px;
+  font-size: var(--type-row);
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -1949,16 +1949,16 @@
   .id-coverage-bar {
     padding: 3px 10px;
     gap: 3px;
-    font-size: 9px;
+    font-size: var(--type-caption);
     letter-spacing: 0.3px;
   }
   .id-coverage-badge {
     padding: 1px 4px;
-    font-size: 9px;
+    font-size: var(--type-caption);
   }
   .id-degraded-banner {
     padding: 4px 10px;
-    font-size: 10px;
+    font-size: var(--type-micro);
     color: var(--text-muted);
   }
 }
@@ -2010,7 +2010,7 @@
   font-family: var(--font-mono);
 }
 .id-related-chip-name {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -2025,7 +2025,7 @@
   margin-top: 2px;
 }
 .id-related-chip-chg {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -2116,22 +2116,22 @@
     padding: 6px 8px;
   }
   .id-ticker--mobile {
-    font-size: 12px;
+    font-size: var(--type-body);
     max-width: 70px;
   }
   .id-name {
     max-width: 100px;
-    font-size: 10px;
+    font-size: var(--type-micro);
   }
   .id-price--mobile {
-    font-size: 13px;
+    font-size: var(--type-title);
   }
   .id-change--mobile {
-    font-size: 11px;
+    font-size: var(--type-row);
   }
   .id-action-btn--mobile {
     padding: 2px 6px;
-    font-size: 9px;
+    font-size: var(--type-caption);
   }
   .id-metrics-strip {
     flex-wrap: wrap;
@@ -2142,13 +2142,13 @@
     min-width: 0;
     flex: 1 1 calc(50% - 4px);
     padding: 4px 6px;
-    font-size: 10px;
+    font-size: var(--type-micro);
   }
   .id-metric-badge-label {
-    font-size: 8.5px;
+    font-size: var(--type-caption);
   }
   .id-metric-badge-value {
-    font-size: 11px;
+    font-size: var(--type-row);
   }
   /* Chart area */
   .id-chart-container {
@@ -2161,25 +2161,25 @@
   }
   .id-range-tab {
     padding: 3px 6px;
-    font-size: 9px;
+    font-size: var(--type-caption);
   }
   /* Sections */
   .id-section {
     padding: 8px;
   }
   .id-section-title {
-    font-size: 11px;
+    font-size: var(--type-row);
   }
   /* Related chips */
   .id-related-chip {
     padding: 4px 8px;
-    font-size: 10px;
+    font-size: var(--type-micro);
     min-width: 0;
   }
   /* Stat rows */
   .id-stat-row {
     padding: 3px 0;
-    font-size: 11px;
+    font-size: var(--type-row);
   }
   /* Scroll container */
   .id-scroll {
@@ -2188,7 +2188,7 @@
   /* AI insight section */
   .id-ai-insight {
     padding: 8px;
-    font-size: 12px;
+    font-size: var(--type-body);
     line-height: 1.5;
   }
 }
@@ -2199,7 +2199,7 @@
     padding: 4px 6px;
   }
   .id-ticker--mobile {
-    font-size: 11px;
+    font-size: var(--type-row);
     max-width: 60px;
   }
   .id-metric-badge {

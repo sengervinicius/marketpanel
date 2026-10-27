@@ -226,7 +226,7 @@ function EnhancedResultRow({ item, idx, isSelected, onSelect, onDragStart, cover
         style={{
           cursor: 'grab',
           color: 'var(--text-muted)',
-          fontSize: '12px',
+          fontSize: 'var(--type-body)',
           marginRight: '6px',
           letterSpacing: '2px',
         }}
@@ -310,7 +310,7 @@ function EnhancedResultRow({ item, idx, isSelected, onSelect, onDragStart, cover
           </Badge>
         )}
         {item.currency && item.currency !== 'USD' && (
-          <span style={{ fontSize: 9, color: 'var(--text-muted)', fontFamily: 'var(--font-family-mono)' }}>{item.currency}</span>
+          <span style={{ fontSize: 'var(--type-caption)', color: 'var(--text-muted)', fontFamily: 'var(--font-family-mono)' }}>{item.currency}</span>
         )}
       </div>
     </div>
@@ -489,7 +489,7 @@ function SearchPanel({ onTickerSelect }) {
         )}
       </div>
       {searchError && (
-        <div style={{ fontSize: '13px', color: 'var(--color-down)', padding: '8px 12px', marginTop: '-4px' }}>
+        <div style={{ fontSize: 'var(--type-title)', color: 'var(--color-down)', padding: '8px 12px', marginTop: '-4px' }}>
           {searchError}
         </div>
       )}

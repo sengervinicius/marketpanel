@@ -28,7 +28,7 @@
 }
 
 .not-found-heading {
-  font-size: 32px;
+  font-size: var(--type-hero);
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
@@ -36,7 +36,7 @@
 }
 
 .not-found-subtext {
-  font-size: 14px;
+  font-size: var(--type-lead);
   color: #888;
   margin: 0;
   letter-spacing: 1px;
@@ -50,7 +50,7 @@
   color: var(--color-text-primary);
   border: none;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: var(--type-body);
   font-weight: 600;
   letter-spacing: 2px;
   cursor: pointer;
@@ -74,10 +74,10 @@
   }
 
   .not-found-heading {
-    font-size: 24px;
+    font-size: var(--type-hero);
   }
 
   .not-found-subtext {
-    font-size: 12px;
+    font-size: var(--type-body);
   }
 }

@@ -24,7 +24,7 @@
   background: var(--bg-surface);
   border-radius: var(--radius-lg);
   color: var(--text-muted);
-  font-size: 24px;
+  font-size: var(--type-hero);
 }
 
 .es-message {

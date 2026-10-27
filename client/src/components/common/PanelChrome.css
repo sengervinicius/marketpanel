@@ -33,7 +33,7 @@
 
 .panel-chrome-sub {
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -45,7 +45,7 @@
 
 .panel-chrome-count {
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   letter-spacing: 0.04em;
 }
@@ -63,7 +63,7 @@
 
 .panel-chrome-ts {
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -92,7 +92,7 @@
 /* Live / closed / warn badge */
 .panel-chrome-badge {
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -122,7 +122,7 @@
   border: 1px solid var(--color-border-strong);
   color: var(--color-text-muted);
   padding: 1px 5px;
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-family: var(--font-family-mono);
   letter-spacing: 0.04em;
   cursor: pointer;
@@ -166,7 +166,7 @@
   display: inline-block;
   width: 10px;
   margin-left: 3px;
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--accent);
   opacity: 0;
   transition: opacity 120ms ease;

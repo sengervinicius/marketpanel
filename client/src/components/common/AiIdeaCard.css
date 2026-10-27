@@ -42,7 +42,7 @@
 }
 
 .aic-refresh {
-  font-size: 12px;
+  font-size: var(--type-body);
   color: var(--text-muted);
   flex-shrink: 0;
   transition: color 0.15s;
@@ -59,7 +59,7 @@
   align-items: center;
   gap: 6px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-body);
   font-style: italic;
 }
 
@@ -74,7 +74,7 @@
   align-items: center;
   gap: 8px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-body);
   font-style: italic;
   opacity: 0.8;
 }
@@ -99,26 +99,26 @@
   justify-content: space-between;
   align-items: center;
   color: var(--semantic-down);
-  font-size: 10px;
+  font-size: var(--type-micro);
 }
 
 .aic-retry {
   color: var(--accent);
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.3px;
 }
 
 .aic-idea {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--type-title);
   line-height: 1.5;
   letter-spacing: 0.1px;
 }
 
 .aic-thesis {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-body);
   font-style: italic;
   line-height: 1.4;
   margin-top: 2px;

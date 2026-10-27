@@ -191,7 +191,7 @@ function PriceRow({
       </span>
       <span style={{
         color: 'var(--text-muted)',
-        fontSize: '9px',
+        fontSize: 'var(--type-caption)',
         minWidth: 0,
         maxWidth: '100%',
         overflow: 'hidden',
@@ -216,7 +216,7 @@ function PriceRow({
             className="pr-ext"
             title={`${extKind === 'PRE' ? 'Pre-market' : 'After-hours'} ${extQ.price}${extQ.changePct != null ? ` (${extQ.changePct >= 0 ? '+' : ''}${Number(extQ.changePct).toFixed(2)}%)` : ''}`}
             style={{
-              marginLeft: 4, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em',
+              marginLeft: 4, fontSize: 'var(--type-caption)', fontWeight: 700, letterSpacing: '0.04em',
               color: (extQ.changePct ?? 0) >= 0 ? 'var(--price-up)' : 'var(--price-down)',
               opacity: 0.9,
             }}
@@ -225,7 +225,7 @@ function PriceRow({
         {warn?.tag && (
           <span
             title={warn.title}
-            style={{ marginLeft: 4, fontSize: 8.5, fontWeight: 700, letterSpacing: '0.04em', color: 'var(--semantic-warning, #ffd54f)', opacity: 0.95 }}
+            style={{ marginLeft: 4, fontSize: 'var(--type-caption)', fontWeight: 700, letterSpacing: '0.04em', color: 'var(--semantic-warning, #ffd54f)', opacity: 0.95 }}
           >⚠ {warn.tag}</span>
         )}
       </span>
@@ -246,7 +246,7 @@ function PriceRow({
         <span style={{
           color: 'var(--text-muted)',
           textAlign: 'right',
-          fontSize: '10px',
+          fontSize: 'var(--type-micro)',
           fontVariantNumeric: 'tabular-nums',
           minWidth: 0,
           overflow: 'hidden',

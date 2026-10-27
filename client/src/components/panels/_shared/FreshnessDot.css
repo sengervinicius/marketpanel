@@ -6,7 +6,7 @@
   align-items: center;
   gap: 4px;
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--color-text-muted);
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;

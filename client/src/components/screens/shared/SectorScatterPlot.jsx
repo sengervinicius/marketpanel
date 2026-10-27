@@ -21,14 +21,14 @@ function EnhancedTooltip({ active, payload, xLabel, yLabel }) {
         border: '1px solid var(--border-strong)',
         padding: '10px 14px',
         borderRadius: 6,
-        fontSize: 12,
+        fontSize: 'var(--type-body)',
         color: TOKEN_HEX.textPrimary,
         boxShadow: '0 4px 20px rgba(0,0,0,0.7)',
         minWidth: 140,
       }}>
         <div style={{
           fontWeight: 700,
-          fontSize: 14,
+          fontSize: 'var(--type-lead)',
           marginBottom: 6,
           color: d.color || TOKEN_HEX.accent,
           letterSpacing: '0.5px',
@@ -36,20 +36,20 @@ function EnhancedTooltip({ active, payload, xLabel, yLabel }) {
           {d.ticker}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 3 }}>
-          <span style={{ color: TOKEN_HEX.textMuted, fontSize: 11 }}>{xLabel}:</span>
+          <span style={{ color: TOKEN_HEX.textMuted, fontSize: 'var(--type-row)' }}>{xLabel}:</span>
           <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
             {d.x >= 1000 ? d.x.toLocaleString('en-US', { maximumFractionDigits: 0 }) : d.x.toFixed(1)}
           </span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-          <span style={{ color: TOKEN_HEX.textMuted, fontSize: 11 }}>{yLabel}:</span>
+          <span style={{ color: TOKEN_HEX.textMuted, fontSize: 'var(--type-row)' }}>{yLabel}:</span>
           <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
             {d.y >= 1000 ? '$' + (d.y / 1).toLocaleString('en-US', { maximumFractionDigits: 0 }) + 'B' : d.y.toFixed(1)}
           </span>
         </div>
         {d.z != null && (
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginTop: 3 }}>
-            <span style={{ color: TOKEN_HEX.textMuted, fontSize: 11 }}>Size:</span>
+            <span style={{ color: TOKEN_HEX.textMuted, fontSize: 'var(--type-row)' }}>Size:</span>
             <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{d.z.toFixed(1)}</span>
           </div>
         )}
@@ -130,7 +130,7 @@ export function SectorScatterPlot({
         alignItems: 'center',
         justifyContent: 'center',
         color: 'var(--text-muted)',
-        fontSize: 12,
+        fontSize: 'var(--type-body)',
         background: 'rgba(255,255,255,0.02)',
         borderRadius: 6,
         border: '1px solid rgba(255,255,255,0.04)',
@@ -149,7 +149,7 @@ export function SectorScatterPlot({
     }}>
       {title && (
         <div style={{
-          fontSize: 13,
+          fontSize: 'var(--type-title)',
           color: accentColor || 'var(--text-secondary)',
           marginBottom: 12,
           textTransform: 'uppercase',
@@ -176,14 +176,14 @@ export function SectorScatterPlot({
             type="number"
             dataKey="x"
             stroke={TOKEN_HEX.borderDefault}
-            tick={{ fontSize: 12, fill: TOKEN_HEX.textMuted }}
+            tick={{ fontSize: 'var(--type-body)', fill: TOKEN_HEX.textMuted }}
             tickLine={{ stroke: TOKEN_HEX.borderSubtle }}
             axisLine={{ stroke: TOKEN_HEX.borderDefault }}
             label={{
               value: xLabel,
               position: 'insideBottom',
               offset: -10,
-              fontSize: 13,
+              fontSize: 'var(--type-title)',
               fill: TOKEN_HEX.textSecondary,
               fontWeight: 600,
             }}
@@ -192,7 +192,7 @@ export function SectorScatterPlot({
             type="number"
             dataKey="y"
             stroke={TOKEN_HEX.borderDefault}
-            tick={{ fontSize: 12, fill: TOKEN_HEX.textMuted }}
+            tick={{ fontSize: 'var(--type-body)', fill: TOKEN_HEX.textMuted }}
             tickLine={{ stroke: TOKEN_HEX.borderSubtle }}
             axisLine={{ stroke: TOKEN_HEX.borderDefault }}
             tickFormatter={(v) => {
@@ -205,7 +205,7 @@ export function SectorScatterPlot({
               angle: -90,
               position: 'insideLeft',
               offset: 10,
-              fontSize: 13,
+              fontSize: 'var(--type-title)',
               fill: TOKEN_HEX.textSecondary,
               fontWeight: 600,
             }}
@@ -262,7 +262,7 @@ export function SectorScatterPlot({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
-                fontSize: 11,
+                fontSize: 'var(--type-row)',
                 color: TOKEN_HEX.textSecondary,
                 cursor: onDotClick ? 'pointer' : 'default',
               }}

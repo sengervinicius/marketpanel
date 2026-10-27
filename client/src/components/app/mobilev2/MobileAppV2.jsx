@@ -57,9 +57,9 @@ function renderRich(text){
     const t=ln.trim();
     if(!t){ flush(); return; }
     let m;
-    if((m=t.match(/^(#{1,6})\s+(.*)$/))){ flush(); out.push(<div key={'h'+(k++)} style={{fontSize:12.5,fontWeight:700,letterSpacing:'.5px',textTransform:'uppercase',color:'var(--orange2)',margin:(out.length?'16px':'2px')+' 0 7px'}}>{inline(m[2],'h'+idx)}</div>); return; }
-    if((m=t.match(/^[-*•]\s+(.*)$/))){ if(!bullets)bullets=[]; bullets.push(<li key={'li'+(k++)} style={{fontSize:13.5,lineHeight:1.5,color:'rgba(255,255,255,.86)',marginBottom:5}}>{inline(m[1],'li'+idx)}</li>); return; }
-    flush(); out.push(<p key={'p'+(k++)} style={{margin:(out.length?'8px':0)+' 0 0',fontSize:13.5,lineHeight:1.55,color:'rgba(255,255,255,.86)'}}>{inline(t,'p'+idx)}</p>);
+    if((m=t.match(/^(#{1,6})\s+(.*)$/))){ flush(); out.push(<div key={'h'+(k++)} style={{fontSize: 'var(--type-title)',fontWeight:700,letterSpacing:'.5px',textTransform:'uppercase',color:'var(--orange2)',margin:(out.length?'16px':'2px')+' 0 7px'}}>{inline(m[2],'h'+idx)}</div>); return; }
+    if((m=t.match(/^[-*•]\s+(.*)$/))){ if(!bullets)bullets=[]; bullets.push(<li key={'li'+(k++)} style={{fontSize: 'var(--type-lead)',lineHeight:1.5,color:'rgba(255,255,255,.86)',marginBottom:5}}>{inline(m[1],'li'+idx)}</li>); return; }
+    flush(); out.push(<p key={'p'+(k++)} style={{margin:(out.length?'8px':0)+' 0 0',fontSize: 'var(--type-lead)',lineHeight:1.55,color:'rgba(255,255,255,.86)'}}>{inline(t,'p'+idx)}</p>);
   });
   flush();
   return out;
@@ -650,10 +650,10 @@ export default function MobileAppV2(){
           {chat.messages.length===0 ? (
             <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',textAlign:'center',padding:'0 32px',gap:14}}>
               <div className="m2-orb" style={{width:58,height:58}}></div>
-              <div style={{fontSize:18,fontWeight:600}}>Ask Particle anything</div>
-              <div style={{fontSize:13,color:'var(--mut)',lineHeight:1.5}}>Grounded in live markets and your research vault — always with sources.</div>
+              <div style={{fontSize: 'var(--type-display)',fontWeight:600}}>Ask Particle anything</div>
+              <div style={{fontSize: 'var(--type-title)',color:'var(--mut)',lineHeight:1.5}}>Grounded in live markets and your research vault — always with sources.</div>
               <div style={{display:'flex',flexWrap:'wrap',gap:8,justifyContent:'center',marginTop:4}}>
-                {SUGG.map(p=>(<button key={p} onClick={()=>chat.send(p)} style={{background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.09)',borderRadius:14,padding:'9px 13px',fontSize:12.5,color:'#fff',fontFamily:'inherit'}}>{p}</button>))}
+                {SUGG.map(p=>(<button key={p} onClick={()=>chat.send(p)} style={{background:'rgba(255,255,255,.07)',border:'1px solid rgba(255,255,255,.09)',borderRadius:14,padding:'9px 13px',fontSize: 'var(--type-title)',color:'#fff',fontFamily:'inherit'}}>{p}</button>))}
               </div>
             </div>
           ) : (

@@ -65,7 +65,7 @@
 
 .dic-matrix-head {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -76,7 +76,7 @@
 .dic-matrix-row {
   border-bottom: 1px solid var(--border-subtle);
   transition: background-color 100ms ease;
-  font-size: 11px;
+  font-size: var(--type-row);
 }
 .dic-matrix-row:hover {
   background: var(--bg-hover);
@@ -88,12 +88,12 @@
 .dic-col-country {
   font-weight: 700;
   letter-spacing: 0.08em;
-  font-size: 10px;
+  font-size: var(--type-micro);
 }
 
 .dic-matrix-head .dic-col-country {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--type-micro);
 }
 
 .dic-col-rate,
@@ -131,7 +131,7 @@
   display: inline-block;
   margin-left: 6px;
   padding: 0 4px;
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--text-muted);
@@ -144,7 +144,7 @@
 .dic-matrix-note {
   padding: 2px 8px 3px;
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.04em;
   background: var(--bg-surface);
 }
@@ -189,12 +189,12 @@
 
 .dic-grid-cell-label {
   font-weight: 700;
-  font-size: 10px;
+  font-size: var(--type-micro);
   letter-spacing: 0.08em;
 }
 
 .dic-grid-cell-note {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -213,7 +213,7 @@
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--type-micro);
   flex-direction: column;
   gap: 4px;
 }
@@ -222,7 +222,7 @@
   background: none;
   border: 1px solid var(--border-default);
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.08em;
   padding: 2px 6px;
@@ -244,7 +244,7 @@
 
 .dic-source-text {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.04em;
 }
 

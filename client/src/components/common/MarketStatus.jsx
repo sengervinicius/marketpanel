@@ -202,7 +202,7 @@ function MarketStatus() {
         {exchanges.map(ex => (
           <span key={ex.code} title={`${ex.label}: ${ex.isOpen ? 'Open' : 'Closed'}`} style={{
             display: 'flex', alignItems: 'center', gap: 2,
-            fontSize: 8.5, letterSpacing: '0.3px', fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--type-caption)', letterSpacing: '0.3px', fontFamily: 'var(--font-mono)',
             color: ex.isOpen ? 'var(--color-up)' : 'var(--color-text-muted)',
           }}>
             <span style={{

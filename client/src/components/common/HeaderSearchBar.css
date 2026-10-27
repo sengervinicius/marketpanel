@@ -125,7 +125,7 @@
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--type-lead);
   padding: 0 4px;
   flex-shrink: 0;
   display: flex;
@@ -181,7 +181,7 @@
   gap: 10px;
   padding: 8px 16px;
   cursor: grab;
-  font-size: 12px;
+  font-size: var(--type-body);
   transition: background-color 0.1s;
   border-radius: 4px;
   margin: 0 4px;
@@ -238,7 +238,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11.5px;
+  font-size: var(--type-body);
 }
 
 .hsb-exchange {
@@ -286,7 +286,7 @@
   padding: 16px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-body);
 }
 
 /* ─── Scrollbar ──────────────────────────────────── */
@@ -315,7 +315,7 @@
   gap: 8px;
   padding: 10px 16px;
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--type-row);
   font-style: italic;
   opacity: 0.8;
 }
@@ -338,7 +338,7 @@
 .hsb-ai-note {
   padding: 8px 16px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--type-row);
   font-style: italic;
 }
 
@@ -349,7 +349,7 @@
 
 .hsb-ai-reason {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-style: italic;
   flex-shrink: 0;
   max-width: 200px;
@@ -365,14 +365,14 @@
   align-items: center;
   gap: 6px;
   padding: 2px 16px 5px 84px;
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--text-muted);
 }
 
 .hsb-alternate-label {
   font-weight: 600;
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.3px;
 }
 
@@ -381,7 +381,7 @@
   cursor: pointer;
   text-decoration: none;
   transition: color 0.15s;
-  font-size: 10px;
+  font-size: var(--type-micro);
 }
 
 .hsb-alternate-link:hover {
@@ -412,7 +412,7 @@
   padding: 10px 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--type-body);
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -422,7 +422,7 @@
 }
 
 .hsb-ask-particle-icon {
-  font-size: 14px;
+  font-size: var(--type-lead);
   opacity: 0.9;
 }
 

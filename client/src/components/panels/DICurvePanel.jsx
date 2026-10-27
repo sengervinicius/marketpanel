@@ -244,7 +244,7 @@ function DICurvePanelInner() {
                     <LineChart data={mergedData} margin={{ top: 6, right: 6, bottom: 2, left: 0 }}>
                       <XAxis
                         dataKey="tenor"
-                        tick={{ fill: 'var(--text-secondary)', fontSize: 10, fontFamily: 'var(--font-family-mono)' }}
+                        tick={{ fill: 'var(--text-secondary)', fontSize: 'var(--type-micro)', fontFamily: 'var(--font-family-mono)' }}
                         tickLine={false}
                         axisLine={{ stroke: 'var(--border-strong)' }}
                         interval="preserveStartEnd"
@@ -252,7 +252,7 @@ function DICurvePanelInner() {
                       />
                       <YAxis
                         domain={[minR, maxR]}
-                        tick={{ fill: 'var(--text-secondary)', fontSize: 10, fontFamily: 'var(--font-family-mono)' }}
+                        tick={{ fill: 'var(--text-secondary)', fontSize: 'var(--type-micro)', fontFamily: 'var(--font-family-mono)' }}
                         tickLine={false}
                         axisLine={false}
                         width={28}
@@ -262,13 +262,13 @@ function DICurvePanelInner() {
                         contentStyle={{
                           background: 'var(--bg-elevated)',
                           border: '1px solid var(--border-strong)',
-                          fontSize: 10,
+                          fontSize: 'var(--type-micro)',
                           fontFamily: 'var(--font-family-mono)',
                           padding: '4px 8px',
                           borderRadius: 3,
                         }}
                         itemStyle={{ color: c.color, fontFamily: 'var(--font-family-mono)' }}
-                        labelStyle={{ color: 'var(--color-text-secondary)', marginBottom: 2, fontSize: 10, fontFamily: 'var(--font-family-mono)' }}
+                        labelStyle={{ color: 'var(--color-text-secondary)', marginBottom: 2, fontSize: 'var(--type-micro)', fontFamily: 'var(--font-family-mono)' }}
                         formatter={(v, name) => [v != null ? v.toFixed(2) + '%' : '—', name === 'forward' ? '1Y fwd' : 'spot']}
                       />
                       <Line

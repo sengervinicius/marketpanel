@@ -230,7 +230,7 @@ const MacroTable = memo(function MacroTable({ data, loading, error }) {
   if (loading) return <DeepSkeleton rows={6} />;
   if (error) return <DeepError message={`Error: ${error}`} />;
   if (!data || data.length === 0) {
-    return <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 10 }}>No data available</div>;
+    return <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 'var(--type-micro)' }}>No data available</div>;
   }
 
   return (
@@ -270,7 +270,7 @@ const BundSpreadMonitor = memo(function BundSpreadMonitor({ data, loading, error
   if (loading) return <DeepSkeleton rows={5} />;
   if (error) return <DeepError message={`Error: ${error}`} />;
   if (!data || data.length === 0) {
-    return <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 10 }}>No data available</div>;
+    return <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 'var(--type-micro)' }}>No data available</div>;
   }
 
   const getSpreadColor = (bps) => {
@@ -286,7 +286,7 @@ const BundSpreadMonitor = memo(function BundSpreadMonitor({ data, loading, error
           <tr>
             <th>Country</th>
             <th>10Y Spread (bps)</th>
-            <th style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>vs German Bunds</th>
+            <th style={{ fontSize: 'var(--type-caption)', color: 'var(--text-muted)' }}>vs German Bunds</th>
           </tr>
         </thead>
         <tbody>
@@ -296,7 +296,7 @@ const BundSpreadMonitor = memo(function BundSpreadMonitor({ data, loading, error
               <td style={{ color: getSpreadColor(row.spreadBps), fontWeight: 500 }}>
                 {row.spreadBps != null ? row.spreadBps.toFixed(1) : '—'}
               </td>
-              <td style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>
+              <td style={{ fontSize: 'var(--type-caption)', color: 'var(--text-muted)' }}>
                 {row.tenor || '10Y'}
               </td>
             </tr>

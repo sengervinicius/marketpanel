@@ -101,7 +101,7 @@ function RatesPanel() {
         </span>
       </div>
       {error && !loading && results.length === 0 && (
-        <div style={{ padding: '6px 8px', color: '#ff7b7b', fontSize: 9, fontFamily: 'var(--font-mono)' }}>
+        <div style={{ padding: '6px 8px', color: '#ff7b7b', fontSize: 'var(--type-caption)', fontFamily: 'var(--font-mono)' }}>
           Data unavailable — retrying every 60s
         </div>
       )}
@@ -119,7 +119,7 @@ function RatesPanel() {
         {/* US Treasuries — live from Yahoo Finance */}
         <SectionLabel text="US TREASURIES" />
         {treasuryRates.length === 0 && !loading && (
-          <div style={{ padding: '6px', color: 'var(--text-faint)', fontSize: 8.5, fontFamily: 'var(--font-mono)' }}>Loading rates...</div>
+          <div style={{ padding: '6px', color: 'var(--text-faint)', fontSize: 'var(--type-caption)', fontFamily: 'var(--font-mono)' }}>Loading rates...</div>
         )}
         {treasuryRates.map(r => (
           <ROW key={r.symbol} label={r.name} value={r.price} change={r.change} note="" live={true} />

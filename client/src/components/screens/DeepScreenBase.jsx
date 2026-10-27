@@ -19,11 +19,11 @@ class SectionErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '12px 8px', color: 'var(--text-secondary)', fontSize: 10, textAlign: 'center' }}>
+        <div style={{ padding: '12px 8px', color: 'var(--text-secondary)', fontSize: 'var(--type-micro)', textAlign: 'center' }}>
           <span style={{ color: 'var(--text-muted)' }}>Section loading issue</span>
           <div style={{ color: 'var(--text-faint)', marginTop: 4 }}>Something went wrong. Try refreshing.</div>
           <button onClick={() => this.setState({ hasError: false, error: null })}
-            style={{ marginTop: 6, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-secondary)', padding: '3px 10px', borderRadius: 3, cursor: 'pointer', fontSize: 9 }}>
+            style={{ marginTop: 6, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-secondary)', padding: '3px 10px', borderRadius: 3, cursor: 'pointer', fontSize: 'var(--type-caption)' }}>
             RETRY
           </button>
         </div>
@@ -91,7 +91,7 @@ export function DeepError({ message, onRetry }) {
       {friendly}
       {onRetry && (
         <button onClick={onRetry}
-          style={{ marginLeft: 10, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: 3, cursor: 'pointer', fontSize: 9 }}>
+          style={{ marginLeft: 10, background: 'transparent', border: '1px solid var(--border-strong)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: 3, cursor: 'pointer', fontSize: 'var(--type-caption)' }}>
           RETRY
         </button>
       )}

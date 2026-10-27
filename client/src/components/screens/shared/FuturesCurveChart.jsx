@@ -20,7 +20,7 @@ function CurveTooltip({ active, payload }) {
         border: '1px solid var(--border-strong)',
         padding: '6px 10px',
         borderRadius: 4,
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         color: TOKEN_HEX.textPrimary,
         boxShadow: '0 2px 12px rgba(0,0,0,0.6)',
       }}>
@@ -107,7 +107,7 @@ export const FuturesCurveChart = memo(function FuturesCurveChart({
         marginBottom: 8,
       }}>
         <span style={{
-          fontSize: 9,
+          fontSize: 'var(--type-caption)',
           color: accentColor || 'var(--text-muted)',
           textTransform: 'uppercase',
           letterSpacing: 1,
@@ -117,7 +117,7 @@ export const FuturesCurveChart = memo(function FuturesCurveChart({
         </span>
         {data && data.length >= 2 && (
           <span style={{
-            fontSize: 8.5,
+            fontSize: 'var(--type-caption)',
             padding: '1px 6px',
             borderRadius: 2,
             background: isContango
@@ -139,7 +139,7 @@ export const FuturesCurveChart = memo(function FuturesCurveChart({
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text-faint)',
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
         }}>
           Loading futures curve…
         </div>
@@ -150,7 +150,7 @@ export const FuturesCurveChart = memo(function FuturesCurveChart({
           alignItems: 'center',
           justifyContent: 'center',
           color: 'var(--text-muted)',
-          fontSize: 10,
+          fontSize: 'var(--type-micro)',
         }}>
           {error ? 'Data unavailable' : 'No futures curve data'}
         </div>
@@ -166,7 +166,7 @@ export const FuturesCurveChart = memo(function FuturesCurveChart({
             <XAxis
               dataKey="contract"
               stroke={TOKEN_HEX.borderDefault}
-              tick={{ fontSize: 9, fill: TOKEN_HEX.textMuted }}
+              tick={{ fontSize: 'var(--type-caption)', fill: TOKEN_HEX.textMuted }}
               tickLine={false}
               axisLine={{ stroke: TOKEN_HEX.borderDefault }}
               interval={0}
@@ -175,7 +175,7 @@ export const FuturesCurveChart = memo(function FuturesCurveChart({
             <YAxis
               domain={['auto', 'auto']}
               stroke={TOKEN_HEX.borderDefault}
-              tick={{ fontSize: 9, fill: TOKEN_HEX.textMuted }}
+              tick={{ fontSize: 'var(--type-caption)', fill: TOKEN_HEX.textMuted }}
               tickLine={false}
               axisLine={false}
               width={55}

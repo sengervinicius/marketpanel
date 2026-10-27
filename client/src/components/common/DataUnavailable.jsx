@@ -33,7 +33,7 @@ function DataUnavailable({ reason, kind = 'loading', onRetry }) {
         padding: '16px 12px',
         textAlign: 'center',
         color: 'var(--text-secondary)',
-        fontSize: 11,
+        fontSize: 'var(--type-row)',
         fontFamily: 'var(--font-family-mono)',
       }}
     >
@@ -64,7 +64,7 @@ function DataUnavailable({ reason, kind = 'loading', onRetry }) {
       {isUnavailable && (
         <div
           style={{
-            marginTop: 6, fontSize: 10,
+            marginTop: 6, fontSize: 'var(--type-micro)',
             color: 'var(--text-faint)',
             maxWidth: 260, marginInline: 'auto', lineHeight: 1.4,
           }}
@@ -84,7 +84,7 @@ function DataUnavailable({ reason, kind = 'loading', onRetry }) {
             color: 'var(--text-secondary)',
             borderRadius: 4,
             cursor: 'pointer',
-            fontSize: 10,
+            fontSize: 'var(--type-micro)',
             fontFamily: 'var(--font-family-mono)',
           }}
         >

@@ -205,7 +205,7 @@ function FiiRow({ r, onClick }) {
         borderBottom: '1px solid var(--border-subtle)',
         alignItems: 'center',
         cursor: 'pointer',
-        fontSize: 11,
+        fontSize: 'var(--type-row)',
       }}
       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
@@ -228,7 +228,7 @@ function FiiRow({ r, onClick }) {
       </span>
       <span style={{
         fontFamily: 'var(--font-family-mono)',
-        fontSize: 9,
+        fontSize: 'var(--type-caption)',
         color,
         letterSpacing: '0.06em',
         textTransform: 'uppercase',
@@ -287,7 +287,7 @@ const FiisComponent = memo(function FiisComponent() {
         alignItems: 'center',
         gap: 10,
         fontFamily: 'var(--font-family-mono)',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         letterSpacing: '0.08em',
       }}>
         <span style={{ color: 'var(--text-primary)', fontWeight: 700, textTransform: 'uppercase' }}>
@@ -309,7 +309,7 @@ const FiisComponent = memo(function FiisComponent() {
         padding: '4px 10px',
         borderBottom: '1px solid var(--border-default)',
         fontFamily: 'var(--font-family-mono)',
-        fontSize: 9,
+        fontSize: 'var(--type-caption)',
         color: 'var(--text-muted)',
         letterSpacing: '0.06em',
       }}>
@@ -405,7 +405,7 @@ const DiCurveComponent = memo(function DiCurveComponent() {
 
   if (loading) return <DeepSkeleton rows={6} />;
   if (error) return <DeepError message={error} />;
-  if (chartData.length === 0) return <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 12 }}>DI curve data unavailable</div>;
+  if (chartData.length === 0) return <div style={{ padding: '12px', color: 'var(--text-muted)', fontSize: 'var(--type-body)' }}>DI curve data unavailable</div>;
 
   return (
     <div style={{ padding: '12px', height: '260px' }}>
@@ -419,7 +419,7 @@ const DiCurveComponent = memo(function DiCurveComponent() {
           </defs>
           <XAxis
             dataKey="label"
-            tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+            tick={{ fontSize: 'var(--type-micro)', fill: 'var(--text-muted)' }}
             angle={-35}
             textAnchor="end"
             height={50}
@@ -427,7 +427,7 @@ const DiCurveComponent = memo(function DiCurveComponent() {
             axisLine={{ stroke: 'var(--border-subtle)' }}
           />
           <YAxis
-            tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+            tick={{ fontSize: 'var(--type-micro)', fill: 'var(--text-muted)' }}
             tickFormatter={(v) => fmtCompactPct(v, 1)}
             width={50}
             tickLine={{ stroke: 'var(--border-subtle)' }}
@@ -435,8 +435,8 @@ const DiCurveComponent = memo(function DiCurveComponent() {
           />
           <Tooltip
             contentStyle={{ background: 'var(--bg-panel)', border: '1px solid var(--border-default)', borderRadius: 6, padding: '8px 12px' }}
-            labelStyle={{ color: 'var(--text-primary)', fontSize: 12, fontWeight: 600, marginBottom: 4 }}
-            itemStyle={{ color: 'var(--text-secondary)', fontSize: 12 }}
+            labelStyle={{ color: 'var(--text-primary)', fontSize: 'var(--type-body)', fontWeight: 600, marginBottom: 4 }}
+            itemStyle={{ color: 'var(--text-secondary)', fontSize: 'var(--type-body)' }}
             formatter={(val) => [`${Number(val).toFixed(2)}%`, 'Rate']}
           />
           <Line
@@ -538,7 +538,7 @@ const LatAmMacroComponent = memo(function LatAmMacroComponent() {
   // API returns {data: {countries: [...]}} — extract the countries array safely
   const countries = Array.isArray(data?.data?.countries) ? data.data.countries
                   : Array.isArray(data?.data) ? data.data : [];
-  if (countries.length === 0) return <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 10 }}>No data available</div>;
+  if (countries.length === 0) return <div style={{ padding: '10px', color: 'var(--text-muted)', fontSize: 'var(--type-micro)' }}>No data available</div>;
 
   return (
     <div style={{ padding: '0 6px', overflow: 'auto' }}>
@@ -692,7 +692,7 @@ function BrazilEtfCell({ sym, openDetail }) {
         border: '1px solid var(--border-default)',
         borderRadius: '3px',
         cursor: 'pointer',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         fontWeight: 600,
         color: 'var(--text-primary)',
         transition: 'background 0.15s',
@@ -701,9 +701,9 @@ function BrazilEtfCell({ sym, openDetail }) {
       onMouseLeave={(e) => e.target.parentElement.style.background = 'var(--bg-elevated)'}
     >
       <span>{sym}</span>
-      {q?.price != null && <span style={{ color: 'var(--text-secondary)', fontSize: 9 }}>${fmt(q.price)}</span>}
+      {q?.price != null && <span style={{ color: 'var(--text-secondary)', fontSize: 'var(--type-caption)' }}>${fmt(q.price)}</span>}
       {q?.changePct != null && (
-        <span style={{ color: q.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)', fontSize: 9 }}>
+        <span style={{ color: q.changePct >= 0 ? 'var(--semantic-up)' : 'var(--semantic-down)', fontSize: 'var(--type-caption)' }}>
           {q.changePct >= 0 ? '+' : ''}{q.changePct.toFixed(2)}%
         </span>
       )}

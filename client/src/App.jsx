@@ -815,7 +815,7 @@ export default function App() {
               data-tour="mode-particle"
               onClick={() => { setMobileModePersist('particle'); }}
               style={{
-                padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                padding: '3px 12px', fontSize: 'var(--type-micro)', fontWeight: 700, letterSpacing: '0.08em',
                 borderRadius: 4, border: 'none', cursor: 'pointer',
                 color: mobileMode === 'particle' ? 'var(--color-text-inverse)' : 'var(--text-muted)',
                 background: mobileMode === 'particle' ? 'var(--accent)' : 'transparent',
@@ -828,7 +828,7 @@ export default function App() {
               data-tour="mode-terminal"
               onClick={() => { setMobileModePersist('terminal'); }}
               style={{
-                padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                padding: '3px 12px', fontSize: 'var(--type-micro)', fontWeight: 700, letterSpacing: '0.08em',
                 borderRadius: 4, border: 'none', cursor: 'pointer',
                 color: mobileMode === 'terminal' ? 'var(--text-primary)' : 'var(--text-muted)',
                 background: mobileMode === 'terminal' ? 'var(--bg-surface)' : 'transparent',
@@ -841,7 +841,7 @@ export default function App() {
               data-tour="mode-vault"
               onClick={() => { setMobileModePersist('vault'); }}
               style={{
-                padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                padding: '3px 12px', fontSize: 'var(--type-micro)', fontWeight: 700, letterSpacing: '0.08em',
                 borderRadius: 4, border: 'none', cursor: 'pointer',
                 color: mobileMode === 'vault' ? 'var(--color-text-inverse)' : 'var(--text-muted)',
                 background: mobileMode === 'vault' ? 'var(--color-vault-accent)' : 'transparent',
@@ -858,7 +858,7 @@ export default function App() {
                 data-active={mobileMode === 'admin'}
                 onClick={() => { setMobileModePersist('admin'); }}
                 style={{
-                  padding: '3px 12px', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em',
+                  padding: '3px 12px', fontSize: 'var(--type-micro)', fontWeight: 700, letterSpacing: '0.08em',
                   borderRadius: 4, border: 'none', cursor: 'pointer',
                   color: mobileMode === 'admin' ? 'var(--color-text-inverse)' : 'var(--text-muted)',
                   background: mobileMode === 'admin' ? 'var(--color-admin-accent)' : 'transparent',
@@ -881,7 +881,7 @@ export default function App() {
             style={{
               marginLeft: 16,
               padding: '3px 10px',
-              fontSize: 11,
+              fontSize: 'var(--type-row)',
               fontWeight: 600,
               letterSpacing: '0.5px',
               color: 'var(--color-text-inverse)',
@@ -940,7 +940,7 @@ export default function App() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
-              <span style={{ fontSize: 9, letterSpacing: '0.5px', opacity: 0.6 }}>DM</span>
+              <span style={{ fontSize: 'var(--type-caption)', letterSpacing: '0.5px', opacity: 0.6 }}>DM</span>
             </button>
             {/* #291 W7.13 — discoverable '+ Add panel' entry: opens the Cmd+K
                 palette pre-filtered to the Show/Hide panel commands. */}
@@ -1100,7 +1100,7 @@ export default function App() {
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 12, padding: '6px 16px',
                   background: 'var(--color-accent-dim)', borderBottom: '1px solid var(--accent)',
-                  fontSize: 11, color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.5px',
+                  fontSize: 'var(--type-row)', color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.5px',
                   flexShrink: 0,
                 }}>
                   <span>EDITING LAYOUT</span>
@@ -1126,18 +1126,18 @@ export default function App() {
                     window.location.reload();
                   }} style={{
                     padding: '3px 12px', background: 'none', color: 'var(--text-secondary)',
-                    border: '1px solid var(--border-default)', borderRadius: 3, fontWeight: 600, fontSize: 10, letterSpacing: '0.5px',
+                    border: '1px solid var(--border-default)', borderRadius: 3, fontWeight: 600, fontSize: 'var(--type-micro)', letterSpacing: '0.5px',
                   }}>RESET DEFAULT</button>
                   <button className="btn" onClick={() => setLayoutEdit(false)} style={{
                     padding: '3px 12px', background: 'var(--accent)', color: 'var(--bg-app)',
-                    border: 'none', borderRadius: 3, fontWeight: 700, fontSize: 10, letterSpacing: '0.5px',
+                    border: 'none', borderRadius: 3, fontWeight: 700, fontSize: 'var(--type-micro)', letterSpacing: '0.5px',
                   }}>DONE</button>
                 </div>
               )}
               {/* H3 (#home_grid_v2): flag ON → lazy editable grid; flag OFF →
                   the exact legacy desktopRows renderer below, untouched. */}
               {homeGridV2 ? (
-                <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 10, letterSpacing: '0.5px' }}>LOADING LAYOUT...</div>}>
+                <Suspense fallback={<div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 'var(--type-micro)', letterSpacing: '0.5px' }}>LOADING LAYOUT...</div>}>
                   <HomeGrid
                     grid={gridLayouts.activeGrid}
                     onGridChange={gridLayouts.setActiveGrid}

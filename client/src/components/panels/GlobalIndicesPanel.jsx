@@ -130,7 +130,7 @@ const headerChipStyle = (on) => ({
   border: `1px solid ${on ? 'var(--accent)' : 'var(--border-strong)'}`,
   color: on ? 'var(--accent)' : 'var(--text-muted)',
   fontFamily: 'var(--font-family-mono)',
-  fontSize: 9,
+  fontSize: 'var(--type-caption)',
   letterSpacing: '0.06em',
   padding: '1px 6px',
   borderRadius: 2,

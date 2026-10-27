@@ -32,7 +32,7 @@ export default function NewVersionBanner() {
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14,
         padding: '9px 16px',
         background: 'var(--accent, #e55a00)', color: '#fff',
-        fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 500,
+        fontFamily: 'var(--font-ui)', fontSize: 'var(--type-title)', fontWeight: 500,
         boxShadow: '0 2px 14px rgba(0,0,0,.35)',
       }}
     >
@@ -41,7 +41,7 @@ export default function NewVersionBanner() {
         onClick={() => window.location.reload()}
         style={{
           background: '#fff', color: 'var(--accent, #e55a00)', border: 'none',
-          borderRadius: 4, padding: '5px 14px', fontSize: 12, fontWeight: 700,
+          borderRadius: 4, padding: '5px 14px', fontSize: 'var(--type-body)', fontWeight: 700,
           letterSpacing: '.5px', cursor: 'pointer', fontFamily: 'inherit',
         }}
       >

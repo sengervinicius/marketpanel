@@ -18,7 +18,7 @@
 
 .csb-name {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -47,7 +47,7 @@
   background: none;
   border: none;
   color: var(--border-strong);
-  font-size: 11px;
+  font-size: var(--type-row);
   padding: 0;
   line-height: 1;
   cursor: pointer;

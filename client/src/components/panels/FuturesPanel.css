@@ -87,7 +87,7 @@
 }
 
 .fut-col-kind {
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
@@ -156,7 +156,7 @@
 
 .fut-source-text {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.04em;
 }
 
@@ -167,7 +167,7 @@
   align-items: center;
   justify-content: center;
   color: var(--text-faint);
-  font-size: 10px;
+  font-size: var(--type-micro);
   flex-direction: column;
   gap: 4px;
 }
@@ -175,7 +175,7 @@
   background: none;
   border: 1px solid var(--border-default);
   color: var(--text-secondary);
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.08em;
   padding: 2px 6px;

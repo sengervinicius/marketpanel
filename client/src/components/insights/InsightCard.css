@@ -54,7 +54,7 @@
 }
 
 .insight-card-icon {
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--text-faint);
   line-height: 1;
 }
@@ -97,7 +97,7 @@
   background: none;
   border: none;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--type-row);
   cursor: pointer;
   padding: 0 2px;
   line-height: 1;
@@ -199,7 +199,7 @@
   .insight-card-dismiss {
     opacity: 1; /* Always visible on mobile (no hover) */
     padding: 4px 6px;
-    font-size: 14px;
+    font-size: var(--type-lead);
   }
 
   .insight-card-questions {

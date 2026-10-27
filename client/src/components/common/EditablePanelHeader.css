@@ -73,7 +73,7 @@
   background: var(--bg-surface, rgba(255,255,255,0.04));
   border: 1px solid var(--border-strong, #3a3a3a);
   color: var(--text-muted);
-  font-size: 8px;
+  font-size: var(--type-caption);
   letter-spacing: 0.08em;
   padding: 1px 5px 1px 4px;
   margin-left: 4px;
@@ -88,7 +88,7 @@
 .eph-edit-label { font-weight: 700; }
 
 .eph-badge {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   padding: 1px 4px;
@@ -110,7 +110,7 @@
 
 .eph-drop-text {
   color: var(--accent);
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.15em;
 }
@@ -131,7 +131,7 @@
   background: var(--bg-app);
   border: 1px solid var(--border-strong);
   color: var(--text-primary);
-  font-size: 9px;
+  font-size: var(--type-caption);
   padding: 2px 6px;
   font-family: var(--font-ui);
   outline: none;
@@ -165,7 +165,7 @@
   display: inline-block;
   width: 10px;
   margin-left: 3px;
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--accent);
   opacity: 0;
   transition: opacity 120ms ease;

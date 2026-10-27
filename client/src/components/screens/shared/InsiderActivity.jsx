@@ -137,7 +137,7 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
         border: '1px solid rgba(255,255,255,0.06)',
       }}>
         <div style={{
-          fontSize: 12,
+          fontSize: 'var(--type-body)',
           fontWeight: 600,
           color: 'var(--text-secondary)',
           marginBottom: 6,
@@ -147,14 +147,14 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
           {heading}
         </div>
         <div style={{
-          fontSize: 11,
+          fontSize: 'var(--type-row)',
           color: 'var(--text-muted)',
           textAlign: 'center',
           lineHeight: 1.5,
         }}>
           {primaryCopy}
           <br />
-          <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>
+          <span style={{ fontSize: 'var(--type-micro)', color: 'var(--text-faint)' }}>
             {secondaryCopy}
           </span>
         </div>
@@ -185,27 +185,27 @@ export function InsiderActivity({ tickers, limit = 5, onTickerClick }) {
                 className={onTickerClick ? 'ds-row-clickable' : ''}
                 onClick={() => onTickerClick?.(row.ticker)}
               >
-                <td style={{ fontSize: 9, color: 'var(--text-secondary)' }}>
+                <td style={{ fontSize: 'var(--type-caption)', color: 'var(--text-secondary)' }}>
                   {row.transaction_date ? new Date(row.transaction_date).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
                   }) : '—'}
                 </td>
                 <td style={{ fontWeight: 700, color: 'var(--text-primary)', cursor: 'pointer' }} className="ds-ticker-col">{row.ticker}</td>
-                <td style={{ fontSize: 9, color: 'var(--text-secondary)' }}>
+                <td style={{ fontSize: 'var(--type-caption)', color: 'var(--text-secondary)' }}>
                   {row.name ? row.name.substring(0, 20) : '—'}
                 </td>
                 <td style={{
                   color: isBuy ? 'var(--semantic-up)' : 'var(--semantic-down)',
                   fontWeight: 500,
-                  fontSize: 9,
+                  fontSize: 'var(--type-caption)',
                 }}>
                   {isBuy ? 'BUY' : 'SELL'}
                 </td>
-                <td style={{ fontSize: 9, color: 'var(--text-secondary)' }}>
+                <td style={{ fontSize: 'var(--type-caption)', color: 'var(--text-secondary)' }}>
                   {formatShares(row.shares)}
                 </td>
-                <td style={{ fontSize: 9, color: 'var(--text-secondary)' }}>
+                <td style={{ fontSize: 'var(--type-caption)', color: 'var(--text-secondary)' }}>
                   {formatValue(row.value)}
                 </td>
               </tr>

@@ -223,9 +223,9 @@ function CreditTab() {
           <div key={t.id} className="ol-cell" style={{ minHeight: 72 }}>
             <div className="ol-cell-h">{t.label}<span className="ol-cell-note">· {t.seriesId}</span></div>
             <div className="ol-mini">
-              <span className="num" style={{ fontSize: 18, fontWeight: 700 }}>{fmtVal(t)}</span>{' '}
+              <span className="num" style={{ fontSize: 'var(--type-display)', fontWeight: 700 }}>{fmtVal(t)}</span>{' '}
               <span style={{ color: chgColor(t) }}>{fmtChg(t)}</span>
-              {t.asOfDate ? <span className="ol-dim" style={{ marginLeft: 8, fontSize: 9 }}>{t.asOfDate}</span> : null}
+              {t.asOfDate ? <span className="ol-dim" style={{ marginLeft: 8, fontSize: 'var(--type-caption)' }}>{t.asOfDate}</span> : null}
             </div>
           </div>
         ))}

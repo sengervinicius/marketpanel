@@ -59,7 +59,7 @@ function EventRow({ event, accentColor }) {
     <tr>
       <td style={{
         padding: '3px 8px',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         fontWeight: 700,
         color: 'var(--text-secondary)',
         fontFamily: 'var(--font-mono)',
@@ -69,7 +69,7 @@ function EventRow({ event, accentColor }) {
       </td>
       <td style={{
         padding: '3px 8px',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         color: 'var(--text-muted)',
         whiteSpace: 'nowrap',
       }}>
@@ -77,7 +77,7 @@ function EventRow({ event, accentColor }) {
       </td>
       <td style={{
         padding: '3px 8px',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         color: 'var(--text-primary)',
         fontWeight: 700,
       }}>
@@ -88,7 +88,7 @@ function EventRow({ event, accentColor }) {
       </td>
       <td style={{
         padding: '3px 8px',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         fontFamily: 'var(--font-mono)',
         color: 'var(--text-secondary)',
         textAlign: 'right',
@@ -98,7 +98,7 @@ function EventRow({ event, accentColor }) {
       </td>
       <td style={{
         padding: '3px 8px',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
         fontFamily: 'var(--font-mono)',
         color: 'var(--text-muted)',
         textAlign: 'right',
@@ -197,7 +197,7 @@ export const MacroCalendarStrip = memo(function MacroCalendarStrip({
         borderBottom: '1px solid var(--border-default)',
       }}>
         <span style={{
-          fontSize: 9,
+          fontSize: 'var(--type-caption)',
           fontWeight: 700,
           letterSpacing: '1.2px',
           color: 'var(--text-secondary)',
@@ -205,28 +205,28 @@ export const MacroCalendarStrip = memo(function MacroCalendarStrip({
         }}>
           MACRO CALENDAR {countries.length > 0 ? `(${countries.join(', ')})` : ''}
         </span>
-        <span style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>
+        <span style={{ fontSize: 'var(--type-caption)', color: 'var(--text-muted)' }}>
           EULERPOOL
         </span>
       </div>
 
       {/* body */}
       {loading ? (
-        <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 10 }}>
+        <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--type-micro)' }}>
           Loading macro events…
         </div>
       ) : providerOffline ? (
         // #286 — explicit unavailable state for the macro calendar so
         // CIOs don't read an empty strip as "the world is calm".
-        <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 10, lineHeight: 1.5 }}>
+        <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--type-micro)', lineHeight: 1.5 }}>
           Macro calendar provider not configured.
           <br />
-          <span style={{ fontSize: 9, color: 'var(--text-faint)' }}>
+          <span style={{ fontSize: 'var(--type-caption)', color: 'var(--text-faint)' }}>
             {providerMessage || 'Contact your admin to enable the Eulerpool macro feed.'}
           </span>
         </div>
       ) : error || events.length === 0 ? (
-        <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 10 }}>
+        <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--type-micro)' }}>
           {error || 'No upcoming macro events'}
         </div>
       ) : (
@@ -238,11 +238,11 @@ export const MacroCalendarStrip = memo(function MacroCalendarStrip({
           }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
-                <th style={{ padding: '3px 8px', fontSize: 8.5, color: 'var(--text-muted)', fontWeight: 700, textAlign: 'left' }}>DATE</th>
-                <th style={{ padding: '3px 8px', fontSize: 8.5, color: 'var(--text-muted)', fontWeight: 700, textAlign: 'left' }}>COUNTRY</th>
-                <th style={{ padding: '3px 8px', fontSize: 8.5, color: 'var(--text-muted)', fontWeight: 700, textAlign: 'left' }}>EVENT</th>
-                <th style={{ padding: '3px 8px', fontSize: 8.5, color: 'var(--text-muted)', fontWeight: 700, textAlign: 'right' }}>FORECAST</th>
-                <th style={{ padding: '3px 8px', fontSize: 8.5, color: 'var(--text-muted)', fontWeight: 700, textAlign: 'right' }}>PREVIOUS</th>
+                <th style={{ padding: '3px 8px', fontSize: 'var(--type-caption)', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'left' }}>DATE</th>
+                <th style={{ padding: '3px 8px', fontSize: 'var(--type-caption)', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'left' }}>COUNTRY</th>
+                <th style={{ padding: '3px 8px', fontSize: 'var(--type-caption)', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'left' }}>EVENT</th>
+                <th style={{ padding: '3px 8px', fontSize: 'var(--type-caption)', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'right' }}>FORECAST</th>
+                <th style={{ padding: '3px 8px', fontSize: 'var(--type-caption)', color: 'var(--text-muted)', fontWeight: 700, textAlign: 'right' }}>PREVIOUS</th>
               </tr>
             </thead>
             <tbody>
@@ -262,7 +262,7 @@ export const MacroCalendarStrip = memo(function MacroCalendarStrip({
         borderTop: '1px solid var(--border-default)',
       }}>
         {['High', 'Medium', 'Low'].map(level => (
-          <span key={level} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 8.5, color: 'var(--text-muted)' }}>
+          <span key={level} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 'var(--type-caption)', color: 'var(--text-muted)' }}>
             {impactDot(level)} {level}
           </span>
         ))}

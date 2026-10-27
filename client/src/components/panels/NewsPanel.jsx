@@ -572,7 +572,7 @@ function NewsPanel() {
             />
             {effectiveScope !== 'macro' && (
               <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
-                <button onClick={() => load()} style={{ marginTop: 8, padding: '6px 12px', fontSize: 11, fontWeight: 600, background: 'transparent', border: '1px solid var(--accent)', borderRadius: 3, color: 'var(--accent)', cursor: 'pointer' }}>
+                <button onClick={() => load()} style={{ marginTop: 8, padding: '6px 12px', fontSize: 'var(--type-row)', fontWeight: 600, background: 'transparent', border: '1px solid var(--accent)', borderRadius: 3, color: 'var(--accent)', cursor: 'pointer' }}>
                   REFRESH
                 </button>
               </div>

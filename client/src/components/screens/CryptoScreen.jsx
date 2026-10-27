@@ -271,7 +271,7 @@ function OnChainCard({ label, value, unit, loading, error }) {
         padding: '12px',
         textAlign: 'center',
         color: 'var(--text-muted)',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
       }}>
         <div style={{ color: 'var(--text-faint)', marginBottom: 6 }}>{label}</div>
         <div style={{ height: 20, background: 'var(--bg-hover)', borderRadius: 2 }} />
@@ -287,10 +287,10 @@ function OnChainCard({ label, value, unit, loading, error }) {
         padding: '12px',
         textAlign: 'center',
         color: 'var(--text-muted)',
-        fontSize: 10,
+        fontSize: 'var(--type-micro)',
       }}>
         <div style={{ color: 'var(--text-secondary)', marginBottom: 6 }}>{label}</div>
-        <div style={{ color: 'var(--text-muted)', fontSize: 9 }}>—</div>
+        <div style={{ color: 'var(--text-muted)', fontSize: 'var(--type-caption)' }}>—</div>
       </div>
     );
   }
@@ -302,13 +302,13 @@ function OnChainCard({ label, value, unit, loading, error }) {
       padding: '12px',
       textAlign: 'center',
     }}>
-      <div style={{ color: 'var(--text-secondary)', fontSize: 9, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+      <div style={{ color: 'var(--text-secondary)', fontSize: 'var(--type-caption)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
         {label}
       </div>
-      <div style={{ color: 'var(--text-primary)', fontSize: 14, fontWeight: 600, fontFamily: 'var(--font-family-mono)' }}>
+      <div style={{ color: 'var(--text-primary)', fontSize: 'var(--type-lead)', fontWeight: 600, fontFamily: 'var(--font-family-mono)' }}>
         {value || '—'}
       </div>
-      {unit && <div style={{ color: 'var(--text-muted)', fontSize: 8.5, marginTop: 4 }}>{unit}</div>}
+      {unit && <div style={{ color: 'var(--text-muted)', fontSize: 'var(--type-caption)', marginTop: 4 }}>{unit}</div>}
     </div>
   );
 }
@@ -334,13 +334,13 @@ function BitcoinOnChainSection() {
 
   if (data?.status === 'unavailable') {
     return (
-      <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>
+      <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 'var(--type-micro)', textAlign: 'center' }}>
         {formatProviderMessage(data.envelope)}
       </div>
     );
   }
   if (error && !data) {
-    return <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>On-chain data temporarily unavailable</div>;
+    return <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 'var(--type-micro)', textAlign: 'center' }}>On-chain data temporarily unavailable</div>;
   }
 
   return (
@@ -401,13 +401,13 @@ function EthereumOnChainSection() {
 
   if (data?.status === 'unavailable') {
     return (
-      <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>
+      <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 'var(--type-micro)', textAlign: 'center' }}>
         {formatProviderMessage(data.envelope)}
       </div>
     );
   }
   if (error && !data) {
-    return <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 10, textAlign: 'center' }}>On-chain data temporarily unavailable</div>;
+    return <div style={{ padding: 10, color: 'var(--text-muted)', fontSize: 'var(--type-micro)', textAlign: 'center' }}>On-chain data temporarily unavailable</div>;
   }
 
   return (

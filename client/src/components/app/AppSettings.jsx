@@ -211,7 +211,7 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
               aria-label={`Set default start tab to ${label}`}
               aria-pressed={defaultStartTab === value}
             >
-              <span style={{ color: defaultStartTab === value ? 'var(--accent)' : 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
+              <span style={{ color: defaultStartTab === value ? 'var(--accent)' : 'var(--text-muted)', fontSize: 'var(--type-caption)', letterSpacing: '0.5px' }}>{label}</span>
               <span style={{ color: defaultStartTab === value ? 'var(--accent)' : 'var(--border-strong)' }}>{defaultStartTab === value ? '●' : '○'}</span>
             </div>
           ))}
@@ -238,8 +238,8 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
               aria-pressed={emailOn}
               aria-label={`Email delivery: ${emailOn ? 'on' : 'off'}. Click to toggle`}
             >
-              <span style={{ color: emailOn ? 'var(--text-primary)' : 'var(--text-faint)', fontSize: 9, letterSpacing: '0.5px' }}>EMAIL DELIVERY</span>
-              <span style={{ color: emailOn ? 'var(--price-up)' : 'var(--text-faint)', fontSize: 9, fontWeight: 700 }}>
+              <span style={{ color: emailOn ? 'var(--text-primary)' : 'var(--text-faint)', fontSize: 'var(--type-caption)', letterSpacing: '0.5px' }}>EMAIL DELIVERY</span>
+              <span style={{ color: emailOn ? 'var(--price-up)' : 'var(--text-faint)', fontSize: 'var(--type-caption)', fontWeight: 700 }}>
                 {emailOn ? '● ON' : '○ OFF'}
               </span>
             </div>
@@ -253,13 +253,13 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
               aria-pressed={inboxOn}
               aria-label={`In-app inbox: ${inboxOn ? 'on' : 'off'}. Click to toggle`}
             >
-              <span style={{ color: inboxOn ? 'var(--text-primary)' : 'var(--text-faint)', fontSize: 9, letterSpacing: '0.5px' }}>IN-APP INBOX</span>
-              <span style={{ color: inboxOn ? 'var(--price-up)' : 'var(--text-faint)', fontSize: 9, fontWeight: 700 }}>
+              <span style={{ color: inboxOn ? 'var(--text-primary)' : 'var(--text-faint)', fontSize: 'var(--type-caption)', letterSpacing: '0.5px' }}>IN-APP INBOX</span>
+              <span style={{ color: inboxOn ? 'var(--price-up)' : 'var(--text-faint)', fontSize: 'var(--type-caption)', fontWeight: 700 }}>
                 {inboxOn ? '● ON' : '○ OFF'}
               </span>
             </div>
             <div style={rowStyle}>
-              <span style={{ color: 'var(--text-muted)', fontSize: 9, letterSpacing: '0.5px' }}>SEND TIME (LOCAL)</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 'var(--type-caption)', letterSpacing: '0.5px' }}>SEND TIME (LOCAL)</span>
               <input
                 type="time"
                 value={briefTime}
@@ -273,7 +273,7 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
                   border: '1px solid var(--border-strong)',
                   borderRadius: 3,
                   padding: '2px 6px',
-                  fontSize: 10,
+                  fontSize: 'var(--type-micro)',
                   fontFamily: 'var(--font-mono)',
                 }}
               />
@@ -317,8 +317,8 @@ export function SettingsDrawer({ panelVisible, togglePanel, onClose, mobile }) {
             aria-pressed={visible}
             aria-label={`${label}: ${visible ? 'on' : 'off'}. Click to toggle`}
           >
-            <span style={{ color: visible ? 'var(--text-primary)' : 'var(--text-faint)', fontSize: 9, letterSpacing: '0.5px' }}>{label}</span>
-            <span style={{ color: visible ? 'var(--price-up)' : 'var(--text-faint)', fontSize: 9, fontWeight: 700 }}>
+            <span style={{ color: visible ? 'var(--text-primary)' : 'var(--text-faint)', fontSize: 'var(--type-caption)', letterSpacing: '0.5px' }}>{label}</span>
+            <span style={{ color: visible ? 'var(--price-up)' : 'var(--text-faint)', fontSize: 'var(--type-caption)', fontWeight: 700 }}>
               {visible ? '● ON' : '○ OFF'}
             </span>
           </div>
@@ -419,7 +419,7 @@ export function DiscordLinkRow() {
       aria-label="Connect to our Discord community"
     >
       <span className="app-text-muted-small">Join our Discord</span>
-      <span style={{ fontSize: 9, fontWeight: 700, color: '#5865F2', letterSpacing: '0.3px' }}>CONNECT</span>
+      <span style={{ fontSize: 'var(--type-caption)', fontWeight: 700, color: '#5865F2', letterSpacing: '0.3px' }}>CONNECT</span>
     </div>
   );
 }
@@ -439,7 +439,7 @@ export function HowToAutomateBlock() {
 
   const h = {
     fontFamily: 'var(--font-family-mono)',
-    fontSize: 9,
+    fontSize: 'var(--type-caption)',
     fontWeight: 700,
     letterSpacing: '0.5px',
     color: 'var(--accent)',
@@ -470,7 +470,7 @@ export function HowToAutomateBlock() {
       </div>
 
       {open && (
-        <div className="app-text-muted-small" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+        <div className="app-text-muted-small" style={{ fontSize: 'var(--type-row)', color: 'var(--text-muted)' }}>
           <div style={{ color: 'var(--text-faint)', margin: '2px 0 6px' }}>
             Auto-forward research email into your vault — your address is above. Pick one:
           </div>
@@ -614,10 +614,10 @@ export function InboundEmailRow() {
   if (state.error) {
     return (
       <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
-        <span style={{ color: 'var(--price-down)', fontSize: 9 }}>Error: {state.error}</span>
+        <span style={{ color: 'var(--price-down)', fontSize: 'var(--type-caption)' }}>Error: {state.error}</span>
         <span
           role="button" tabIndex={0}
-          style={{ color: 'var(--accent)', fontSize: 9, cursor: 'pointer' }}
+          style={{ color: 'var(--accent)', fontSize: 'var(--type-caption)', cursor: 'pointer' }}
           onClick={load}
         >RETRY</span>
       </div>
@@ -630,7 +630,7 @@ export function InboundEmailRow() {
         <span className="app-text-muted-small">Inbound email is disabled.</span>
         <span
           role="button" tabIndex={0}
-          style={{ color: 'var(--accent)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px' }}
+          style={{ color: 'var(--accent)', fontSize: 'var(--type-caption)', cursor: 'pointer', letterSpacing: '0.3px' }}
           onClick={handleEnable}
           aria-label="Enable inbound email"
         >{busy === 'enable' ? 'ENABLING…' : 'ENABLE'}</span>
@@ -640,12 +640,12 @@ export function InboundEmailRow() {
 
   return (
     <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <div style={{ fontSize: 9, color: 'var(--text-faint)', lineHeight: 1.4 }}>
+      <div style={{ fontSize: 'var(--type-caption)', color: 'var(--text-faint)', lineHeight: 1.4 }}>
         Forward research emails here — they auto-ingest into your vault. PDF/DOCX attachments and note bodies land in your private vault; nobody else on Particle sees them.
       </div>
       <div style={{
         fontFamily: 'var(--font-family-mono)',
-        fontSize: 11, color: 'var(--text-primary)',
+        fontSize: 'var(--type-row)', color: 'var(--text-primary)',
         padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 4,
         wordBreak: 'break-all', userSelect: 'all',
       }}>
@@ -655,25 +655,25 @@ export function InboundEmailRow() {
         <span
           role="button" tabIndex={0}
           onClick={handleCopy}
-          style={{ color: copied ? 'var(--price-up)' : 'var(--accent)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px' }}
+          style={{ color: copied ? 'var(--price-up)' : 'var(--accent)', fontSize: 'var(--type-caption)', cursor: 'pointer', letterSpacing: '0.3px' }}
           aria-label="Copy inbound email address to clipboard"
         >{copied ? '✓ COPIED' : 'COPY ADDRESS'}</span>
         <span style={{ display: 'flex', gap: 12 }}>
           <span
             role="button" tabIndex={0}
             onClick={handleRotate}
-            style={{ color: 'var(--text-muted)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px' }}
+            style={{ color: 'var(--text-muted)', fontSize: 'var(--type-caption)', cursor: 'pointer', letterSpacing: '0.3px' }}
             aria-label="Rotate inbound token"
           >{busy === 'rotate' ? 'ROTATING…' : 'ROTATE'}</span>
           <span
             role="button" tabIndex={0}
             onClick={handleDisable}
-            style={{ color: 'var(--price-down)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px' }}
+            style={{ color: 'var(--price-down)', fontSize: 'var(--type-caption)', cursor: 'pointer', letterSpacing: '0.3px' }}
             aria-label="Disable inbound email"
           >{busy === 'disable' ? 'DISABLING…' : 'DISABLE'}</span>
         </span>
       </div>
-      <div style={{ fontSize: 9, color: 'var(--text-faint)', lineHeight: 1.3 }}>
+      <div style={{ fontSize: 'var(--type-caption)', color: 'var(--text-faint)', lineHeight: 1.3 }}>
         ⚠ Treat this address like a password. Anyone who knows it can drop files into your vault — rotate immediately if it leaks.
       </div>
     </div>
@@ -817,11 +817,11 @@ export function ParticleMemoryPanel() {
     return (
       <>
         <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
-          <span style={{ color: 'var(--text-faint)', fontSize: 9, lineHeight: 1.3 }}>
+          <span style={{ color: 'var(--text-faint)', fontSize: 'var(--type-caption)', lineHeight: 1.3 }}>
             Nothing retained yet. As you talk with Particle, it will note the positions, theses, and preferences that recur — they will appear here so you can correct or delete them.
           </span>
           {state.error && (
-            <span style={{ color: 'var(--price-down)', fontSize: 9 }}>Error: {state.error}</span>
+            <span style={{ color: 'var(--price-down)', fontSize: 'var(--type-caption)' }}>Error: {state.error}</span>
           )}
         </div>
       </>
@@ -832,7 +832,7 @@ export function ParticleMemoryPanel() {
     <>
       {state.error && (
         <div style={{ ...rowStyle, flexDirection: 'column', alignItems: 'stretch', gap: 4 }}>
-          <span style={{ color: 'var(--price-down)', fontSize: 9 }}>Error: {state.error}</span>
+          <span style={{ color: 'var(--price-down)', fontSize: 'var(--type-caption)' }}>Error: {state.error}</span>
         </div>
       )}
       {state.memories.map(m => {
@@ -845,20 +845,20 @@ export function ParticleMemoryPanel() {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <span style={{
-                fontSize: 8.5, letterSpacing: '0.4px', fontWeight: 700,
+                fontSize: 'var(--type-caption)', letterSpacing: '0.4px', fontWeight: 700,
                 color: lowConf ? 'var(--text-faint)' : 'var(--accent)',
                 border: '1px solid var(--border-subtle)', borderRadius: 2,
                 padding: '1px 4px', textTransform: 'uppercase',
               }}>{m.type || 'fact'}</span>
               {m.referenceCount > 0 && (
-                <span style={{ fontSize: 8.5, color: 'var(--text-faint)', letterSpacing: '0.3px' }}>
+                <span style={{ fontSize: 'var(--type-caption)', color: 'var(--text-faint)', letterSpacing: '0.3px' }}>
                   ×{m.referenceCount}
                 </span>
               )}
               {lowConf && (
                 <span
                   title="Low-confidence; the model suppresses this at inference time but keeps the row so you can still see and delete it"
-                  style={{ fontSize: 8.5, color: 'var(--text-faint)', letterSpacing: '0.3px' }}
+                  style={{ fontSize: 'var(--type-caption)', color: 'var(--text-faint)', letterSpacing: '0.3px' }}
                 >LOW CONF</span>
               )}
               <span style={{ flex: 1 }} />
@@ -868,14 +868,14 @@ export function ParticleMemoryPanel() {
                     role="button" tabIndex={0}
                     onClick={() => startEdit(m)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(m); } }}
-                    style={{ color: 'var(--text-muted)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px' }}
+                    style={{ color: 'var(--text-muted)', fontSize: 'var(--type-caption)', cursor: 'pointer', letterSpacing: '0.3px' }}
                     aria-label={`Edit memory ${m.id}`}
                   >EDIT</span>
                   <span
                     role="button" tabIndex={0}
                     onClick={() => deleteOne(m.id)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); deleteOne(m.id); } }}
-                    style={{ color: 'var(--price-down)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px' }}
+                    style={{ color: 'var(--price-down)', fontSize: 'var(--type-caption)', cursor: 'pointer', letterSpacing: '0.3px' }}
                     aria-label={`Forget memory ${m.id}`}
                   >{busy === m.id ? '…' : 'FORGET'}</span>
                 </>
@@ -895,7 +895,7 @@ export function ParticleMemoryPanel() {
                     border: '1px solid var(--border-strong)',
                     borderRadius: 3,
                     padding: '4px 6px',
-                    fontSize: 10,
+                    fontSize: 'var(--type-micro)',
                     fontFamily: 'var(--font-mono)',
                     resize: 'vertical',
                   }}
@@ -904,19 +904,19 @@ export function ParticleMemoryPanel() {
                   <span
                     role="button" tabIndex={0}
                     onClick={cancelEdit}
-                    style={{ color: 'var(--text-faint)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px' }}
+                    style={{ color: 'var(--text-faint)', fontSize: 'var(--type-caption)', cursor: 'pointer', letterSpacing: '0.3px' }}
                   >CANCEL</span>
                   <span
                     role="button" tabIndex={0}
                     onClick={() => saveEdit(m.id)}
-                    style={{ color: 'var(--accent)', fontSize: 9, cursor: 'pointer', letterSpacing: '0.3px', fontWeight: 700 }}
+                    style={{ color: 'var(--accent)', fontSize: 'var(--type-caption)', cursor: 'pointer', letterSpacing: '0.3px', fontWeight: 700 }}
                   >{busy === m.id ? 'SAVING…' : 'SAVE'}</span>
                 </div>
               </>
             ) : (
               <span style={{
                 color: lowConf ? 'var(--text-faint)' : 'var(--text-primary)',
-                fontSize: 10, lineHeight: 1.4, fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--type-micro)', lineHeight: 1.4, fontFamily: 'var(--font-mono)',
               }}>{m.content}</span>
             )}
           </div>
@@ -934,10 +934,10 @@ export function ParticleMemoryPanel() {
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         aria-label="Forget everything Particle remembers"
       >
-        <span style={{ color: 'var(--price-down)', fontSize: 9, letterSpacing: '0.3px', fontWeight: 700 }}>
+        <span style={{ color: 'var(--price-down)', fontSize: 'var(--type-caption)', letterSpacing: '0.3px', fontWeight: 700 }}>
           ✕ FORGET EVERYTHING
         </span>
-        <span style={{ color: 'var(--text-faint)', fontSize: 8.5 }}>
+        <span style={{ color: 'var(--text-faint)', fontSize: 'var(--type-caption)' }}>
           {busy === 'forget-all' ? 'FORGETTING…' : 'irreversible'}
         </span>
       </div>
@@ -969,7 +969,7 @@ export function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) 
         aria-expanded={open}
       >
         <UserAvatar user={user} size="small" interactive />
-        <span style={{ color: open ? 'var(--accent)' : 'var(--text-faint)', fontSize: 8.5 }}>v</span>
+        <span style={{ color: open ? 'var(--accent)' : 'var(--text-faint)', fontSize: 'var(--type-caption)' }}>v</span>
         <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
           <span>{user.username?.toUpperCase()}</span>
         </span>
@@ -984,11 +984,11 @@ export function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) 
               they were on, on either platform. */}
           <div style={{ padding: '9px 10px', borderBottom: '1px solid var(--border-default)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ color: 'var(--accent)', fontSize: 10, fontWeight: 700, letterSpacing: '.6px' }}>
+              <span style={{ color: 'var(--accent)', fontSize: 'var(--type-micro)', fontWeight: 700, letterSpacing: '.6px' }}>
                 {(ent.tierLabel || 'PARTICLE').toUpperCase()}
               </span>
               {ent.status && (
-                <span style={{ fontSize: 8.5, letterSpacing: '.5px', color: ent.status === 'expired' ? 'var(--price-down)' : 'var(--text-faint)' }}>
+                <span style={{ fontSize: 'var(--type-caption)', letterSpacing: '.5px', color: ent.status === 'expired' ? 'var(--price-down)' : 'var(--text-faint)' }}>
                   {ent.status === 'trial' && ent.trialDaysRemaining != null
                     ? `TRIAL · ${ent.trialDaysRemaining}D LEFT`
                     : ent.status.toUpperCase()}
@@ -996,10 +996,10 @@ export function UserDropdown({ user, onSettings, onLogout, onBilling, isPaid }) 
               )}
             </div>
             <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
-              <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: 'var(--type-caption)', color: 'var(--text-muted)' }}>
                 AI {ent.ai ? (ent.ai.limit === 'unlimited' ? `${ent.ai.used ?? 0} · unlimited` : `${ent.ai.used ?? 0} / ${ent.ai.limit ?? '—'} today`) : '—'}
               </span>
-              <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: 'var(--type-caption)', color: 'var(--text-muted)' }}>
                 Vault {ent.vault ? (ent.vault.limit === 'unlimited' ? `${ent.vault.used ?? 0} · unlimited` : `${ent.vault.used ?? 0} / ${ent.vault.limit ?? '—'} docs`) : '—'}
               </span>
             </div>
@@ -1053,15 +1053,15 @@ export function AlertBadge() {
     return null;
   }
   if (triggeredCount === 0) return (
-    <span title="No triggered alerts" style={{ color: 'var(--text-faint)', fontSize: 11, cursor: 'default', display: 'inline-flex' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
+    <span title="No triggered alerts" style={{ color: 'var(--text-faint)', fontSize: 'var(--type-row)', cursor: 'default', display: 'inline-flex' }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></span>
   );
   return (
-    <span title={`${triggeredCount} triggered alert${triggeredCount > 1 ? 's' : ''}`} style={{ position: 'relative', fontSize: 11, display: 'inline-flex' }}>
+    <span title={`${triggeredCount} triggered alert${triggeredCount > 1 ? 's' : ''}`} style={{ position: 'relative', fontSize: 'var(--type-row)', display: 'inline-flex' }}>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
       <span style={{
         position: 'absolute', top: -4, right: -6,
         background: 'var(--price-down)', color: 'var(--color-text-primary)',
-        fontSize: 8.5, fontWeight: 700, borderRadius: '50%',
+        fontSize: 'var(--type-caption)', fontWeight: 700, borderRadius: '50%',
         width: 12, height: 12, display: 'flex',
         alignItems: 'center', justifyContent: 'center',
         lineHeight: 1,

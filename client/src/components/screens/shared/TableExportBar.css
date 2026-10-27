@@ -9,7 +9,7 @@
   background: transparent;
   border: 1px solid var(--border-default);
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 600;
   letter-spacing: 0.5px;
   padding: 2px 8px;

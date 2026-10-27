@@ -27,7 +27,7 @@
   background: var(--bg-surface);
 }
 .psb-collapsed-label {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--text-muted);
@@ -57,7 +57,7 @@
   flex-shrink: 0;
 }
 .psb-header-title {
-  font-size: 12px;
+  font-size: var(--type-body);
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--text-primary);
@@ -100,7 +100,7 @@
   border: 1px solid var(--border-default);
   border-radius: 8px;
   padding: 7px 10px;
-  font-size: 12px;
+  font-size: var(--type-body);
   color: var(--text-primary);
   outline: none;
   font-family: var(--font-body);
@@ -150,7 +150,7 @@
   color: #000;
   border-radius: 12px 12px 4px 12px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--type-body);
   line-height: 1.4;
   max-width: 85%;
 }
@@ -166,14 +166,14 @@
   color: var(--text-primary);
   border-radius: 12px 12px 12px 4px;
   padding: 6px 10px;
-  font-size: 12px;
+  font-size: var(--type-body);
   line-height: 1.5;
   max-width: 90%;
   white-space: pre-wrap;
   word-break: break-word;
 }
 .psb-error {
-  font-size: 11px;
+  font-size: var(--type-row);
   color: var(--color-down);
   padding: 4px 8px;
 }
@@ -188,14 +188,14 @@
   margin-bottom: 8px;
 }
 .psb-wire-badge {
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.1em;
   color: var(--accent);
   text-transform: uppercase;
 }
 .psb-wire-empty {
-  font-size: 11px;
+  font-size: var(--type-row);
   color: var(--text-muted);
   padding: 8px 0;
 }
@@ -210,7 +210,7 @@
   background: rgba(255,255,255,0.03);
 }
 .psb-wire-content {
-  font-size: 12px;
+  font-size: var(--type-body);
   line-height: 1.45;
   color: var(--text-primary);
   margin-bottom: 4px;
@@ -222,7 +222,7 @@
   flex-wrap: wrap;
 }
 .psb-wire-ticker {
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-weight: 600;
   color: var(--accent);
   background: rgba(229, 90, 0,0.10);
@@ -230,7 +230,7 @@
   border-radius: 3px;
 }
 .psb-wire-time {
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--text-muted);
   margin-left: auto;
 }

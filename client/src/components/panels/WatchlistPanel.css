@@ -20,7 +20,7 @@
   color: var(--text-muted);
   padding: 2px 6px;
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.06em;
   cursor: pointer;
   transition: background-color 0.12s, color 0.12s;
@@ -46,7 +46,7 @@
   border: 1px solid rgba(120, 80, 220, 0.55);
   color: var(--text-primary);
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.08em;
   font-weight: 700;
   padding: 2px 8px;
@@ -175,7 +175,7 @@
 
 .wp-row-source {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
 }
 
 .wp-row-price {
@@ -243,7 +243,7 @@
   text-align: center;
   transition: color 0.15s;
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--type-row);
   font-weight: 600;
 }
 
@@ -259,7 +259,7 @@
   text-align: center;
   transition: color 0.15s;
   opacity: 0;
-  font-size: 12px;
+  font-size: var(--type-body);
   font-weight: 600;
 }
 
@@ -288,7 +288,7 @@
 .wp-loading {
   padding: 18px 8px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--type-row);
   font-family: var(--font-family-mono);
   letter-spacing: 0.06em;
   text-align: center;
@@ -323,7 +323,7 @@
 
 .wp-why-title {
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--type-title);
   font-weight: 600;
 }
 
@@ -332,7 +332,7 @@
   border: none;
   color: var(--text-muted);
   padding: 0;
-  font-size: 14px;
+  font-size: var(--type-lead);
   cursor: pointer;
   transition: color 0.15s;
 }
@@ -349,7 +349,7 @@
 
 .wp-why-text {
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: var(--type-body);
   line-height: 1.5;
   word-wrap: break-word;
 }
@@ -359,7 +359,7 @@
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--type-body);
   min-height: 60px;
 }
 
@@ -384,7 +384,7 @@
   flex-direction: column;
   gap: 8px;
   color: var(--semantic-down);
-  font-size: 12px;
+  font-size: var(--type-body);
 }
 
 .wp-why-retry {
@@ -393,7 +393,7 @@
   color: var(--semantic-down);
   padding: 4px 8px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: var(--type-row);
   cursor: pointer;
   transition: all 0.15s;
   align-self: flex-start;
@@ -406,7 +406,7 @@
 .wp-error-msg {
   padding: 4px 8px;
   color: var(--semantic-down);
-  font-size: 9px;
+  font-size: var(--type-caption);
   border-top: 1px solid var(--border-default);
 }
 
@@ -439,7 +439,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 9.5px;
+  font-size: var(--type-micro);
   font-family: var(--font-mono);
   letter-spacing: 0.06em;
   color: var(--text-secondary);
@@ -454,7 +454,7 @@
 
 .wp-row-extra {
   text-align: right;
-  font-size: 10px;
+  font-size: var(--type-micro);
   font-family: var(--font-mono);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
@@ -470,7 +470,7 @@
 .wp-rec-chip {
   justify-self: end;
   align-self: center;
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-family: var(--font-mono);
   font-weight: 600;
   padding: 1px 4px;
@@ -501,7 +501,7 @@
 /* Column headers — mono 8.5px uppercase (mockup) */
 .wp-col-header-cell {
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 500;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -516,7 +516,7 @@
 }
 
 .wp-row-symbol {
-  font-size: 12px;
+  font-size: var(--type-body);
   line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
@@ -525,7 +525,7 @@
 
 .wp-row-name {
   font-family: var(--font-ui);
-  font-size: 9.5px;
+  font-size: var(--type-micro);
   color: var(--text-muted);
   line-height: 1.2;
   margin-top: -1px;
@@ -575,7 +575,7 @@
   border-top: 1px solid var(--color-border);
   border-bottom: 1px solid var(--color-border);
   font-family: var(--font-family-mono);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-text-secondary);
@@ -587,7 +587,7 @@
 .wp-bucket-caret {
   width: 10px;
   color: var(--text-faint);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   flex-shrink: 0;
 }
 
@@ -595,7 +595,7 @@
 
 .wp-bucket-count {
   color: var(--text-faint);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
 }
 
 /* Flex spacer — pushes the day-% chip to the right edge; the filled
@@ -608,7 +608,7 @@
 
 .wp-bucket-chip {
   font-variant-numeric: tabular-nums;
-  font-size: 9px;
+  font-size: var(--type-caption);
   border: 1px solid var(--border-strong);
   border-radius: 2px;
   padding: 0 5px;
@@ -622,7 +622,7 @@
    NO background band, no border. */
 .wp-sector-head {
   font-family: var(--font-family-mono);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-faint);

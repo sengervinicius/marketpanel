@@ -53,7 +53,7 @@
   border: none;
   color: var(--text-muted, var(--text-faint));
   cursor: pointer;
-  font-size: 16px;
+  font-size: var(--type-display);
   line-height: 1;
   padding: var(--sp-2, 4px);
   display: flex;
@@ -451,7 +451,7 @@
 }
 
 .pf-search-badge {
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-family: var(--font-mono);
   padding: 1px 4px;
   border-radius: 2px;

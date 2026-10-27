@@ -1,22 +1,22 @@
 .btv { display:flex; flex-direction:column; height:100%; min-height:0; background:var(--bg-elevated,#161616); }
 .btv-head { display:flex; align-items:center; gap:8px; padding:6px 10px; border-bottom:1px solid var(--line,#262626); flex:none; }
-.btv-title { font-size:10px; font-weight:800; letter-spacing:.12em; color:var(--text-primary,#e8e8e8); }
-.btv-live { display:inline-flex; align-items:center; gap:4px; font-size:9px; font-weight:700; letter-spacing:.1em; color:var(--color-down,#ef4444); }
+.btv-title { font-size: var(--type-micro); font-weight:800; letter-spacing:.12em; color:var(--text-primary,#e8e8e8); }
+.btv-live { display:inline-flex; align-items:center; gap:4px; font-size: var(--type-caption); font-weight:700; letter-spacing:.1em; color:var(--color-down,#ef4444); }
 .btv-live i { width:6px; height:6px; border-radius:50%; background:var(--color-down,#ef4444); box-shadow:0 0 6px var(--color-down,#ef4444); animation:btv-pulse 1.6s infinite; }
 @keyframes btv-pulse { 50% { opacity:.35; } }
 .btv-spacer { flex:1; }
-.btv-btn { background:transparent; border:1px solid var(--line,#262626); color:var(--text-secondary,#9aa0a6); border-radius:5px; padding:2px 7px; font-size:12px; cursor:pointer; line-height:1; }
+.btv-btn { background:transparent; border:1px solid var(--line,#262626); color:var(--text-secondary,#9aa0a6); border-radius:5px; padding:2px 7px; font-size: var(--type-body); cursor:pointer; line-height:1; }
 .btv-btn:hover { border-color:var(--accent,#e55a00); color:#fff; }
 .btv-power:hover { border-color:var(--color-down,#ef4444); }
 .btv-body { flex:1; min-height:0; position:relative; background:#000; display:flex; align-items:center; justify-content:center; }
 .btv-frame { width:100%; height:100%; border:0; display:block; }
-.btv-resume { background:var(--accent,#e55a00); color:#fff; border:0; border-radius:6px; padding:10px 18px; font-size:13px; font-weight:600; cursor:pointer; letter-spacing:.02em; }
+.btv-resume { background:var(--accent,#e55a00); color:#fff; border:0; border-radius:6px; padding:10px 18px; font-size: var(--type-title); font-weight:600; cursor:pointer; letter-spacing:.02em; }
 .btv-resume:hover { filter:brightness(1.08); }
 
 /* Resolver states: connecting / offline fallback */
-.btv-msg{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;height:100%;color:var(--text-muted,#9aa0aa);font-size:13px;text-align:center;padding:16px;}
+.btv-msg{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;height:100%;color:var(--text-muted,#9aa0aa);font-size: var(--type-title);text-align:center;padding:16px;}
 .btv-msg-actions{display:flex;gap:10px;}
-.btv-resume--sm{padding:7px 14px;font-size:12px;text-decoration:none;}
+.btv-resume--sm{padding:7px 14px;font-size: var(--type-body);text-decoration:none;}
 
 /* Channel row — Bloomberg first. Compact so the video keeps the panel height. */
 .btv-chans {
@@ -45,7 +45,7 @@
   border-color: var(--accent, #ff7a1a);
 }
 .btv-msg-sub {
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--text-dim, #7c8496);
   margin-top: 2px;
 }

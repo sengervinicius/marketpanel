@@ -17,7 +17,7 @@
 /* H1.1: header chrome moved to common/PanelChrome.css */
 
 .ohw-sentiment {
-  font-size: 11px;
+  font-size: var(--type-row);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -55,7 +55,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 10px;
+  font-size: var(--type-micro);
   color: var(--color-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -83,7 +83,7 @@
 }
 
 .ohw-alerts-title {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: var(--font-weight-medium);
   color: var(--color-section-header);
   text-transform: uppercase;
@@ -108,7 +108,7 @@
   border: 1px solid var(--color-border);
   border-radius: 3px;
   transition: background 0.2s ease, border-color 0.2s ease;
-  font-size: 11px;
+  font-size: var(--type-row);
 }
 
 .ohw-alert-row:hover {
@@ -127,12 +127,12 @@
 .ohw-alert-ticker {
   font-weight: 700;
   color: var(--color-up);
-  font-size: 12px;
+  font-size: var(--type-body);
   min-width: fit-content;
 }
 
 .ohw-alert-type {
-  font-size: 9px;
+  font-size: var(--type-caption);
   font-weight: 700;
   padding: 1px 4px;
   border-radius: 2px;
@@ -146,7 +146,7 @@
   font-weight: 600;
   color: var(--color-warn);
   text-align: right;
-  font-size: 11px;
+  font-size: var(--type-row);
   min-width: fit-content;
   margin-left: 8px;
 }
@@ -176,7 +176,7 @@
   align-items: center;
   justify-content: center;
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: var(--type-row);
   letter-spacing: 0.3px;
   text-align: center;
   padding: 12px 0;
@@ -186,7 +186,7 @@
 .ohw-footer {
   padding: 6px 0;
   border-top: 1px solid var(--color-border);
-  font-size: 9px;
+  font-size: var(--type-caption);
   color: var(--color-text-muted);
   text-align: center;
   text-transform: uppercase;
@@ -203,7 +203,7 @@
 
   .ohw-alert-row {
     padding: 5px 6px;
-    font-size: 10px;
+    font-size: var(--type-micro);
   }
 
   .ohw-ratio-bar {

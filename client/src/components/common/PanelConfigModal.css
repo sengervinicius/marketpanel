@@ -32,7 +32,7 @@
 
 .pcm-header-title {
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--type-body);
   font-weight: bold;
 }
 
@@ -64,7 +64,7 @@
 
 .pcm-col-title {
   color: var(--accent);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.2em;
   margin-bottom: 8px;
   flex-shrink: 0;
@@ -77,7 +77,7 @@
 }
 
 .pcm-col-title-maxIndicator {
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   color: var(--text-muted);
   letter-spacing: 0.5px;
 }
@@ -87,7 +87,7 @@
   border: 1px solid var(--border-strong);
   color: var(--text-primary);
   padding: 6px 10px;
-  font-size: 11px;
+  font-size: var(--type-row);
   outline: none;
   width: 100%;
   box-sizing: border-box;
@@ -102,7 +102,7 @@
 
 .pcm-group-header {
   color: var(--accent);
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   font-weight: 700;
   letter-spacing: 0.5px;
   padding: 6px 8px 4px;
@@ -131,7 +131,7 @@
 
 .pcm-item-name {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
 }
 
 .pcm-item-dragging {
@@ -155,7 +155,7 @@
 .pcm-button-selectall {
   flex: 1;
   padding: 4px 6px;
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   letter-spacing: 0.1em;
   border: 1px solid var(--border-strong);
 }
@@ -175,7 +175,7 @@
 .pcm-button-clearall {
   flex: 1;
   padding: 4px 6px;
-  font-size: 8.5px;
+  font-size: var(--type-caption);
   letter-spacing: 0.1em;
   border: 1px solid var(--border-strong);
 }
@@ -212,7 +212,7 @@
   background: none;
   border: none;
   padding: 2px;
-  font-size: 12px;
+  font-size: var(--type-body);
   line-height: 1;
 }
 
@@ -268,7 +268,7 @@
 
 .pcm-title-label {
   color: var(--text-muted);
-  font-size: 9px;
+  font-size: var(--type-caption);
   letter-spacing: 0.15em;
   margin-bottom: 4px;
 }
