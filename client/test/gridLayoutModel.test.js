@@ -140,3 +140,24 @@ describe('genLayoutId', () => {
     expect(items[id]).toBeUndefined();
   });
 });
+
+describe('#292 F3 — migrateRetiredRow3', () => {
+  it('maps movers→odds, calendar→crossAsset, drops sectorPulse, leaves the rest', async () => {
+    const { migrateRetiredRow3 } = await import('../src/components/home/gridLayoutModel');
+    const st = { activeId: 'a', items: { a: { name: 'x', grid: [
+      { i: 'charts', x: 0, y: 0, w: 6, h: 8 }, { i: 'movers', x: 0, y: 12, w: 3, h: 4 },
+      { i: 'calendar', x: 3, y: 12, w: 3, h: 4 }, { i: 'sectorPulse', x: 6, y: 12, w: 6, h: 4 } ] } } };
+    const out = migrateRetiredRow3(st);
+    const ids = out.items.a.grid.map(g => g.i);
+    expect(ids).toEqual(['charts', 'odds', 'crossAsset']);
+    expect(out.items.a.grid[1]).toMatchObject({ x: 0, y: 12, w: 3, h: 4 });
+    expect(out.migratedRow3).toBe(true);
+  });
+  it('is a no-op when the new panels already exist or nothing retired is present', async () => {
+    const { migrateRetiredRow3 } = await import('../src/components/home/gridLayoutModel');
+    const st = { activeId: 'a', items: { a: { name: 'x', grid: [{ i: 'odds', x: 0, y: 0, w: 3, h: 4 }, { i: 'movers', x: 3, y: 0, w: 3, h: 4 }] } } };
+    expect(migrateRetiredRow3(st)).toBe(st);
+    const st2 = { activeId: 'a', items: { a: { name: 'x', grid: [{ i: 'charts', x: 0, y: 0, w: 3, h: 4 }] } } };
+    expect(migrateRetiredRow3(st2)).toBe(st2);
+  });
+});

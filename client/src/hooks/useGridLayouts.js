@@ -26,6 +26,7 @@ import {
   genLayoutId,
   isValidLayoutsState,
   makeDefaultLayoutsState,
+  migrateRetiredRow3,
   migrateDesktopRowsToGrid,
   removePanelFromGrid,
 } from '../components/home/gridLayoutModel';
@@ -61,8 +62,10 @@ export function useGridLayouts(desktopRows) {
   }, []);
 
   const layouts = useMemo(() => {
-    if (isValidLayoutsState(local)) return local;
-    if (isValidLayoutsState(serverLayouts)) return serverLayouts;
+    // #292 F3 — retired row-3 panels map onto the new ones in place
+    // (persisted with the user's next grid edit, like the rows→grid move).
+    if (isValidLayoutsState(local)) return migrateRetiredRow3(local);
+    if (isValidLayoutsState(serverLayouts)) return migrateRetiredRow3(serverLayouts);
     return makeDefaultLayoutsState(desktopRows); // one-time migration (persisted on first edit)
   }, [local, serverLayouts, desktopRows]);
 

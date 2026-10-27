@@ -147,3 +147,32 @@ export function genLayoutId(items) {
   while (existing[id]) { n += 1; id = `layout-${n}`; }
   return id;
 }
+
+/**
+ * #292 F3 — one-time layout migration for the new bottom row.
+ *
+ * A saved grid that still carries the retired trio (movers, calendar,
+ * sectorPulse) and none of the new panels gets: movers → odds (same slot),
+ * calendar → crossAsset (same slot), sectorPulse removed (react-grid-layout
+ * compacts the gap). Anything else is left exactly as the user had it.
+ * Pure; returns the same object when nothing applies.
+ */
+export function migrateRetiredRow3(layoutsState) {
+  if (!layoutsState || typeof layoutsState !== 'object' || !layoutsState.items) return layoutsState;
+  let changed = false;
+  const items = {};
+  for (const [id, lay] of Object.entries(layoutsState.items)) {
+    const grid = Array.isArray(lay?.grid) ? lay.grid : null;
+    if (!grid) { items[id] = lay; continue; }
+    const ids = new Set(grid.map(g => g.i));
+    const hasRetired = ids.has('movers') || ids.has('calendar') || ids.has('sectorPulse');
+    const hasNew = ids.has('odds') || ids.has('crossAsset');
+    if (!hasRetired || hasNew) { items[id] = lay; continue; }
+    const next = grid
+      .filter(g => g.i !== 'sectorPulse')
+      .map(g => (g.i === 'movers' ? { ...g, i: 'odds' } : g.i === 'calendar' ? { ...g, i: 'crossAsset' } : g));
+    items[id] = { ...lay, grid: next };
+    changed = true;
+  }
+  return changed ? { ...layoutsState, items, migratedRow3: true } : layoutsState;
+}
