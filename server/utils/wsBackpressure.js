@@ -69,13 +69,28 @@ function registerConnection(ws, userId) {
     _connectionsByUser.set(userId, set);
   }
   if (set.size >= BP_MAX_CONNECTIONS_PER_USER) {
-    _metrics.connections_rejected_capacity++;
-    logger.warn('ws', 'Rejected connection over per-user cap', {
-      userId, cap: BP_MAX_CONNECTIONS_PER_USER, current: set.size,
-    });
-    return false;
+    // #292 — "Live feed paused — too many Particle windows open" was
+    // showing to the owner with ONE window open. Two causes: (1) sockets
+    // of closed laptops / discarded tabs / backgrounded phones were never
+    // reaped, because nothing pinged them, so they sat in this set until
+    // TCP gave up; (2) the newest tab — the one the user is looking at —
+    // was the one rejected. Now the cap evicts the OLDEST connection
+    // (which is the most likely zombie) and lets the new one in; the
+    // reaper below terminates sockets that stop answering pings.
+    const oldest = set.values().next().value;
+    if (oldest) {
+      _metrics.connections_evicted_oldest = (_metrics.connections_evicted_oldest || 0) + 1;
+      logger.warn('ws', 'Per-user cap reached — evicting oldest connection', {
+        userId, cap: BP_MAX_CONNECTIONS_PER_USER, ageMs: Date.now() - (oldest._bp_openedAt || Date.now()),
+      });
+      set.delete(oldest);
+      try { oldest.close(4002, 'Replaced by a newer window'); } catch (e) { swallow(e, 'ws.bp.evict_close'); }
+      try { setTimeout(() => { try { oldest.terminate(); } catch (_) { /* gone */ } }, 2000); } catch (_) { /* no-op */ }
+    }
   }
   set.add(ws);
+  ws._bp_openedAt = Date.now();
+  ws._bp_alive = true;
   // Lazy-initialize per-connection bookkeeping fields.
   ws._bp_messagesSent = 0;
   ws._bp_bytesSent = 0;
@@ -85,6 +100,40 @@ function registerConnection(ws, userId) {
   try { promMetrics.ws_connections_open.inc(); } catch (e) { swallow(e, 'ws.bp.metric.connections_open_inc'); }
   return true;
 }
+
+/**
+ * #292 — dead-socket reaper. Every PING_INTERVAL_MS, every registered
+ * socket must answer a protocol-level ping; one that missed the previous
+ * one is terminated (which fires 'close' → unregisterConnection). Without
+ * this, a closed laptop held its slot for as long as the OS kept the TCP
+ * connection half-open.
+ */
+const PING_INTERVAL_MS = Number(process.env.WS_PING_INTERVAL_MS) || 30_000;
+let _reaper = null;
+function startReaper() {
+  if (_reaper) return _reaper;
+  _reaper = setInterval(() => {
+    for (const [userId, set] of _connectionsByUser) {
+      for (const ws of set) {
+        if (ws._bp_alive === false) {
+          _metrics.connections_reaped = (_metrics.connections_reaped || 0) + 1;
+          logger.info('ws', 'Reaping unresponsive socket', { userId, ageMs: Date.now() - (ws._bp_openedAt || Date.now()) });
+          set.delete(ws);
+          try { ws.terminate(); } catch (e) { swallow(e, 'ws.bp.reap_terminate'); }
+          continue;
+        }
+        ws._bp_alive = false;
+        try { ws.ping(); } catch (e) { swallow(e, 'ws.bp.ping'); }
+      }
+      if (set.size === 0) _connectionsByUser.delete(userId);
+    }
+  }, PING_INTERVAL_MS);
+  _reaper.unref?.();
+  return _reaper;
+}
+function stopReaper() { if (_reaper) { clearInterval(_reaper); _reaper = null; } }
+/** Call from the server's 'pong' handler. */
+function markAlive(ws) { ws._bp_alive = true; }
 
 function unregisterConnection(ws, userId) {
   if (!userId) return;
@@ -203,5 +252,6 @@ module.exports = {
   slowClients,
   BP_MAX_BUFFERED_BYTES,
   BP_MAX_CONNECTIONS_PER_USER,
+  startReaper, stopReaper, markAlive,
   BP_WARN_BUFFERED_BYTES,
 };

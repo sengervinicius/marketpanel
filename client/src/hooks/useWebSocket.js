@@ -148,6 +148,15 @@ export function useWebSocket(onMessage, token) {
         // stampede the server.
         const isPolicyClose = evt.code === 1008;
         const isCapReject = isPolicyClose && /concurrent connections/i.test(evt.reason || '');
+        // #292 — 4002: the server evicted THIS (older) window in favour of
+        // a newer one on the same account. Do not reconnect automatically
+        // (that would evict the newer one back and ping-pong); show the
+        // paused state with a Retry.
+        if (evt.code === 4002) {
+          console.warn('[WS] Replaced by a newer window — live feed paused here until retried');
+          try { window.dispatchEvent(new CustomEvent('particle:feed-paused', { detail: { reason: 'replaced_by_newer_window' } })); } catch (_) { /* no-op */ }
+          return;
+        }
         const max = isPolicyClose ? RECONNECT_BACKPRESSURE_MAX : RECONNECT_MAX;
         if (isPolicyClose) {
           delay.current = Math.max(delay.current, RECONNECT_BACKPRESSURE_INITIAL);

@@ -816,6 +816,7 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000).unref();
 
+wsBackpressure.startReaper(); // #292 — dead-socket reaper
 wss.on('connection', (ws, req) => {
   // ── Rate limit by IP (max 5 connections per minute) ────────────────
   const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
@@ -882,6 +883,8 @@ wss.on('connection', (ws, req) => {
     ws.close(1008, 'Too many concurrent connections');
     return;
   }
+  // #292 — protocol pong keeps this socket out of the reaper.
+  ws.on('pong', () => wsBackpressure.markAlive(ws));
 
   clients.set(ws, { userId, username });
   logger.info('ws', 'Client connected', { userId, total: clients.size });

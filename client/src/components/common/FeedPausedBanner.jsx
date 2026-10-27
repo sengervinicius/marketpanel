@@ -15,9 +15,10 @@ import { useEffect, useState } from 'react';
 
 export default function FeedPausedBanner() {
   const [paused, setPaused] = useState(false);
+  const [reason, setReason] = useState(null);
 
   useEffect(() => {
-    const onPaused  = () => setPaused(true);
+    const onPaused  = (e) => { setReason(e?.detail?.reason || null); setPaused(true); };
     const onResumed = () => setPaused(false);
     window.addEventListener('particle:feed-paused', onPaused);
     window.addEventListener('particle:feed-resumed', onResumed);
@@ -42,8 +43,9 @@ export default function FeedPausedBanner() {
       }}
     >
       <span>
-        Live feed paused — too many Particle windows open on this account.
-        Close another tab or device, then retry.
+        {reason === 'replaced_by_newer_window'
+          ? 'Live feed moved to a newer Particle window on this account. Prices here are frozen — retry to take it back.'
+          : 'Live feed paused — this account has too many Particle windows open (tabs, phone, TestFlight). Close one, then retry.'}
       </span>
       <button
         onClick={() => { window.dispatchEvent(new CustomEvent('particle:feed-retry')); }}
