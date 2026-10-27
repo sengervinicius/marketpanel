@@ -63,9 +63,21 @@ const SPORTS_TITLE_RE = new RegExp(
     'ufc', 'mma', 'boxing', 'formula\\s*1', 'grand\\s*prix', 'nascar',
     'pga', 'golf', 'cricket', 'rugby', 'heisman', "ballon\\s*d'or",
     'basketball', 'baseball', 'touchdown', 'playoffs?', 'esports',
+    // #292 — 27 Oct the FOR YOU feed showed "Trail Blazers vs. Lakers" and
+    // "Counter-Strike: Envy vs GamerLegion (BO3)": no league word in the
+    // title. Game titles, tournament formats and the big-four team names.
+    'counter-?strike', 'cs2', 'cs:go', 'valorant', 'dota', 'league\\s*of\\s*legends', 'lol\\s*worlds', 'overwatch', 'rocket\\s*league',
+    'bo[1357]', 'map\\s*[1-5]', 'first\\s*blood', 'game\\s*[1-7]\\s*winner',
+    'lakers', 'celtics', 'warriors', 'knicks', 'heat', 'bucks', 'nuggets', 'suns', 'mavericks', 'clippers', 'trail\\s*blazers', '76ers', 'nets', 'bulls', 'cavaliers', 'thunder', 'spurs', 'rockets', 'pelicans', 'grizzlies', 'timberwolves', 'raptors', 'hawks', 'hornets', 'magic', 'pistons', 'pacers', 'wizards', 'jazz', 'kings',
+    'yankees', 'dodgers', 'red\\s*sox', 'mets', 'cubs', 'astros', 'braves', 'phillies', 'padres', 'giants',
+    'chiefs', 'eagles', 'cowboys', 'packers', '49ers', 'ravens', 'bills', 'steelers', 'patriots', 'broncos', 'lions', 'rams', 'bears', 'jets', 'dolphins', 'seahawks', 'vikings', 'saints', 'buccaneers', 'chargers', 'raiders', 'texans', 'jaguars', 'colts', 'titans', 'bengals', 'browns', 'cardinals', 'falcons', 'panthers', 'commanders',
+    'real\\s*madrid', 'barcelona', 'man(?:chester)?\\s*(?:united|city)', 'liverpool', 'arsenal', 'chelsea', 'tottenham', 'juventus', 'inter\\s*milan', 'ac\\s*milan', 'bayern', 'psg', 'flamengo', 'palmeiras', 'corinthians', 'boca', 'river\\s*plate',
   ].map(k => `\\b(?:${k})\\b`).join('|'),
   'i',
 );
+// Any "A vs. B" / "A v B" matchup title. Markets a terminal cares about are
+// phrased as questions or thresholds, never as a fixture.
+const MATCHUP_RE = /\b[\w.'&-]+(?:\s+[\w.'&-]+){0,4}\s+vs?\.?\s+[\w.'&-]+/i;
 
 /**
  * True when a market is a sports market — by category (providers classify
@@ -77,7 +89,12 @@ const SPORTS_TITLE_RE = new RegExp(
 function isSportsMarket(m) {
   if (!m) return false;
   if (m.category === 'sports') return true;
-  return SPORTS_TITLE_RE.test(String(m.title || ''));
+  const title = String(m.title || '');
+  if (SPORTS_TITLE_RE.test(title)) return true;
+  // A fixture-shaped title outside a finance category is a game.
+  const FINANCE_CATS = new Set(['fed-rates', 'inflation', 'economy', 'markets', 'crypto', 'commodities', 'politics', 'geopolitics']);
+  if (MATCHUP_RE.test(title) && !FINANCE_CATS.has(m.category) && !/\b(?:fed|rates?|cpi|gdp|bitcoin|btc|eth|oil|gold|s&p|nasdaq|election|tariff|president|senate|house|treasury|yield|market\s*cap|stock|shares|ipo|earnings|revenue|trump|harris|governor|mayor|minister|parliament|vote|poll|nominee|primary|wins?\s+(?:the\s+)?(?:election|presidency|nomination|state|[A-Z][a-z]+))\b/i.test(title)) return true;
+  return false;
 }
 
 // Category → base finance/macro relevance weight.

@@ -207,8 +207,29 @@ router.get('/market/movers', async (req, res) => {
     }
 
     // US — provider owns caching + Polygon plumbing (incl. quality gate).
-    const result = await getMarketMovers({ direction: tab, limit, market: 'US', quality });
-    const movers = result.movers || [];
+    let result = await getMarketMovers({ direction: tab, limit, market: 'US', quality });
+    let movers = result.movers || [];
+    // #292 — Polygon's key is rejected (AUTH), so this came back empty and
+    // the panel said "Couldn't load movers". Fall back to ranking the
+    // 90-name home universe from Yahoo, labelled so nobody mistakes it
+    // for a full-market screen.
+    if (!movers.length) {
+      try {
+        const stocks = require('./stocks');
+        const d = await stocks.batchYahooQuoteDetailed(stocks.DEFAULT_STOCK_TICKERS.filter(t => !t.startsWith('^') && !t.includes('=') && !t.includes('.')), 50);
+        const rows = d.quotes
+          .filter(q => q.regularMarketPrice > 0 && q.regularMarketChangePercent != null && (quality !== 'strict' || q.regularMarketPrice >= 5))
+          .map(q => ({ symbol: q.symbol, name: (q.shortName || q.longName || '').substring(0, 24) || null, price: q.regularMarketPrice, change: q.regularMarketChange ?? null, changePct: q.regularMarketChangePercent, volume: q.regularMarketVolume ?? null, asOf: q.regularMarketTime ? q.regularMarketTime * 1000 : null }));
+        rows.sort((a, b) => tab === 'losers' ? a.changePct - b.changePct : tab === 'actives' ? (b.volume ?? -1) - (a.volume ?? -1) : b.changePct - a.changePct); // unknown volume sorts last, never as 0
+        if (rows.length) {
+          const newest = rows.reduce((m, r) => Math.max(m, r.asOf || 0), 0) || null;
+          result = { movers: rows.slice(0, limit), source: 'yahoo-universe', asOf: newest ? new Date(newest).toISOString() : null,
+            session: result.session, sessionLabel: result.sessionLabel,
+            coverage_note: `Ranked within Particle's ${rows.length}-name US universe (full-market movers need Polygon: ${result.error || 'unavailable'})` };
+          movers = result.movers;
+        }
+      } catch (e) { logger.warn('movers', 'Yahoo universe fallback failed: ' + e.message); }
+    }
     // wave-nov item 1 — merge company names (Polygon snapshots have none).
     const names = await resolveUsNames(movers.map(m => m.symbol));
     const data = movers.map(m => ({
