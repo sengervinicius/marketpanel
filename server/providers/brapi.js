@@ -165,14 +165,32 @@ function normaliseRow(row) {
  *   { quotes: [normalised...], requested, received, missing: [tickers], failed: [{batch, error}] }
  * Never throws.
  */
+// Docs (brapi.dev/docs/authentication): without a key only these work,
+// at 20 req/min per IP. Asking for anything else anonymously is a 429.
+const KEYLESS_OK = new Set(['PETR4', 'MGLU3', 'VALE3', 'ITUB4', '^BVSP']);
+let _anonBudget = { windowStart: 0, used: 0 };
+function anonAllow() {
+  const now = Date.now();
+  if (now - _anonBudget.windowStart > 60_000) _anonBudget = { windowStart: now, used: 0 };
+  if (_anonBudget.used >= 15) return false;
+  _anonBudget.used++;
+  return true;
+}
+
 async function getQuotes(symbols, { batchSize } = {}) {
-  const tickers = [...new Set((symbols || []).map(normaliseTicker).filter(Boolean))];
-  const size = batchSize || (token() ? 20 : 1);
+  let tickers = [...new Set((symbols || []).map(normaliseTicker).filter(Boolean))];
   const out = { quotes: [], requested: tickers.length, received: 0, missing: [], failed: [] };
+  if (!token()) {
+    const skipped = tickers.filter(t => !KEYLESS_OK.has(t));
+    tickers = tickers.filter(t => KEYLESS_OK.has(t));
+    if (skipped.length) out.failed.push({ batch: skipped.slice(0, 10), error: `brapi: ${skipped.length} symbols need BRAPI_API_KEY (keyless serves PETR4/MGLU3/VALE3/ITUB4 only)` });
+  }
+  const size = batchSize || (token() ? 20 : 1);
   const seen = new Set();
   for (let i = 0; i < tickers.length; i += size) {
     const batch = tickers.slice(i, i + size);
     const url = new URL(`${BASE}/quote/${encodeURIComponent(batch.join(','))}`);
+    if (!token() && !anonAllow()) { out.failed.push({ batch, error: 'brapi: anonymous 15/min local cap' }); continue; }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
@@ -198,7 +216,8 @@ async function getQuotes(symbols, { batchSize } = {}) {
     }
   }
   out.received = out.quotes.length;
-  out.missing = tickers.filter(t => !seen.has(t));
+  const all = [...new Set((symbols || []).map(normaliseTicker).filter(Boolean))];
+  out.missing = all.filter(t => !seen.has(t));
   return out;
 }
 
