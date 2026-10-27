@@ -255,9 +255,12 @@ function toSnapshot(q) {
     // 26 Oct pre-open the Brazil ADRs (PBR/VALE/ITUB/EWZ) showed Friday's
     // close while NYSE pre-market had been printing since 05:00 BRT.
     ...(q.preMarketPrice != null || q.postMarketPrice != null ? {
+      // #292 — Yahoo keeps preMarketPrice populated all day; the home grid
+      // showed "PRE" tags 47 min after the open. Only carry the leg that
+      // matches the current marketState.
       ext: {
-        pre:  q.preMarketPrice  != null ? { price: q.preMarketPrice,  changePct: q.preMarketChangePercent  ?? null } : null,
-        post: q.postMarketPrice != null ? { price: q.postMarketPrice, changePct: q.postMarketChangePercent ?? null } : null,
+        pre:  q.preMarketPrice  != null && q.marketState === 'PRE' ? { price: q.preMarketPrice,  changePct: q.preMarketChangePercent  ?? null } : null,
+        post: q.postMarketPrice != null && /^POST/.test(q.marketState || '') ? { price: q.postMarketPrice, changePct: q.postMarketChangePercent ?? null } : null,
       },
     } : {}),
     // Source quotation time so the client can show age, not clock time.
@@ -698,8 +701,8 @@ router.get('/snapshot/brazil', async (req, res) => {
           asOf:      asOfMs,
           marketState: q.marketState || null,
           ...(q.preMarketPrice != null || q.postMarketPrice != null ? { ext: {
-            pre:  q.preMarketPrice  != null ? { price: q.preMarketPrice,  changePct: q.preMarketChangePercent  ?? null } : null,
-            post: q.postMarketPrice != null ? { price: q.postMarketPrice, changePct: q.postMarketChangePercent ?? null } : null,
+            pre:  q.preMarketPrice  != null && q.marketState === 'PRE' ? { price: q.preMarketPrice,  changePct: q.preMarketChangePercent  ?? null } : null,
+            post: q.postMarketPrice != null && /^POST/.test(q.marketState || '') ? { price: q.postMarketPrice, changePct: q.postMarketChangePercent ?? null } : null,
           } } : {}),
           // #289 part 4 — surface the anomaly flag to the client.
           ...(anomaly.anomalous && {
@@ -1265,6 +1268,7 @@ router.get('/chart/:ticker', async (req, res) => {
     // Detect futures symbols (CL=F, BZ=F, GC=F, etc.)
     const isFutures = ticker.toUpperCase().includes('=F') || ticker.toUpperCase().includes('=');
 
+    const chartReasons = []; // #292 — why each provider gave nothing; returned on NO_DATA
     // ── 1. Try Yahoo Finance FIRST (fast, no rate-limit queue) ────────
     // Yahoo handles US equities, FX, crypto, futures, ETFs, .SA (B3).
     //
@@ -1298,14 +1302,20 @@ router.get('/chart/:ticker', async (req, res) => {
           .map((t, i) => ({ t: t * 1000, c: q.close?.[i], o: q.open?.[i], h: q.high?.[i], l: q.low?.[i], v: q.volume?.[i] ?? 0 }))
           .filter(b => b.c != null && b.c > 0);
         if (chartResults.length > 0) {
-          const chartPayload = { results: chartResults, ticker, status: 'OK', source: 'yahoo' };
+          const chartPayload = { results: chartResults, ticker, status: 'OK', source: 'yahoo',
+            asOf: result.meta?.regularMarketTime ? result.meta.regularMarketTime * 1000 : chartResults[chartResults.length - 1].t };
           cacheSet(chartCacheKey, chartPayload, getChartTTL(timespan));
           if (sendChartWithCache(req, res, chartPayload, timespan)) return;
           return res.json(chartPayload);
         }
+        chartReasons.push(`yahoo: ${timestamps.length} timestamps, 0 usable closes (${yahooTicker} ${yfInterval} ${period1}-${period2})`);
+      } else {
+        const yErr = json?.chart?.error;
+        chartReasons.push(`yahoo: ${yErr ? `${yErr.code} — ${String(yErr.description || '').slice(0, 120)}` : 'no result'} (${yahooTicker} ${yfInterval})`);
       }
     } catch (ye) {
       console.warn(`[Chart] Yahoo Finance failed for ${ticker}: ${ye.message}`);
+      chartReasons.push(`yahoo: ${String(ye.message).slice(0, 120)}`);
     }
 
     // ── 2. Twelve Data fallback (international exchanges) ─────────────
@@ -1348,7 +1358,9 @@ router.get('/chart/:ticker', async (req, res) => {
     }
 
     // ── All providers failed — return empty result (not 504) ──────────
-    return res.json({ results: [], ticker, status: 'NO_DATA', message: 'No chart data available from any provider' });
+    // #292 — say why. The panel renders this; the selftest reads it.
+    if (isFutures) chartReasons.push('twelvedata/polygon: skipped for futures');
+    return res.json({ results: [], ticker, status: 'NO_DATA', message: 'No chart data available from any provider', reason: chartReasons.join(' · ') });
   } catch (e) {
     console.error(`[API] /chart/${req.params.ticker}:`, e.message);
     sendError(res, e);

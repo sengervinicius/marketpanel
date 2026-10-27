@@ -177,6 +177,7 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
   // to open the detail page.
   const isMobileDevice = useIsMobile();
   const [rawBars, setRawBars] = useState([]);
+  const [emptyReason, setEmptyReason] = useState(null); // #292 — why NO_DATA, from the server
   const [data,    setData]    = useState([]);
   const [price,   setPrice]   = useState(null);
   const [chg,     setChg]     = useState(null);
@@ -216,6 +217,7 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
       if (!res.ok) throw new Error(res.status);
       const json = await res.json();
       if (!mountedRef.current) return;
+      setEmptyReason(json.status === 'NO_DATA' ? (json.reason || json.message || null) : null); // #292
       // #291 W2.16b — drop bars without a finite timestamp or close.
       // Same fix as InstrumentDetail W2.16 — recharts XAxis cannot
       // tolerate NaN/undefined on its dataKey and crashes the entire
@@ -548,7 +550,7 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
           </div>
         ) : data.length === 0 ? (
           <div className="mc-msg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 10 }}>
-            No chart data for this range
+            No chart data for this range{emptyReason ? ` — ${emptyReason}` : ''}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">

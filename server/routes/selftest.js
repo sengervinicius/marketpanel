@@ -261,6 +261,39 @@ router.get('/', async (req, res) => {
     };
   }));
 
+  // ── #292 — intraday chart for the home-screen minis ───────────────────
+  // 27 Oct: four of six home charts (GC=F, BZ=F, GBPBRL=X, ^BVSP) said
+  // "No chart data" while Yahoo answered 172 bars for the same request.
+  // Run the exact v8 request the /chart route makes and report bars.
+  checks.push(await check('chart.intraday', async () => {
+    const syms = ['GC=F', 'BZ=F', 'GBPBRL=X', '^BVSP', 'NVDA'];
+    const { crumb, cookie } = await providers.getYahooCrumb();
+    const now = Math.floor(Date.now() / 1000);
+    const period1 = now - 2 * 86400, period2 = now + 8 * 3600;
+    const out = {};
+    for (const sym of syms) {
+      try {
+        const j = await providers._yahooChartRaw(sym, period1, period2, '5m', crumb, cookie);
+        const r = j?.chart?.result?.[0];
+        const ts = r?.timestamp || [];
+        const closes = r?.indicators?.quote?.[0]?.close || [];
+        out[sym] = { bars: ts.length, usable: closes.filter(c => c != null && c > 0).length, error: j?.chart?.error ? `${j.chart.error.code}: ${String(j.chart.error.description || '').slice(0, 80)}` : null };
+      } catch (e) { out[sym] = { bars: 0, usable: 0, error: String(e.message).slice(0, 120) }; }
+    }
+    const dead = Object.entries(out).filter(([, v]) => v.usable === 0).map(([k]) => k);
+    return { ok: dead.length === 0, warn: dead.length > 0, dead, symbols: out };
+  }));
+
+  // ── #292 — the sentiment strip's five symbols (VIX/SPY/DXY/10Y were "--") ──
+  checks.push(await check('strip.symbols', async () => {
+    const stocks = require('./market/stocks');
+    const syms = ['SPY', 'QQQ', '^VIX', 'DX-Y.NYB', '^TNX'];
+    const d = await stocks.batchYahooQuoteDetailed(syms, 50);
+    let snapErr = null;
+    try { d.quotes.map(stocks.toSnapshot); } catch (e) { snapErr = e.message; }
+    return { ok: d.received === syms.length && !snapErr, warn: d.received < syms.length, requested: syms.length, received: d.received, missing: d.missing, firstError: d.failed[0]?.error || null, toSnapshotError: snapErr, label: '/snapshot/stocks?tickers=' };
+  }));
+
   checks.push(await check('curve.br', async () => {
     const debt = require('./market/debt');
     if (typeof debt.buildBrCurve !== 'function') return { ok: false, detail: 'buildBrCurve not exported' };
