@@ -26,6 +26,7 @@ import { useOverlay } from '../overlay/OverlayContext';
 import Tape from '../common/Tape';
 import { openDetailWindow } from '../../utils/detailWindow';
 import { useTickerClicks } from '../../hooks/useTickerClicks';
+import useSessionBadge from '../../hooks/useSessionBadge'; // #292 F2 — session word from quote time
 
 // CIO-note (2026-04-20): was '52px 1fr 64px 52px' — CHG% of 52px crushed
 // 2-digit % values into the price column (ONCO3 +15.33% case). The
@@ -574,6 +575,9 @@ function BrazilPanel({ onTickerClick }) {
         change:     s.change,
         changePct:  s.changePct,
         volume:     s.volume,
+        asOf:       s.asOf ?? null,
+        source:     s.source ?? null,
+        _meta:      s._meta ?? null,
         // Phase 9.5 metadata — carried through so the revenue-mix pill
         // can render without a second fetch.
         sector:     s.sector     || null,
@@ -643,9 +647,9 @@ function BrazilPanel({ onTickerClick }) {
     });
   }
 
-  const badge = error
-    ? <span style={{ color: 'var(--price-down)', fontSize: 'var(--font-xs)' }}>{error}</span>
-    : lastUpdate && <span style={{ color: 'var(--text-faint)', fontSize: 'var(--font-xs)' }}>{lastUpdate.toLocaleTimeString()}</span>;
+  // #292 F2 — session word from the newest row's quote time (B3 hours,
+  // holiday-aware), not the client clock.
+  const badge = useSessionBadge('B3', snapshot, { error });
 
   const countrySelect = (
     <select

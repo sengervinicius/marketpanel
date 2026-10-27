@@ -25,6 +25,7 @@ import '../common/Shimmer.css';
 import './StockPanel.css';
 import { openDetailWindow } from '../../utils/detailWindow';
 import { useTickerClicks } from '../../hooks/useTickerClicks';
+import useSessionBadge from '../../hooks/useSessionBadge'; // #292 F2 — session word from quote time
 
 const fmt    = (n) => n == null ? '—' : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (n) => n == null ? '—' : (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
@@ -156,7 +157,7 @@ function StockPanel({ data = {}, loading, onTickerClick }) {
   const [flashSym, setFlashSym] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const { getBadge } = useFeedStatus();
-  const badge = getBadge('stocks');
+  const badge = useSessionBadge('US', data); // #292 F2 — was getBadge('stocks'): the socket level, not the quote time
 
   // Phase 2: Update timestamp whenever data changes
   useEffect(() => {

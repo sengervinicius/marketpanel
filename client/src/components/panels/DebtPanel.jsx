@@ -43,6 +43,7 @@ import { openDetailWindow } from '../../utils/detailWindow';
 import ViewChips from '../common/ViewChips';
 import { useOverlay } from '../overlay/OverlayContext';
 import './DebtPanel.css';
+import PanelState from '../common/PanelState'; // #292 F2
 
 // Region chips — switch the main curve only.
 const REGIONS = [
@@ -577,16 +578,17 @@ function DebtPanel() {
               </div>
             </div>
           ) : error ? (
-            <div className="dp-state dp-state--error">
-              <span>FAILED TO LOAD YIELD CURVES</span>
-              <span className="dp-state-detail">{error}</span>
-              <button className="dp-retry-btn" onClick={handleRetry}>RETRY</button>
-            </div>
+            <PanelState kind="error" title="YIELD CURVES UNAVAILABLE" detail={String(error)} onRetry={handleRetry} />
           ) : chartData.length === 0 ? (
-            <div className="dp-state dp-state--empty">
-              <span>NO CURVE DATA FOR {regionMeta?.label || region}</span>
-              <button className="dp-retry-btn" onClick={handleRetry}>RETRY</button>
-            </div>
+            // #292 F2 — "unavailable by design" reads differently from "broken":
+            // the BR curve has no source until brapi Pro / ANBIMA is contracted.
+            <PanelState
+              kind={single?.source === 'unavailable' ? 'unavailable' : 'empty'}
+              title={single?.source === 'unavailable' ? `${regionMeta?.label || region} CURVE NEEDS A DATA SOURCE` : `NO CURVE DATA FOR ${regionMeta?.label || region}`}
+              detail={single?.error || undefined}
+              hint={single?.source === 'unavailable' ? 'brapi Pro (DI1 futures) or ANBIMA Feed' : undefined}
+              onRetry={handleRetry}
+            />
           ) : (
             <div className="dp-chart-wrap">
               {hasGhost && <span className="dp-ghost-legend">– – 1M AGO</span>}

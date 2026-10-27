@@ -8,7 +8,6 @@ import PanelShell from '../common/PanelShell';
 import { PriceRow } from '../common/PriceRow';
 import ColumnHeaders from '../common/ColumnHeaders';
 import { CRYPTO_PAIRS } from '../../utils/constants';
-import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
 import IntegrityBadge from '../shared/IntegrityBadge';
@@ -29,8 +28,7 @@ export function CryptoPanel({ data = {}, loading, onTickerClick }) {
   const openDetail = useOpenDetail();
   const ptRef = useRef(null);
   const { settings, updatePanelConfig } = useSettings();
-  const { getBadge } = useFeedStatus();
-  const badge = getBadge('crypto');
+  const badge = useSessionBadge('CRYPTO', data); // #292 F2
 
   // Phase 2: Last-updated timestamp
   const [lastUpdated, setLastUpdated] = useState(null);

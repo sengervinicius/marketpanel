@@ -2,6 +2,7 @@
 
 /* ── Design Tokens (single source of truth) ─────── */
 @import './styles/tokens.css';
+@import './styles/controls.css'; /* #292 F2 — one voice for tabs/chips/toggles (must stay after tokens) */
 
 /* ── Base reset ─────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

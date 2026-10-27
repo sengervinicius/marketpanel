@@ -11,12 +11,12 @@ import { PriceRow } from '../common/PriceRow';
 import { SectionHeader } from '../common/SectionHeader';
 import ColumnHeaders from '../common/ColumnHeaders';
 import { FOREX_PAIRS, CRYPTO_PAIRS } from '../../utils/constants';
-import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
 import IntegrityBadge from '../shared/IntegrityBadge';
 import { COLS_FOREX_SPARK } from '../../utils/panelColumns';
 import { openDetailWindow } from '../../utils/detailWindow';
+import useSessionBadge from '../../hooks/useSessionBadge'; // #292 F2 — session word from quote time
 
 // Was '72px 1fr 76px 64px' — chg% too narrow for 2-digit moves (USDARS can spike).
 const COLS = COLS_FOREX_SPARK;
@@ -97,8 +97,7 @@ function ForexPanel({ data = {}, cryptoData = {}, loading, onTickerClick }) {
   const [configOpen,   setConfigOpen]   = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
   const [flashSym, setFlashSym] = useState(null);
-  const { getBadge } = useFeedStatus();
-  const badge = getBadge('forex');
+  const badge = useSessionBadge('FX', data); // #292 F2
 
   // Phase 2: Last-updated timestamp
   const [lastUpdated, setLastUpdated] = useState(null);

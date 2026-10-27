@@ -22,6 +22,7 @@ import { COLS_MOVERS_SPARK } from '../../utils/panelColumns';
 import { isUsMarketOpen, isB3MarketOpen } from '../../utils/marketHours';
 import './MoversPanel.css';
 import { openDetailWindow } from '../../utils/detailWindow';
+import PanelState from '../common/PanelState'; // #292 F2
 
 const TABS = [
   { id: 'gainers', label: 'GAINERS' },
@@ -133,10 +134,7 @@ function MoversPanel({ onTickerClick, embedded = false }) {
         {loading && rows.length === 0 ? (
           <div className="mv-state">…</div>
         ) : rows.length === 0 ? (
-          <div className="mv-state">
-            <span>{note || (error ? 'Couldn’t load movers — tap retry.' : 'NO DATA')}</span>
-            <button className="mv-retry-btn" onClick={() => { setLoading(true); load(); }}>RETRY</button>
-          </div>
+          <PanelState kind={error ? 'error' : 'empty'} title={error ? 'MOVERS UNAVAILABLE' : 'NO MOVERS'} detail={note || (error ? String(error) : undefined)} onRetry={() => { setLoading(true); load(); }} compact />
         ) : (
           rows.map((r, i) => {
             const spark = sparklines[exchange === 'BR' ? `${r.symbol}.SA` : r.symbol];

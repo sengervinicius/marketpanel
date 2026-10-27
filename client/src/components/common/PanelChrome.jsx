@@ -24,6 +24,7 @@
  */
 import { isValidElement } from 'react';
 import FreshnessDot from '../panels/_shared/FreshnessDot';
+import { describeQuote } from '../../utils/marketSession';
 import './PanelChrome.css';
 
 const PENCIL = (
@@ -48,8 +49,18 @@ export function PanelChrome({
   timestamp,
   actions,
   className = '',
+  // #292 F2 — exchange group ('US' | 'B3' | 'FX' | 'CRYPTO' | …). When given
+  // with updatedAt, the header renders the session-aware status word
+  // (LIVE / DELAYED 3m / STALE / OPENS 10:00 / CLOSED / HOLIDAY) instead of
+  // a generic badge, so every panel speaks the same vocabulary.
+  session,
 }) {
   const hasFreshness = updatedAt != null;
+  const sessionNode = session && badge == null ? (() => {
+    const d = describeQuote(session, updatedAt ? new Date(updatedAt).getTime() : null);
+    const tone = d.badge === 'LIVE' ? 'live' : d.isStale || /UNKNOWN/.test(d.badge) ? 'warn' : /^(DELAYED|AFTER|OPENS|PRE)/.test(d.badge) ? 'warn' : 'closed';
+    return <span className={`panel-chrome-badge panel-chrome-badge--${tone}`} title={d.detail}>{d.badge}</span>;
+  })() : null;
   const badgeNode = badge == null ? null
     : isValidElement(badge) ? badge
     : typeof badge === 'object' && badge.text != null
@@ -78,6 +89,7 @@ export function PanelChrome({
       ) : null}
       {subtitle ? <span className="panel-chrome-sub">{subtitle}</span> : null}
       {badgeNode}
+      {sessionNode}
       <span className="panel-chrome-spacer" />
       {hasFreshness ? <FreshnessDot updatedAt={updatedAt} source={source} /> : null}
       {timestamp && !hasFreshness ? (

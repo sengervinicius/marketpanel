@@ -11,11 +11,11 @@ import { PriceRow } from '../common/PriceRow';
 import { SectionHeader } from '../common/SectionHeader';
 import ColumnHeaders from '../common/ColumnHeaders';
 import { COMMODITIES, COMMODITY_DEFAULT_SYMBOLS } from '../../utils/constants';
-import { useFeedStatus } from '../../context/FeedStatusContext';
 import { useSparklineData } from '../../hooks/useSparklineData';
 import SkeletonLoader from '../shared/SkeletonLoader';
 import { COLS_TIGHT_SPARK } from '../../utils/panelColumns';
 import { openDetailWindow } from '../../utils/detailWindow';
+import useSessionBadge from '../../hooks/useSessionBadge'; // #292 F2 — session word from quote time
 
 // Was '44px 1fr 68px 60px' — chg% too narrow for 2-digit moves.
 const COLS = COLS_TIGHT_SPARK;
@@ -82,8 +82,7 @@ function CommoditiesPanel({ data = {}, loading, onTickerClick }) {
   const [searchFilter, setSearchFilter] = useState('');
   const [moversOnly, setMoversOnly] = useState(false);
   const [flashSym, setFlashSym] = useState(null);
-  const { getBadge } = useFeedStatus();
-  const badge = getBadge('commodities');
+  const badge = useSessionBadge('FX', data); // #292 F2 — futures trade ~23h on weekdays; FX session is the closest model
 
   // Phase 2: Last-updated timestamp
   const [lastUpdated, setLastUpdated] = useState(null);

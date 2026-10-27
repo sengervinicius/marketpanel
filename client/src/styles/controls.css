@@ -1,0 +1,63 @@
+/* controls.css — #292 F2
+ *
+ * One typographic voice for every small control in a panel: tabs, chips,
+ * range pickers, exchange toggles, header buttons. Each family keeps its
+ * own geometry (underline vs pill vs plain); what they share is the face,
+ * size, tracking, resting colour and the active colour. Doubled class
+ * selectors (0,2,0) so this wins over the per-panel single-class rules
+ * without !important. Imported last from App.css.
+ */
+
+.pp-tab.pp-tab, .ds-chip.ds-chip, .mv-exch-btn.mv-exch-btn, .mc-range-btn.mc-range-btn,
+.wp-sort-btn.wp-sort-btn, .np-chip.np-chip, .bp-chip.bp-chip, .scr-chip.scr-chip,
+.opt-chip.opt-chip, .macro-chip.macro-chip, .id-range-btn.id-range-btn, .id-tab.id-tab,
+.id-toggle-btn.id-toggle-btn, .btv-btn.btv-btn, .pp-header-btn.pp-header-btn,
+.panel-chrome-btn.panel-chrome-btn, .eph-icon-btn.eph-icon-btn, .cp-add-btn.cp-add-btn,
+.scr-btn.scr-btn, .id-ind-btn.id-ind-btn, .id-ct-btn.id-ct-btn, .wp-bucket-chip.wp-bucket-chip {
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  font-weight: 600;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  line-height: 1;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  transition: color .12s, border-color .12s, background-color .12s;
+}
+
+.pp-tab.pp-tab:hover, .ds-chip.ds-chip:hover, .mv-exch-btn.mv-exch-btn:hover, .mc-range-btn.mc-range-btn:hover,
+.wp-sort-btn.wp-sort-btn:hover, .np-chip.np-chip:hover, .bp-chip.bp-chip:hover, .scr-chip.scr-chip:hover,
+.opt-chip.opt-chip:hover, .macro-chip.macro-chip:hover, .id-range-btn.id-range-btn:hover, .id-tab.id-tab:hover,
+.id-toggle-btn.id-toggle-btn:hover, .btv-btn.btv-btn:hover, .pp-header-btn.pp-header-btn:hover,
+.panel-chrome-btn.panel-chrome-btn:hover, .eph-icon-btn.eph-icon-btn:hover, .cp-add-btn.cp-add-btn:hover,
+.scr-btn.scr-btn:hover, .id-ind-btn.id-ind-btn:hover, .id-ct-btn.id-ct-btn:hover {
+  color: var(--text-secondary);
+}
+
+/* Active: the text goes to primary (not accent) — accent is reserved for
+   the underline/border so the row of controls doesn't become an orange
+   wall. Underline-style families keep their accent border rule. */
+.pp-tab--active.pp-tab--active, .ds-chip--on.ds-chip--on, .mv-exch-btn--active.mv-exch-btn--active,
+.mc-range-btn--active.mc-range-btn--active, .wp-sort-btn-active.wp-sort-btn-active,
+.np-chip--active.np-chip--active, .np-chip--on.np-chip--on, .bp-chip--active.bp-chip--active, .bp-chip--on.bp-chip--on,
+.scr-chip--active.scr-chip--active, .scr-chip--on.scr-chip--on, .opt-chip--active.opt-chip--active,
+.macro-chip--active.macro-chip--active, .id-range-btn--active.id-range-btn--active, .id-tab--active.id-tab--active,
+.id-toggle-btn--active.id-toggle-btn--active, .btv-btn--active.btv-btn--active {
+  color: var(--text-primary);
+}
+.pp-tab--active.pp-tab--active, .mc-range-btn--active.mc-range-btn--active, .id-range-btn--active.id-range-btn--active, .id-tab--active.id-tab--active {
+  border-bottom-color: var(--accent);
+}
+.mv-exch-btn--active.mv-exch-btn--active, .ds-chip--on.ds-chip--on, .np-chip--active.np-chip--active, .np-chip--on.np-chip--on,
+.bp-chip--active.bp-chip--active, .bp-chip--on.bp-chip--on, .scr-chip--active.scr-chip--active, .scr-chip--on.scr-chip--on,
+.opt-chip--active.opt-chip--active, .macro-chip--active.macro-chip--active, .btv-btn--active.btv-btn--active {
+  border-color: var(--accent);
+}
+
+/* Column headers and section labels — same caption voice, lighter weight. */
+.ds-sec.ds-sec, .ch-col.ch-col, .wp-col-header.wp-col-header, .panel-chrome-sub.panel-chrome-sub {
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}

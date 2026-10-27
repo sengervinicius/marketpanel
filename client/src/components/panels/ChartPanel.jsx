@@ -32,6 +32,7 @@ import {
 } from '../../utils/chartGridSync';
 import './ChartPanel.css';
 import { openDetailWindow } from '../../utils/detailWindow';
+import PanelState from '../common/PanelState'; // #292 F2
 
 const LS_KEY = 'chartGrid_v3';
 const MAX = 12;
@@ -539,19 +540,9 @@ const MiniChart = memo(function MiniChart({ ticker, index, onRemove, onReplace, 
         {loading ? (
           <div className="mc-msg mc-skeleton-shimmer" style={{ opacity: 0.4 }}>&nbsp;</div>
         ) : fetchError ? (
-          <div className="mc-msg" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, height: '100%', color: 'var(--text-muted)', fontSize: 'var(--type-micro)' }}>
-            <span style={{ color: 'var(--accent-danger, #d54a3f)' }}>{fetchError}</span>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => fetchData(rangeIdx)}
-              style={{ padding: '3px 10px', fontSize: 'var(--type-micro)', border: '1px solid var(--border-default)', borderRadius: 3, background: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
-            >Retry</button>
-          </div>
+          <PanelState kind="error" title="CHART UNAVAILABLE" detail={String(fetchError)} onRetry={() => fetchData(rangeIdx)} compact />
         ) : data.length === 0 ? (
-          <div className="mc-msg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 'var(--type-micro)' }}>
-            No chart data for this range{emptyReason ? ` — ${emptyReason}` : ''}
-          </div>
+          <PanelState kind={emptyReason ? 'error' : 'empty'} title={emptyReason ? 'NO CHART DATA' : 'NO BARS IN RANGE'} detail={emptyReason || undefined} onRetry={() => fetchData(rangeIdx)} compact />
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={chartBars} margin={{ top: 4, right: 2, bottom: 2, left: 0 }}
