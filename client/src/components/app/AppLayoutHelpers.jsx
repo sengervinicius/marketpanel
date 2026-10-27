@@ -38,6 +38,10 @@ import {
 // failures after deploys; bare lazy() would surface a render crash if the
 // chunk hash rotated mid-session.
 const ChartPanel         = lazyWithRetry(() => import('../panels/ChartPanel'));
+// #292 F3 — the new bottom row
+const DeskPanel          = lazyWithRetry(() => import('../panels/DeskPanel'));
+const OddsPanel          = lazyWithRetry(() => import('../panels/OddsPanel'));
+const CrossAssetPanel    = lazyWithRetry(() => import('../panels/CrossAssetPanel'));
 const StockPanel         = lazyWithRetry(() => import('../panels/StockPanel'));
 const ForexPanel         = lazyWithRetry(() => import('../panels/ForexPanel'));
 const GlobalIndicesPanel = lazyWithRetry(() => import('../panels/GlobalIndicesPanel'));
@@ -209,7 +213,12 @@ const PANEL_REGISTRY = {
   sectors:        { component: SectorsPanel,       getProps: (c) => ({ onTickerClick: c.openDetail }) }, // H2 W1 (registry-only, not in default layout)
   sectorPulse:    { component: SectorPulsePanel }, // FIX 3: MARKET MAP — blocks not clickable (overlay hook next phase)
   bloombergTV:    { component: BloombergTVPanel }, // live Bloomberg TV (YouTube embed)
-  brief:          { component: BriefPanel,         getProps: (c) => ({ onTickerClick: c.openDetail }) }, // Phase S W2 — Daily Brief, default row 3 lead
+  // #292 F3 — 'brief' now renders the desk box ("Good morning, Vini"), so
+  // saved layouts upgrade in place; the old list view stays as 'briefList'.
+  brief:          { component: DeskPanel,          getProps: () => ({}) },
+  briefList:      { component: BriefPanel,         getProps: (c) => ({ onTickerClick: c.openDetail }) },
+  odds:           { component: OddsPanel,          getProps: () => ({}) },   // MARKETS THAT MATTER
+  crossAsset:     { component: CrossAssetPanel,    getProps: () => ({}) },   // what moved today
 
 
   // ── Phase D1 sector screens ──────────────────────────────────────────────

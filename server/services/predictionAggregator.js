@@ -421,5 +421,7 @@ module.exports = {
   ensureFresh,
   isSportsMarket,
   scoreFinanceRelevance,
+  // #292 F3 — lookup for the odds-history route
+  getMarketById: (id) => _markets.find(m => String(m.id) === String(id)) || null,
   __setMarketsForTest,
 };

@@ -78,6 +78,25 @@ router.get('/', async (req, res) => {
  *
  * Falls back to top-volume markets if no user context available.
  */
+// ── #292 F3 — GET /api/predictions/history/:id?interval=1w ─────────────────
+// Probability history for one market (Polymarket CLOB), for the "Markets
+// that matter" chart. Kalshi markets have no history here yet → points:[].
+router.get('/history/:id', async (req, res) => {
+  try {
+    await aggregator.ensureFresh();
+    const m = aggregator.getMarketById(req.params.id);
+    if (!m) return res.status(404).json({ ok: false, error: 'not_found' });
+    if (m.source !== 'polymarket' || !m.clobTokenId) return res.json({ ok: true, id: m.id, source: m.source, points: [], note: 'no history for this source' });
+    const interval = ['1d', '1w', '1m', 'max'].includes(req.query.interval) ? req.query.interval : '1w';
+    const fidelity = interval === '1d' ? 10 : interval === '1w' ? 60 : 240;
+    const h = await require('../services/polymarketProvider').getPriceHistory(m.clobTokenId, { interval, fidelity });
+    res.set('Cache-Control', 'private, max-age=300');
+    res.json({ ok: true, id: m.id, source: m.source, interval, points: h.points, error: h.error || null });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 router.get('/for-you', async (req, res) => {
   try {
     await aggregator.ensureFresh();

@@ -34,29 +34,14 @@ describe('buildResetDefaultsPayload', () => {
     expect(grid.find(g => g.i === 'futures')).toBeUndefined();
   });
 
-  it('includes the H2a movers + calendar panels in the default rows', () => {
-    const ids = payload.layout.desktopRows.flat();
-    expect(ids).toContain('movers');
-    expect(ids).toContain('calendar');
-  });
-
-  it('includes SECTOR PULSE in row 3 (Phase S W1 item 2) — layout, reset payload AND grid', () => {
-    // Row 3 of the canonical layout carries sectorPulse alongside
-    // movers/calendar; the old tinted 'sectors' grid left the defaults
-    // (stays registry-addable).
+  it('#292 F3 — row 3 is the desk box, news, markets that matter and the cross-asset ribbon', () => {
     const row3 = payload.layout.desktopRows[2];
-    expect(row3).toContain('sectorPulse');
-    expect(row3).not.toContain('sectors');
-    expect(row3).toContain('movers');
-    expect(row3).toContain('calendar');
-    // Grid migration: 5 panels in a 12-col row → widths 3/3/2/2/2, sum 12
+    expect(row3).toEqual(['brief', 'news', 'odds', 'crossAsset']);
+    // movers / calendar / sectorPulse / sectors left the defaults but stay registry-addable.
+    const ids = payload.layout.desktopRows.flat();
+    for (const retired of ['movers', 'calendar', 'sectorPulse', 'sectors']) expect(ids).not.toContain(retired);
     const grid = payload.layouts.items[payload.layouts.activeId].grid;
-    const pulseItem = grid.find(g => g.i === 'sectorPulse');
-    expect(pulseItem).toBeTruthy();
-    expect(grid.find(g => g.i === 'sectors')).toBeUndefined();
-    const row3Items = grid.filter(g => row3.includes(g.i));
-    expect(row3Items.reduce((s, g) => s + g.w, 0)).toBe(12);
-    expect(row3Items.every(g => g.w >= 2)).toBe(true);
+    for (const id of row3) expect(grid.find(g => g.i === id), id).toBeTruthy();
   });
 
   it('resets commodities to the current futures defaults, not legacy ETFs', () => {

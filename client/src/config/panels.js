@@ -311,15 +311,48 @@ export const PANEL_DEFINITIONS = {
   // registry-addable for the multi-horizon tinted grid.
   brief: {
     id:             'brief',
-    label:          'Daily Brief',
-    defaultTitle:   'Brief',
+    label:          'Desk — Good morning',
+    defaultTitle:   'Desk',
     defaultSymbols: [],
     allowedGroups:  null,
     editable:       false, // content derives from the watchlist, not a symbol list
     icon:           '\u2726', // ✦
     minSymbols:     0,
     maxSymbols:     0,
+  },  briefList: {
+    id:             'briefList',
+    label:          'Daily Brief (list)',
+    defaultTitle:   'Brief',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           '\u2630',
+    minSymbols:     0,
+    maxSymbols:     0,
   },
+  odds: {
+    id:             'odds',
+    label:          'Markets that matter',
+    defaultTitle:   'Markets that matter',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           '%',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
+  crossAsset: {
+    id:             'crossAsset',
+    label:          'Cross-asset',
+    defaultTitle:   'Cross-asset',
+    defaultSymbols: [],
+    allowedGroups:  null,
+    editable:       false,
+    icon:           '\u2630',
+    minSymbols:     0,
+    maxSymbols:     0,
+  },
+
   sectorPulse: {
     id:             'sectorPulse',
     label:          'Market Map',   // fix/ux-round4 FIX 3 — id stays sectorPulse so saved layouts keep working
@@ -510,7 +543,9 @@ export const DEFAULT_LAYOUT = {
     // P2 item 4 gave row 3 a sector box; Phase S W1 item 2 swaps the tinted
     // grid ('sectors') for SECTOR PULSE. 12-col grid splits 5 panels as
     // 3/3/2/2/2 via migrateDesktopRowsToGrid (leftmost get the remainder).
-    ['brief',        'news',          'movers',        'calendar',      'sectorPulse'],
+    // #292 F3 — desk box, news, markets that matter, cross-asset ribbon.
+    // movers / calendar / sectorPulse stay registry-addable.
+    ['brief',        'news',          'odds',          'crossAsset'],
   ],
   mobileTabs: ['home', 'markets', 'brief', 'watchlist', 'more'],
 };

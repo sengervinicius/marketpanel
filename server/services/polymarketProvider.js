@@ -175,6 +175,11 @@ async function fetchMarkets({ limit = 50, active = true, order = 'volume24hr' } 
           url: m.slug ? `https://polymarket.com/event/${m.slug}` : 'https://polymarket.com',
           lastUpdated: new Date().toISOString(),
           outcomes: m.outcomes || ['Yes', 'No'],
+          // #292 F3 — for the odds chart: first CLOB token = the YES outcome;
+          // gamma also reports 1d/1w probability change when it has it.
+          clobTokenId: (() => { try { const a = typeof m.clobTokenIds === 'string' ? JSON.parse(m.clobTokenIds) : m.clobTokenIds; return Array.isArray(a) ? a[0] || null : null; } catch { return null; } })(),
+          change1d: Number.isFinite(parseFloat(m.oneDayPriceChange)) ? parseFloat(m.oneDayPriceChange) : null,
+          change1w: Number.isFinite(parseFloat(m.oneWeekPriceChange)) ? parseFloat(m.oneWeekPriceChange) : null,
         };
       })
       .filter(Boolean);
@@ -211,4 +216,30 @@ async function fetchEvents({ limit = 20, active = true } = {}) {
   }
 }
 
-module.exports = { fetchMarkets, fetchEvents, classifyMarket, parseOutcomePrices };
+// ── #292 F3 — price history for the odds chart ─────────────────────────────
+// CLOB: GET /prices-history?market=<tokenId>&interval=1w&fidelity=60
+//   → { history: [{ t: unixSeconds, p: 0..1 }] }
+const _histCache = new Map(); // tokenId:interval → { exp, points }
+async function getPriceHistory(tokenId, { interval = '1w', fidelity = 60 } = {}) {
+  if (!tokenId) return { points: [], error: 'no token' };
+  const ck = `${tokenId}:${interval}:${fidelity}`;
+  const c = _histCache.get(ck);
+  if (c && Date.now() < c.exp) return { points: c.points, cached: true };
+  try {
+    const url = `${CLOB_URL}/prices-history?market=${encodeURIComponent(tokenId)}&interval=${interval}&fidelity=${fidelity}`;
+    const r = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': 'Particle-Terminal/1.0' }, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return { points: [], error: `clob ${r.status}` };
+    const j = await r.json();
+    const points = (Array.isArray(j?.history) ? j.history : [])
+      .map(h => ({ t: (h.t || 0) * 1000, p: Number(h.p) }))
+      .filter(h => h.t > 0 && Number.isFinite(h.p));
+    if (points.length) _histCache.set(ck, { exp: Date.now() + 10 * 60_000, points });
+    if (_histCache.size > 500) _histCache.delete(_histCache.keys().next().value);
+    return { points, cached: false };
+  } catch (e) {
+    return { points: [], error: e.message };
+  }
+}
+
+module.exports = {
+  getPriceHistory, fetchMarkets, fetchEvents, classifyMarket, parseOutcomePrices };
