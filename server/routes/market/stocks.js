@@ -84,7 +84,7 @@ const DEFAULT_STOCK_TICKERS = [
   'EZU','EWU','EWG','EWQ','EWP','EWI','EWL','EWD',
   'EWH','EWY','EWA','MCHI','EWT','EWS','INDA','EWC',
   'AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA',
-  'BRKB','JPM','GS','BAC','V','MA',
+  'BRK-B','JPM','GS','BAC','V','MA',
   'XOM','CAT','BA',
   'WMT','LLY','UNH',
   'VALE','PBR','ITUB','BBD','ABEV','ERJ','BRFS','SUZ',

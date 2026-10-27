@@ -197,7 +197,9 @@ router.get('/', async (req, res) => {
   checks.push(await check('grid.stocks', async () => {
     const stocks = require('./market/stocks');
     const d = await stocks.batchYahooQuoteDetailed(stocks.DEFAULT_STOCK_TICKERS);
-    return gridSummary('/snapshot/stocks', d.requested, d.quotes, d.failed, 'us');
+    // #292 — name the missing symbols: 87/90 every run keeps the DEGRADED
+    // strip up; a dead ticker in the default list is a list bug, not a feed.
+    return { ...gridSummary('/snapshot/stocks', d.requested, d.quotes, d.failed, 'us'), missingSymbols: d.missing };
   }));
   checks.push(await check('grid.forex', async () => {
     const syms = ['EURUSD=X','GBPUSD=X','USDJPY=X','USDBRL=X','USDCHF=X','AUDUSD=X'];
