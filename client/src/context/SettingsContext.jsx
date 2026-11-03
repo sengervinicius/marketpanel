@@ -83,7 +83,7 @@ function defaultSettings() {
     watchlist: [],
     // Bumped when we add a new CIO-mandated ticker to defaults; the
     // migration below uses this version to decide whether to back-fill.
-    settingsVersion: 4,
+    settingsVersion: 5,
     panels: {
       brazilB3:     { title: 'Brazil B3',      symbols: [...CIO_BRAZIL_DEFAULTS] },
       usEquities:   { title: 'US Equities',    symbols: ['AAPL','MSFT','NVDA','GOOGL','AMZN','META','TSLA','JPM','XOM','BRK-B','GS','WMT','LLY','V','ORCL'] },
@@ -115,7 +115,7 @@ function defaultSettings() {
  */
 function migrateLegacySettings(saved) {
   if (!saved || typeof saved !== 'object') return { settings: saved, migrated: false };
-  if (saved.settingsVersion >= 4) return { settings: saved, migrated: false };
+  if (saved.settingsVersion >= 5) return { settings: saved, migrated: false };
 
   const next = { ...saved, panels: { ...(saved.panels || {}) } };
   let changed = false;
@@ -233,7 +233,42 @@ function migrateLegacySettings(saved) {
     }
   }
 
-  next.settingsVersion = 4;
+  // ── v5: #292 F3 retired row 3 (movers / calendar / sectorPulse) ──────
+  //
+  // F3 replaced the bottom row with the desk box, MARKETS THAT MATTER and the
+  // cross-asset ribbon, and shipped migrateRetiredRow3() to upgrade saved
+  // layouts in place. That migration is only ever called from useGridLayouts,
+  // which is gated behind the home_grid_v2 flag (default FALSE). Every user on
+  // the default path renders from settings.layout.desktopRows via
+  // useLayoutManager, which has no migration at all — so F3 shipped, deployed,
+  // and was structurally unreachable for them. Three weeks later the owner's
+  // own terminal was still showing the retired trio.
+  //
+  // Same rule as the grid version: only touch a layout that still carries a
+  // retired panel AND has none of the new ones. movers → odds and calendar →
+  // crossAsset keep their slot; sectorPulse is dropped. Anything the user has
+  // deliberately arranged otherwise is left alone.
+  if (!(saved.settingsVersion >= 5)) {
+    const rows = next.layout && Array.isArray(next.layout.desktopRows)
+      ? next.layout.desktopRows
+      : null;
+    if (rows) {
+      const flat = rows.flat();
+      const hasRetired = flat.includes('movers') || flat.includes('calendar') || flat.includes('sectorPulse');
+      const hasNew = flat.includes('odds') || flat.includes('crossAsset');
+      if (hasRetired && !hasNew) {
+        next.layout = {
+          ...next.layout,
+          desktopRows: rows.map(row => (Array.isArray(row) ? row : [])
+            .filter(id => id !== 'sectorPulse')
+            .map(id => (id === 'movers' ? 'odds' : id === 'calendar' ? 'crossAsset' : id))),
+        };
+        changed = true;
+      }
+    }
+  }
+
+  next.settingsVersion = 5;
   return { settings: next, migrated: changed };
 }
 
