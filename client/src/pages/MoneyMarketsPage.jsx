@@ -39,6 +39,11 @@ const fmtDate = (d) => {
   if (Number.isNaN(t.getTime())) return String(d).slice(0, 10);
   return `${String(t.getMonth() + 1).padStart(2, '0')}/${String(t.getDate()).padStart(2, '0')}`;
 };
+const fmtRel = (v) => {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '--';
+  return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+};
 const fmtWhen = (iso) => {
   const t = new Date(iso);
   if (Number.isNaN(t.getTime())) return '—';
@@ -118,9 +123,9 @@ function Releases({ block }) {
                   <td className="mm-d">{fmtWhen(r.when)}</td>
                   <td className="mm-l mm-l--ev">{r.name}</td>
                   <td className="mm-d">{r.period || ''}</td>
-                  <td className="mm-v">{r.consensus != null ? fmtVal(r.consensus) : '--'}</td>
-                  <td className={`mm-v ${beat}`}>{r.actual != null ? fmtVal(r.actual) : '--'}</td>
-                  <td className="mm-v mm-v--dim">{r.previous != null ? fmtVal(r.previous) : '--'}</td>
+                  <td className="mm-v">{fmtRel(r.consensus)}</td>
+                  <td className={`mm-v ${beat}`}>{fmtRel(r.actual)}</td>
+                  <td className="mm-v mm-v--dim">{fmtRel(r.previous)}</td>
                 </tr>
               );
             })}
