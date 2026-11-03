@@ -49,7 +49,7 @@ const DESCRIPTIONS = {
   BBD:   "Banco Bradesco — Brazil's second-largest private bank; insurance, asset management, digital channels.",
   ABEV:  "Ambev S.A. — Latin America's largest brewer; Brahma, Skol, Antarctica, Budweiser (BR), Guaraná Antarctica.",
   ERJ:   'Embraer — Brazilian aircraft manufacturer; E-Jet regional jets, Phenom/Praetor executive jets, defense (KC-390).',
-  BRFS:  'BRF S.A. — global food producer; Sadia & Perdigão brands; processed poultry, pork & plant-based proteins.',
+  NU:    'Nu Holdings — Nubank; largest digital bank in Latin America (Brazil, Mexico, Colombia); NYSE-listed.',
   SUZ:   "Suzano S.A. — world's largest eucalyptus pulp producer; supplies paper & tissue makers globally.",
   // Brazilian equities (B3)
   'BOVA11.SA': 'Ibovespa ETF (BOVA11) — tracks the Ibovespa index on B3; basket of the most liquid Brazilian stocks.',

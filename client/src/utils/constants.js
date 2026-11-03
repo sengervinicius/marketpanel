@@ -69,7 +69,7 @@ export const BRAZIL_ADRS = [
   { symbol: 'BBD',   label: 'Bradesco',     country: 'BR' },
   { symbol: 'ABEV',  label: 'Ambev',        country: 'BR' },
   { symbol: 'ERJ',   label: 'Embraer',      country: 'BR' },
-  { symbol: 'BRFS',  label: 'BRF S.A.',     country: 'BR' },
+  { symbol: 'NU',    label: 'Nubank',       country: 'BR' },
   { symbol: 'SUZ',   label: 'Suzano',       country: 'BR' },
 ];
 // Backward compat alias
@@ -280,7 +280,7 @@ export const INSTRUMENTS = [
   { symbolKey: 'BBD',   name: 'Bradesco',        assetClass: 'equity', group: 'Brazil ADRs' },
   { symbolKey: 'ABEV',  name: 'Ambev',           assetClass: 'equity', group: 'Brazil ADRs' },
   { symbolKey: 'ERJ',   name: 'Embraer',         assetClass: 'equity', group: 'Brazil ADRs' },
-  { symbolKey: 'BRFS',  name: 'BRF S.A.',        assetClass: 'equity', group: 'Brazil ADRs' },
+  { symbolKey: 'NU',    name: 'Nu Holdings',     assetClass: 'equity', group: 'Brazil ADRs' },
   { symbolKey: 'SUZ',   name: 'Suzano',          assetClass: 'equity', group: 'Brazil ADRs' },
   // ── US/Global Indexes ─────────────────────────────────────────────────
   { symbolKey: 'SPY',   name: 'S&P 500',           assetClass: 'index',        group: 'US Indexes' },

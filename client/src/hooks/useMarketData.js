@@ -161,9 +161,22 @@ export function useMarketData() {
             newEndpointErrors[r.value.key] = `no data — ${r.value.d.providerError || 'provider returned nothing'}`;
             degraded = true;
           } else if (st === 'PARTIAL') {
-            const n = Array.isArray(r.value.d.missing) ? r.value.d.missing.length : '?';
-            newEndpointErrors[r.value.key] = `partial — ${n} symbols missing${r.value.d.providerError ? ' (' + r.value.d.providerError + ')' : ''}`;
-            degraded = true;
+            const missing = Array.isArray(r.value.d.missing) ? r.value.d.missing : [];
+            const n = missing.length || '?';
+            const total = Number(r.value.d.requested) > 0 ? Number(r.value.d.requested)
+              : (Array.isArray(r.value.d.tickers) ? r.value.d.tickers.length + missing.length : null);
+            // A PARTIAL answer is only "degraded" when it actually hurts:
+            // ≥10% of the universe or a provider error. One dead symbol out
+            // of 90 used to paint the whole terminal red every load.
+            const share = total ? missing.length / total : 1;
+            const hurts = !!r.value.d.providerError || share >= 0.10 || missing.length >= 5;
+            if (hurts) {
+              newEndpointErrors[r.value.key] = `partial — ${n} symbols missing${r.value.d.providerError ? ' (' + r.value.d.providerError + ')' : ''}`;
+              degraded = true;
+            } else {
+              newEndpointErrors[r.value.key] = null;
+              if (missing.length) console.info(`[useMarketData] ${r.value.key}: ${missing.join(',')} unpriced (below banner threshold)`);
+            }
           } else {
             newEndpointErrors[r.value.key] = null;
           }

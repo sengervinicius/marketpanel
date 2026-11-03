@@ -143,15 +143,56 @@ async function _polyFetchRaw(path, retries = 2) {
   throw new ApiError('Polygon: exhausted retries', 'network_error');
 }
 
+// ── Polygon auth circuit ────────────────────────────────────────────
+// When the key is rejected (401/403 — expired plan, rotated key) every
+// caller used to sit in the 13s/request queue only to be told "auth
+// error" one at a time. With Polygon in Promise.allSettled fan-outs
+// (ticker news, ticker summary, …) that queue wait alone blew the 15s
+// route guard, so the USER saw "upstreamerror" on features that never
+// needed Polygon to succeed. Now: first auth failure opens the circuit
+// for 15 min and polyFetch rejects immediately without queueing.
+let _polyAuthDeadUntil = 0;
+const POLY_AUTH_BACKOFF_MS = 15 * 60 * 1000;
+function polygonAuthDead() { return Date.now() < _polyAuthDeadUntil; }
+
+// Max time a call may WAIT in the queue before we give up on it. Chart
+// and snapshot callers that truly need Polygon pass a larger value;
+// everyone else gets a bounded wait so they can fall through to their
+// own fallback instead of timing out the whole route.
+const POLY_DEFAULT_MAX_WAIT_MS = 6000;
+
 // ── Polygon.io fetcher with request queue (rate limiting) ──────────
 async function polyFetch(path, options = {}) {
   const priority = options.priority || 0;  // Higher = earlier in queue (for charts, snapshots)
   const label = options.label || `polygon:${path.split('?')[0]}`;
+  const maxWait = Number.isFinite(options.maxWaitMs) ? options.maxWaitMs : POLY_DEFAULT_MAX_WAIT_MS;
 
-  return polygonQueue.add(
-    () => _polyFetchRaw(path, 2),
+  if (!apiKey()) throw new ApiError('Polygon not configured', 'auth_error');
+  if (polygonAuthDead()) throw new ApiError('Polygon auth rejected (circuit open)', 'auth_error');
+
+  let started = false;
+  const run = polygonQueue.add(
+    () => { started = true; return _polyFetchRaw(path, 2); },
     { priority, label }
-  );
+  ).catch(err => {
+    if (err && err.code === 'auth_error') _polyAuthDeadUntil = Date.now() + POLY_AUTH_BACKOFF_MS;
+    throw err;
+  });
+
+  if (!(maxWait > 0)) return run;
+  let timer;
+  const deadline = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      if (!started) reject(new ApiError(`Polygon queue wait exceeded ${maxWait}ms`, 'timeout'));
+    }, maxWait);
+  });
+  try {
+    return await Promise.race([run, deadline]);
+  } finally {
+    clearTimeout(timer);
+    // If we abandoned it, make sure the eventual rejection is not unhandled.
+    run.catch(() => {});
+  }
 }
 
 // ── Yahoo Finance crumb authentication ──────────────────────────────
@@ -1100,6 +1141,7 @@ module.exports = {
   withTimeout,
   // Fetchers
   polyFetch,
+  polygonAuthDead,
   getYahooCrumb,
   _yahooChartRaw,
   _yahooSymbolSearch,

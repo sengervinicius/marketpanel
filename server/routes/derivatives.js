@@ -54,32 +54,32 @@ router.get('/options/:ticker', async (req, res, next) => {
 });
 
 // ── GET /futures/:symbol ─────────────────────────────────────────────────────
-// Returns futures curve for a commodity/index symbol
+// Term structure for a commodity / index / rates / FX futures root.
+// Order: Eulerpool (if configured AND it answers) → Yahoo listed contracts
+// (CLZ26.NYM, CLF27.NYM, … — no key, delayed). Empty → say why, never invent.
+const yfCurve = require('../providers/yahooFuturesCurve');
 router.get('/futures/:symbol', async (req, res, next) => {
   try {
     const symbol = req.params.symbol.toUpperCase();
 
-    if (!euler.isConfigured()) {
-      return res.json({
-        symbol,
-        curve: [],
-        source: 'unavailable',
-        message: 'Eulerpool API key not configured',
-      });
+    if (euler.isConfigured()) {
+      try {
+        const data = await euler.getFuturesCurve(symbol);
+        const curve = Array.isArray(data) ? data : (data?.contracts || data?.curve || []);
+        if (curve.length) return res.json({ symbol, curve, source: 'eulerpool' });
+      } catch (_) { /* fall through to Yahoo */ }
     }
 
-    const data = await euler.getFuturesCurve(symbol);
-
-    if (!data) {
-      return res.json({ symbol, curve: [], source: 'eulerpool', message: 'No futures data available' });
-    }
-
-    const curve = Array.isArray(data) ? data : (data?.contracts || data?.curve || []);
-
-    res.json({
+    const yf = await yfCurve.getFuturesCurve(symbol);
+    return res.json({
       symbol,
-      curve,
-      source: 'eulerpool',
+      root: yf.root,
+      name: yf.name,
+      curve: yf.curve,
+      source: yf.source,
+      asOf: yf.asOf || null,
+      frequency: yf.frequency,
+      error: yf.curve.length ? undefined : (yf.error || 'No futures data available'),
     });
   } catch (e) {
     next(e);

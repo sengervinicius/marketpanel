@@ -87,7 +87,7 @@ const DEFAULT_STOCK_TICKERS = [
   'BRK-B','JPM','GS','BAC','V','MA',
   'XOM','CAT','BA',
   'WMT','LLY','UNH',
-  'VALE','PBR','ITUB','BBD','ABEV','ERJ','BRFS','SUZ',
+  'VALE','PBR','ITUB','BBD','ABEV','ERJ','NU','SUZ',
   'GLD','SLV','CPER','REMX','USO','UNG','SOYB','WEAT','CORN','BHP',
   // H0 follow-up (futures "—" bug): the client Commodities panel defaults
   // are real front-month futures (CIO_COMMODITIES_DEFAULTS on both sides),
@@ -336,9 +336,9 @@ function snapshotStatus(detail) {
     return { status: 'EMPTY', missing: detail.missing, providerError: detail.failed[0]?.error || 'no quotes returned' };
   }
   if (detail.missing.length > 0) {
-    return { status: 'PARTIAL', missing: detail.missing, providerError: detail.failed[0]?.error || null };
+    return { status: 'PARTIAL', missing: detail.missing, requested: detail.requested, received: detail.received, providerError: detail.failed[0]?.error || null };
   }
-  return { status: 'OK' };
+  return { status: 'OK', requested: detail.requested, received: detail.received };
 }
 
 // ── yr() helper for fundamentals ────────────────────────────────────

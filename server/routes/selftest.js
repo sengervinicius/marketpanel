@@ -121,6 +121,38 @@ router.get('/', async (req, res) => {
              detail: 'live streaming needs a Polygon real-time plan; REST polling supplies prices' };
   }));
 
+  // AI: one minimal Haiku call (max_tokens 1) — proves the key, the model
+  // name and the network path. Everything "AI" in the product (news
+  // classifier, ticker summaries, Particle chat fallback) rides this.
+  checks.push(await check('ai.anthropic', async () => {
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) return { ok: false, configured: false, detail: 'ANTHROPIC_API_KEY not set' };
+    const t0 = Date.now();
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', signal: ctrl.signal,
+        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1, messages: [{ role: 'user', content: 'ping' }] }),
+      });
+      const body = r.ok ? null : (await r.text().catch(() => '')).slice(0, 120);
+      return { ok: r.ok, configured: true, status: r.status, ms: Date.now() - t0, detail: r.ok ? 'haiku answered' : body };
+    } catch (e) {
+      return { ok: false, configured: true, ms: Date.now() - t0, detail: e.name === 'AbortError' ? 'timeout 8s' : e.message };
+    } finally { clearTimeout(timer); }
+  }));
+
+  // Polygon REST: the key has been rejected before (AUTH) and every caller
+  // then sat in the 13s/request queue. Surface the circuit state here.
+  checks.push(await check('provider.polygon_rest', async () => {
+    const { polygonAuthDead } = require('./market/lib/providers');
+    const configured = !!process.env.POLYGON_API_KEY;
+    const dead = polygonAuthDead();
+    return { ok: configured && !dead, warn: !configured || dead, configured, circuitOpen: dead,
+             detail: !configured ? 'POLYGON_API_KEY not set' : dead ? 'key rejected (401/403) — circuit open, callers fail fast' : 'ok' };
+  }));
+
   // Real data, through the real provider helper.
   for (const [name, symbol] of Object.entries(PROBE_SYMBOLS)) {
     checks.push(await check(name, () => probeQuote(symbol)));
