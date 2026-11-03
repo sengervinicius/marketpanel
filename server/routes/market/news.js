@@ -90,6 +90,17 @@ const CODE_SYNONYMS = {
   PETR4: ['PETR4', 'PETROBRAS'], VALE3: ['VALE3', 'VALE'], ITUB4: ['ITUB4', 'ITAU', 'ITAÚ'],
   NVDA: ['NVDA', 'NVIDIA'], AAPL: ['AAPL', 'APPLE'], MSFT: ['MSFT', 'MICROSOFT'], TSLA: ['TSLA', 'TESLA'], AMZN: ['AMZN', 'AMAZON'], META: ['META'], GOOGL: ['GOOGL', 'GOOGLE', 'ALPHABET'],
 };
+// Desk vocabulary → codes/words the feed actually carries.
+const KEYWORD_EXPAND = {
+  CDI: ['SELIC', 'DI', 'COPOM', 'JUROS', 'TAXA'], JUROS: ['SELIC', 'DI', 'COPOM', 'RATES', 'CDI'], SELIC: ['COPOM', 'CDI', 'DI', 'JUROS'],
+  BRASIL: ['BRAZIL', 'BRAZILIAN', 'IBOV', 'USDBRL', 'LULA', 'HADDAD', 'B3', 'BCB', 'PETROBRAS', 'VALE', 'ITAU', 'ITAÚ'], BRAZIL: ['BRASIL', 'BRAZILIAN', 'IBOV', 'USDBRL', 'LULA', 'HADDAD', 'B3', 'BCB'],
+  DOLAR: ['USDBRL', 'DOLLAR', 'DXY', 'REAL'], 'DÓLAR': ['USDBRL', 'DOLLAR', 'DXY', 'REAL'], CAMBIO: ['USDBRL', 'FX', 'DOLLAR'], 'CÂMBIO': ['USDBRL', 'FX', 'DOLLAR'],
+  INFLACAO: ['INFLATION', 'IPCA', 'CPI'], 'INFLAÇÃO': ['INFLATION', 'IPCA', 'CPI'], INFLATION: ['CPI', 'IPCA', 'PCE', 'PRICES'],
+  PETROLEO: ['OIL', 'BRENT', 'WTI', 'CRUDE', 'PETROBRAS'], 'PETRÓLEO': ['OIL', 'BRENT', 'WTI', 'CRUDE'], OIL: ['BRENT', 'WTI', 'CRUDE', 'OPEC'],
+  OURO: ['GOLD'], BOLSA: ['IBOV', 'IBOVESPA', 'STOCKS', 'B3'], FED: ['FOMC', 'POWELL', 'RATES', 'UST10Y'], TREASURIES: ['UST10Y', 'YIELDS', 'BONDS'],
+  CHINA: ['HSI', 'SHANGHAI', 'BEIJING', 'YUAN', 'USDCNY'], EUROPE: ['ECB', 'EURUSD', 'STOXX', 'BUND'], JAPAN: ['BOJ', 'USDJPY', 'NIKKEI', 'YEN'],
+  CRYPTO: ['BTC', 'BITCOIN', 'ETH', 'ETHEREUM'], TECH: ['NDX', 'NASDAQ', 'NVDA', 'AAPL', 'MSFT', 'AI'],
+};
 function codeAliases(input) {
   const raw = String(input || '').toUpperCase().trim();
   const out = new Set([raw]);
@@ -251,6 +262,47 @@ router.get('/news', async (req, res) => {
   try {
     const limit = clampInt(req.query.limit, 1, 100, 30);
     const tickerFilter = req.query.ticker ? sanitizeText(req.query.ticker, 20).toUpperCase() : null;
+
+    // ── Keyword search (?q=CDI Brasil) ────────────────────────────────
+    // Free text, not a symbol. Every word is expanded through the code
+    // aliases (CDI → SELIC/DI/COPOM…) and matched against headline +
+    // summary + the classifier's codes. Stories matching MORE of the words
+    // rank first, then recency. One-word queries that look like a code
+    // also pull the company feed for it.
+    const q = req.query.q ? sanitizeText(req.query.q, 60) : null;
+    if (q) {
+      const words = q.toUpperCase().split(/[\s,;]+/).map(w => w.replace(/[^A-Z0-9À-Ü.\-=^/]/g, '')).filter(w => w.length >= 2).slice(0, 6);
+      if (!words.length) return res.json({ results: [], tally: classifier.tally([]), status: 'OK', scope: 'keyword', q });
+      const cacheKey = `news:q:${words.join('+')}:${limit}`;
+      const cached = cacheGet(cacheKey);
+      if (cached) return res.json(cached);
+
+      const groups = words.map(w => {
+        const set = codeAliases(w);
+        // plain-language expansions a desk types
+        const extra = KEYWORD_EXPAND[w] || [];
+        extra.forEach(x => set.add(x));
+        const terms = [...set].filter(t => t.length >= 2 && !/^(THE|AND|FOR|DE|DO|DA)$/.test(t));
+        return { word: w, re: new RegExp(`\\b(${terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'i'), codes: new Set(terms) };
+      });
+      const single = words.length === 1 && /^[A-Z0-9.\-=^]{1,12}$/.test(words[0]) ? words[0] : null;
+      const [general, company] = await Promise.all([
+        fetchGeneralFeed(80).then(items => classifier.enrich(items)).catch(() => []),
+        single ? fetchTickerNews(single, 20).catch(() => []) : Promise.resolve([]),
+      ]);
+      const scored = dedupeByTitle([...company, ...general]).map(it => {
+        const text = `${it.title || ''} ${it.description || ''}`;
+        const codes = [...(it.instruments || []), ...itemTickers(it)].map(c => String(c).toUpperCase());
+        let hits = 0;
+        for (const g of groups) if (g.re.test(text) || codes.some(c => g.codes.has(c))) hits++;
+        return { it, hits };
+      }).filter(x => x.hits > 0);
+      scored.sort((a, b) => (b.hits - a.hits) || (Date.parse(b.it.published_utc || 0) - Date.parse(a.it.published_utc || 0)));
+      const items = await classifier.enrich(scored.slice(0, limit).map(x => x.it));
+      const payload = { results: items, tally: classifier.tally(items), status: 'OK', scope: 'keyword', q, words };
+      cacheSet(cacheKey, payload, 60_000);
+      return res.json(payload);
+    }
 
     // ── Ticker-specific news ──────────────────────────────────────────
     // Company news (Finnhub/Polygon) PLUS every general-feed story the

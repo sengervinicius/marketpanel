@@ -461,12 +461,16 @@ function NewsPanel() {
   const [focusTicker, setFocusTickerState] = useState(loadNewsTicker);
   const [tickerDraft, setTickerDraft] = useState('');
   const setFocusTicker = useCallback((t) => {
-    const v = String(t || '').trim().toUpperCase().slice(0, 20);
+    const v = String(t || '').trim().toUpperCase().slice(0, 40);
     setFocusTickerState(v);
     setExpandedId(null);
     try { if (v) localStorage.setItem(NEWS_TICKER_KEY, v); else localStorage.removeItem(NEWS_TICKER_KEY); } catch { /* private mode */ }
   }, []);
-  const curveRoot = useMemo(() => curveRootFor(focusTicker), [focusTicker]);
+  const curveRoot = useMemo(() => {
+    const words = String(focusTicker || '').split(/\s+/).filter(Boolean);
+    for (const w of words) { const r = curveRootFor(w); if (r) return r; }
+    return null;
+  }, [focusTicker]);
 
   // ✦ AI chip — shows/hides the briefing layer (and gates its fetch).
   const [aiOn, setAiOnState] = useState(loadAiOn);
@@ -560,7 +564,7 @@ function NewsPanel() {
   const load = useCallback(async () => {
     try {
       const url = focusTicker
-        ? `/api/news?ticker=${encodeURIComponent(focusTicker)}&limit=40`
+        ? `/api/news?q=${encodeURIComponent(focusTicker)}&limit=40`
         : scopeTickers
           ? `/api/news?tickers=${encodeURIComponent(scopeTickers)}`
           : '/api/news';
@@ -632,11 +636,12 @@ function NewsPanel() {
                 className="np-tkinput"
                 value={tickerDraft}
                 onChange={(e) => setTickerDraft(e.target.value.toUpperCase())}
-                placeholder="TICKER"
-                aria-label="Focus news on a ticker or code (e.g. PETR4, BRENT, SELIC)"
+                placeholder="KEYWORD"
+                aria-label="Filter the wire by keywords — a ticker, a code or plain words (e.g. CDI Brasil, PETR4, oil Iran)"
+                title="Keywords: a ticker, a code or plain words — e.g. CDI Brasil · PETR4 · oil Iran"
                 spellCheck={false}
                 autoComplete="off"
-                maxLength={20}
+                maxLength={40}
               />
             </form>
             {focusTicker && (

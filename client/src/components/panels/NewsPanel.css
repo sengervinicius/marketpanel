@@ -457,7 +457,7 @@
 /* ── Ticker selector ─────────────────────────────────────────────── */
 .np-tkform { display: flex; align-items: center; }
 .np-tkinput {
-  width: 72px;
+  width: 96px;
   font-family: var(--font-family-mono);
   font-size: var(--type-caption);
   letter-spacing: 0.06em;
