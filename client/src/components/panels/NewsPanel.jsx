@@ -179,7 +179,7 @@ const WireBriefing = memo(function WireBriefing({
 });
 
 // ── Wire row — single line; click expands summary + full chips ──────
-const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTickerSummary }) {
+const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTickerSummary, onFocusCode }) {
   const tickerClicks = useTickerClicksFactory(); // wave-nov item 5
   const breaking = isBreakingStory(item);
   const url = item.article_url || item.link || item.url;
@@ -225,7 +225,15 @@ const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTick
         <span className="np-wr-tk">
           {codes.slice(0, 2).map(t => {
             const s = tickerSentiment(item, t);
-            return <span key={t} className={`np-tkc ${s ? `np-tkc--${s}` : ''}`}>{t}</span>;
+            return (
+              <button
+                key={t}
+                type="button"
+                className={`np-tkc np-tkc--click ${s ? `np-tkc--${s}` : ''}`}
+                onClick={(e) => { e.stopPropagation(); onFocusCode && onFocusCode(t); }}
+                title={`Focus the wire on ${t}`}
+              >{t}</button>
+            );
           })}
           {codes.length > 2 && (
             <span className="np-tkc np-tkc--more" title={codes.slice(2).join(' · ')}>+{codes.length - 2}</span>
@@ -327,6 +335,80 @@ const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTick
   );
 });
 
+// ── Ticker selector (Kento-style): one instrument, its news, its curve ──
+const NEWS_TICKER_KEY = 'newsTicker_v1';
+function loadNewsTicker() {
+  try { return (localStorage.getItem(NEWS_TICKER_KEY) || '').toUpperCase(); } catch { return ''; }
+}
+
+// Futures roots the server can strip (mirrors providers/yahooFuturesCurve ROOTS/ALIASES).
+const CURVE_ROOTS = new Set(['CL','BZ','NG','HO','RB','GC','SI','HG','PL','ZC','ZS','ZW','KC','SB','CT','CC','LE','ES','NQ','YM','ZN','ZB','6E','6B','6J','BTC']);
+const CURVE_WORDS = { WTI:'CL', OIL:'CL', BRENT:'BZ', NATGAS:'NG', GOLD:'GC', SILVER:'SI', COPPER:'HG', CORN:'ZC', SOYBEANS:'ZS', SOY:'ZS', WHEAT:'ZW', COFFEE:'KC', SUGAR:'SB', COTTON:'CT', COCOA:'CC', SPX:'ES', SP500:'ES', NDX:'NQ', NASDAQ:'NQ', DJI:'YM', DOW:'YM', UST10Y:'ZN', US10Y:'ZN', TNX:'ZN', BITCOIN:'BTC' };
+function curveRootFor(ticker) {
+  const t = String(ticker || '').toUpperCase().replace(/^\^/, '').replace(/-USD$/, '');
+  if (t.endsWith('=F') && CURVE_ROOTS.has(t.slice(0, -2))) return t.slice(0, -2);
+  if (CURVE_ROOTS.has(t)) return t;
+  return CURVE_WORDS[t] || null;
+}
+
+const CurveStrip = memo(function CurveStrip({ root }) {
+  const [state, setState] = useState({ loading: true, curve: [], error: null, name: '', asOf: null });
+  useEffect(() => {
+    let alive = true;
+    setState(s => ({ ...s, loading: true, error: null }));
+    (async () => {
+      try {
+        const res = await apiFetch(`/api/derivatives/futures/${encodeURIComponent(root)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const j = await res.json();
+        if (!alive) return;
+        const curve = (j.curve || []).map(c => ({
+          contract: c.contract || c.label || c.month,
+          price: c.price ?? c.settle ?? c.last ?? c.close ?? null,
+        })).filter(c => c.price != null);
+        setState({ loading: false, curve, error: curve.length ? null : (j.error || 'no contracts'), name: j.name || root, asOf: j.asOf || null });
+      } catch (e) {
+        if (alive) setState({ loading: false, curve: [], error: e.message, name: root, asOf: null });
+      }
+    })();
+    return () => { alive = false; };
+  }, [root]);
+
+  const { loading, curve, error, name } = state;
+  const front = curve[0]?.price;
+  const back = curve[curve.length - 1]?.price;
+  const shape = curve.length >= 2 ? (back > front ? 'CONTANGO' : back < front ? 'BACKWARDATION' : 'FLAT') : null;
+  return (
+    <div className="np-curve" role="group" aria-label={`${name} forward curve`}>
+      <div className="np-curve-head">
+        <span className="np-curve-title">{name.toUpperCase()} · FWD CURVE</span>
+        {shape && <span className={`np-curve-shape np-curve-shape--${shape.toLowerCase()}`}>{shape}</span>}
+        {curve.length >= 2 && front > 0 && (
+          <span className="np-curve-roll">{`${curve[curve.length - 1].contract}: ${((back / front - 1) * 100).toFixed(2)}% vs front`}</span>
+        )}
+      </div>
+      {loading ? (
+        <div className="np-curve-empty">Loading contracts…</div>
+      ) : error ? (
+        <div className="np-curve-empty">{error}</div>
+      ) : (
+        <div className="np-curve-row">
+          {curve.slice(0, 12).map((c, i) => {
+            const d = i === 0 || !(front > 0) ? null : (c.price / front - 1) * 100;
+            return (
+              <span key={c.contract + i} className="np-curve-pt">
+                <span className="np-curve-m">{c.contract}</span>
+                <span className="np-curve-px">{c.price.toLocaleString('en-US', { maximumFractionDigits: c.price < 10 ? 3 : 2 })}</span>
+                <span className={`np-curve-d ${d == null ? '' : d > 0 ? 'np-curve-d--up' : d < 0 ? 'np-curve-d--down' : ''}`}>{d == null ? 'FRONT' : `${d >= 0 ? '+' : ''}${d.toFixed(2)}%`}</span>
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+});
+
 function NewsPanel() {
   const openDetail = useOpenDetail(); // FIX 4: briefing chips open detail, never the chart grid
   const [news, setNews] = useState([]);
@@ -369,6 +451,18 @@ function NewsPanel() {
     setScopeState(s);
     try { localStorage.setItem(NEWS_SCOPE_KEY, s); } catch { /* private mode */ }
   }, []);
+
+  // Ticker selector — overrides scope while set. Persisted so the desk
+  // reopens on the instrument it was watching.
+  const [focusTicker, setFocusTickerState] = useState(loadNewsTicker);
+  const [tickerDraft, setTickerDraft] = useState('');
+  const setFocusTicker = useCallback((t) => {
+    const v = String(t || '').trim().toUpperCase().slice(0, 20);
+    setFocusTickerState(v);
+    setExpandedId(null);
+    try { if (v) localStorage.setItem(NEWS_TICKER_KEY, v); else localStorage.removeItem(NEWS_TICKER_KEY); } catch { /* private mode */ }
+  }, []);
+  const curveRoot = useMemo(() => curveRootFor(focusTicker), [focusTicker]);
 
   // ✦ AI chip — shows/hides the briefing layer (and gates its fetch).
   const [aiOn, setAiOnState] = useState(loadAiOn);
@@ -461,9 +555,11 @@ function NewsPanel() {
 
   const load = useCallback(async () => {
     try {
-      const url = scopeTickers
-        ? `/api/news?tickers=${encodeURIComponent(scopeTickers)}`
-        : '/api/news';
+      const url = focusTicker
+        ? `/api/news?ticker=${encodeURIComponent(focusTicker)}&limit=40`
+        : scopeTickers
+          ? `/api/news?tickers=${encodeURIComponent(scopeTickers)}`
+          : '/api/news';
       const res = await apiFetch(url);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
@@ -486,7 +582,7 @@ function NewsPanel() {
     } finally {
       setLoading(false);
     }
-  }, [scopeTickers, loadBriefing]);
+  }, [scopeTickers, focusTicker, loadBriefing]);
 
   useEffect(() => {
     setLoading(true);
@@ -501,7 +597,7 @@ function NewsPanel() {
     if (briefingLayerOn && news.length > 0) loadBriefing(news);
   }, [briefingLayerOn]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const displayed = effectiveScope === 'macro' ? news.filter(isMacroStory) : news;
+  const displayed = (!focusTicker && effectiveScope === 'macro') ? news.filter(isMacroStory) : news;
 
   // Tally of the rows on screen (not the server's — MACRO/WATCHLIST filter
   // client-side). Unclassified rows are left out of the bar, never guessed.
@@ -519,25 +615,47 @@ function NewsPanel() {
     <div className="flex-col np-container">
       <PanelChrome
         title="NEWS"
-        subtitle={displayed.length > 0 ? `${displayed.length} STORIES · ${badge.text}` : badge.text}
+        subtitle={focusTicker ? `${focusTicker} · ${displayed.length} STORIES` : displayed.length > 0 ? `${displayed.length} STORIES · ${badge.text}` : badge.text}
         updatedAt={lastUpdated}
         source="Multi-source"
         actions={(
           <div className="np-chips" role="group" aria-label="News scope">
+            <form
+              className="np-tkform"
+              onSubmit={(e) => { e.preventDefault(); if (tickerDraft.trim()) { setFocusTicker(tickerDraft); setTickerDraft(''); } }}
+            >
+              <input
+                className="np-tkinput"
+                value={tickerDraft}
+                onChange={(e) => setTickerDraft(e.target.value.toUpperCase())}
+                placeholder="TICKER"
+                aria-label="Focus news on a ticker or code (e.g. PETR4, BRENT, SELIC)"
+                spellCheck={false}
+                autoComplete="off"
+                maxLength={20}
+              />
+            </form>
+            {focusTicker && (
+              <button
+                className="np-chip np-chip--on np-chip--focus"
+                onClick={() => setFocusTicker('')}
+                title={`Clear ${focusTicker}`}
+              >{focusTicker} ×</button>
+            )}
             <button
-              className={`np-chip ${effectiveScope === 'all' ? 'np-chip--on' : ''}`}
-              onClick={() => setScope('all')}
+              className={`np-chip ${!focusTicker && effectiveScope === 'all' ? 'np-chip--on' : ''}`}
+              onClick={() => { setFocusTicker(''); setScope('all'); }}
               title="All market news"
             >ALL</button>
             <button
-              className={`np-chip ${effectiveScope === 'watchlist' ? 'np-chip--on' : ''}`}
-              onClick={() => setScope('watchlist')}
+              className={`np-chip ${!focusTicker && effectiveScope === 'watchlist' ? 'np-chip--on' : ''}`}
+              onClick={() => { setFocusTicker(''); setScope('watchlist'); }}
               disabled={!hasWatchlist}
               title={hasWatchlist ? 'Only stories matching your watchlist' : 'Watchlist is empty'}
             >WATCHLIST</button>
             <button
-              className={`np-chip ${effectiveScope === 'macro' ? 'np-chip--on' : ''}`}
-              onClick={() => setScope('macro')}
+              className={`np-chip ${!focusTicker && effectiveScope === 'macro' ? 'np-chip--on' : ''}`}
+              onClick={() => { setFocusTicker(''); setScope('macro'); }}
               title="Macro stories only — central banks, inflation, rates, tariffs, OPEC"
             >MACRO</button>
             {!briefInLayout && (
@@ -578,6 +696,8 @@ function NewsPanel() {
           </span>
         </div>
       )}
+
+      {curveRoot && <CurveStrip root={curveRoot} />}
 
       {error && news.length === 0 && (
         <div className="flex-row np-error-banner">
@@ -620,6 +740,7 @@ function NewsPanel() {
                 expanded={expandedId === key}
                 onToggle={() => setExpandedId(id => (id === key ? null : key))}
                 getTickerSummary={getTickerSummary}
+                onFocusCode={setFocusTicker}
               />
             );
           })

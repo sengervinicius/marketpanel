@@ -71,6 +71,33 @@ function itemTickers(item) {
   return [];
 }
 
+
+/**
+ * The set of codes a story may carry for one selector input.
+ * 'PETR4.SA' ⇄ 'PETR4'; 'BZ=F' ⇄ 'BRENT'/'BZ'; 'USDBRL=X' ⇄ 'USDBRL'; '^TNX' ⇄ 'UST10Y'.
+ */
+const CODE_SYNONYMS = {
+  'BZ=F': ['BZ', 'BRENT', 'OIL'], 'CL=F': ['CL', 'WTI', 'OIL'], 'NG=F': ['NG', 'NATGAS'],
+  'GC=F': ['GC', 'GOLD'], 'SI=F': ['SI', 'SILVER'], 'HG=F': ['HG', 'COPPER'],
+  'ZC=F': ['ZC', 'CORN'], 'ZS=F': ['ZS', 'SOYBEANS', 'SOY'], 'ZW=F': ['ZW', 'WHEAT'],
+  'KC=F': ['KC', 'COFFEE'], 'SB=F': ['SB', 'SUGAR'],
+  '^TNX': ['UST10Y', 'US10Y', 'TREASURIES', 'UST'], '^GSPC': ['SPX', 'SP500', 'ES'], '^IXIC': ['NDX', 'NASDAQ', 'NQ'],
+  '^BVSP': ['IBOV', 'IBOVESPA', 'BOVESPA'], '^DJI': ['DJI', 'DOW', 'YM'],
+  'USDBRL=X': ['USDBRL', 'BRL', 'USD/BRL'], 'EURUSD=X': ['EURUSD', 'EUR/USD', 'EUR'], 'BTC-USD': ['BTC', 'BITCOIN', 'BTCUSD'],
+  'DX-Y.NYB': ['DXY', 'USD'],
+};
+function codeAliases(input) {
+  const raw = String(input || '').toUpperCase().trim();
+  const out = new Set([raw]);
+  const bare = raw.replace(/\.SA$/, '').replace(/=F$/, '').replace(/=X$/, '').replace(/^\^/, '').replace(/-USD$/, '');
+  out.add(bare);
+  if (/^[A-Z]{4}\d{1,2}$/.test(bare)) out.add(`${bare}.SA`);
+  for (const [k, list] of Object.entries(CODE_SYNONYMS)) {
+    if (k === raw || list.includes(raw) || list.includes(bare)) { out.add(k); list.forEach(x => out.add(x)); }
+  }
+  return out;
+}
+
 /** Dedupe by title prefix (same heuristic as the legacy ticker path). */
 function dedupeByTitle(items) {
   const seen = new Set();
@@ -222,14 +249,26 @@ router.get('/news', async (req, res) => {
     const tickerFilter = req.query.ticker ? sanitizeText(req.query.ticker, 20).toUpperCase() : null;
 
     // ── Ticker-specific news ──────────────────────────────────────────
+    // Company news (Finnhub/Polygon) PLUS every general-feed story the
+    // classifier tagged with this code. That second half is what makes
+    // the selector work for things no vendor indexes as a "company":
+    // SELIC, USDBRL, CDS5Y, BRENT, PETR4 …
     if (tickerFilter) {
       const cacheKey = `news:${tickerFilter}:${limit}`;
       const cached = cacheGet(cacheKey);
       if (cached) return res.json(cached);
 
-      const unique = await fetchTickerNews(tickerFilter, limit);
+      const want = codeAliases(tickerFilter);
+      const [company, general] = await Promise.all([
+        fetchTickerNews(tickerFilter, limit).catch(() => []),
+        fetchGeneralFeed(60).then(items => classifier.enrich(items)).catch(() => []),
+      ]);
+      const tagged = general.filter(it =>
+        (it.instruments || []).some(c => want.has(String(c).toUpperCase())) ||
+        itemTickers(it).some(c => want.has(c)));
+      const unique = sortByPublished(dedupeByTitle([...company, ...tagged]));
       const items = await classifier.enrich(unique.slice(0, limit));
-      const result = { results: items, tally: classifier.tally(items), status: 'OK' };
+      const result = { results: items, tally: classifier.tally(items), status: 'OK', scope: 'ticker', ticker: tickerFilter };
       cacheSet(cacheKey, result, 60_000);
       return res.json(result);
     }
