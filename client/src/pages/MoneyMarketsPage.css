@@ -1,0 +1,94 @@
+/* MoneyMarketsPage — Treasury & Money Markets per country (BTMM-style).
+   Same chrome vocabulary as SectorDetailPage; the body is a dense block
+   grid in the panel type scale (caption / row / body) so it sits with
+   the rest of the terminal rather than beside it. */
+.mm-page {
+  min-height: 100vh;
+  background: var(--bg-base, #0a0a0a);
+  display: flex; flex-direction: column;
+  font-family: var(--font-family-mono);
+  color: var(--text-primary, #ddd);
+}
+.mm-chrome {
+  height: 34px; flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+  background: #000; border-bottom: 1px solid var(--border-default, #1e1e1e);
+  padding: 0 12px;
+}
+.mm-logo { color: var(--color-particle); font-weight: 700; font-size: var(--type-row); letter-spacing: 2px; }
+.mm-chrome-label { color: var(--text-faint); font-size: var(--type-caption); letter-spacing: 1px; }
+.mm-countries { display: flex; gap: 2px; margin-left: 8px; }
+.mm-cbtn {
+  background: none; border: 1px solid var(--border-strong); color: var(--text-muted);
+  font-family: inherit; font-size: var(--type-caption); letter-spacing: 0.08em;
+  padding: 1px 7px; border-radius: 2px; cursor: pointer;
+}
+.mm-cbtn:hover { color: var(--text-secondary); border-color: var(--text-muted); }
+.mm-cbtn--on, .mm-cbtn--on:hover { color: var(--accent); border-color: var(--accent); }
+.mm-chrome-spacer { flex: 1; }
+.mm-clock { color: var(--text-muted); font-size: var(--type-caption); font-variant-numeric: tabular-nums; }
+.mm-chrome-user { color: var(--text-faint); font-size: var(--type-caption); }
+.mm-close {
+  background: none; border: 1px solid var(--border-default, #1e1e1e);
+  color: var(--text-faint, #333); font-size: var(--type-row); padding: 0 8px; cursor: pointer; font-family: inherit;
+}
+.mm-close:hover { color: var(--text-secondary); }
+
+.mm-head {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 8px 14px 6px; border-bottom: 1px solid var(--border-default);
+}
+.mm-head-flag { font-size: var(--type-lead); }
+.mm-head-name { font-size: var(--type-lead); font-weight: 700; letter-spacing: 0.12em; }
+.mm-head-ccy { font-size: var(--type-micro); color: var(--text-muted); border: 1px solid var(--border-strong); border-radius: 2px; padding: 0 5px; }
+.mm-head-sub { font-size: var(--type-caption); color: var(--text-faint); letter-spacing: 0.1em; }
+.mm-head-err { font-size: var(--type-caption); color: var(--color-down); letter-spacing: 0.1em; }
+
+/* ── Block grid ─────────────────────────────────────────────────── */
+.mm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1px;
+  background: var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.mm-block {
+  background: var(--bg-base, #0a0a0a);
+  display: flex; flex-direction: column; min-width: 0;
+}
+.mm-block--releases { border-bottom: 1px solid var(--border-subtle); }
+.mm-block-h {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 10px 3px;
+  background: var(--color-surface-1, #111);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.mm-block-title { font-size: var(--type-caption); font-weight: 700; letter-spacing: 0.12em; color: var(--color-section-header, var(--text-secondary)); }
+.mm-block-sub { margin-left: auto; font-size: var(--type-caption); color: var(--text-faint); letter-spacing: 0.08em; }
+.mm-tag { font-size: 8px; letter-spacing: 0.1em; padding: 0 5px; border-radius: 2px; border: 1px solid transparent; }
+.mm-tag--on { color: var(--color-up); border-color: rgba(34,197,94,0.35); }
+.mm-tag--needs { color: var(--accent); border-color: var(--accent); }
+.mm-tag--off { color: var(--text-faint); border-color: var(--border-strong); }
+
+.mm-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.mm-table td, .mm-table th { padding: 2px 10px; font-size: var(--type-row); line-height: 1.5; white-space: nowrap; }
+.mm-table th { text-align: left; font-size: var(--type-caption); color: var(--text-faint); letter-spacing: 0.08em; font-weight: 600; border-bottom: 1px solid var(--border-subtle); }
+.mm-table tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+.mm-l { color: var(--text-secondary); text-align: left; width: 44%; overflow: hidden; text-overflow: ellipsis; }
+.mm-l--ev { white-space: normal; width: auto; max-width: 420px; color: var(--text-primary); }
+.mm-v { color: var(--text-primary); text-align: right; font-weight: 600; }
+.mm-v--dim { color: var(--text-muted); font-weight: 400; }
+.mm-c { text-align: right; color: var(--text-faint); min-width: 54px; }
+.mm-d { text-align: right; color: var(--text-faint); font-size: var(--type-caption); min-width: 46px; }
+.mm-up { color: var(--color-up); }
+.mm-down { color: var(--color-down); }
+.mm-rel--past td { color: var(--text-muted); }
+
+.mm-empty { padding: 8px 10px; font-size: var(--type-caption); color: var(--text-muted); line-height: 1.5; }
+.mm-empty-k { color: var(--accent); font-weight: 700; letter-spacing: 0.1em; }
+.mm-block-f { margin-top: auto; padding: 3px 10px 5px; font-size: 8px; letter-spacing: 0.06em; color: var(--text-faint); text-transform: uppercase; }
+.mm-block-note { text-transform: none; letter-spacing: 0; }
+
+.mm-needs { padding: 8px 14px 14px; font-size: var(--type-caption); color: var(--text-muted); }
+.mm-needs-k { color: var(--accent); font-weight: 700; letter-spacing: 0.12em; }
+.mm-needs ul { margin: 4px 0 0; padding-left: 16px; }
+.mm-needs li { line-height: 1.6; }

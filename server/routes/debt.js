@@ -473,6 +473,21 @@ router.get('/rates-tape', async (req, res) => {
   }
 });
 
+// GET /api/debt/money-markets/:cc — Treasury & Money Markets desk view
+// (BTMM-style) for one country. See services/moneyMarkets.js for the
+// block/source contract. `needs` lists what a missing key would unlock.
+router.get('/money-markets/:cc', async (req, res) => {
+  try {
+    const { getMoneyMarkets, COUNTRIES } = require('../services/moneyMarkets');
+    const cc = String(req.params.cc || '').toUpperCase();
+    if (!COUNTRIES[cc]) return res.status(400).json({ error: `Unsupported country: ${cc}`, available: Object.keys(COUNTRIES) });
+    const out = await getMoneyMarkets(cc);
+    return res.json(out);
+  } catch (err) {
+    return sendApiError(res, err, '/money-markets');
+  }
+});
+
 // GET /api/debt/credit/indexes  — FRED ICE BofA credit spreads
 router.get('/credit/indexes', async (req, res) => {
   try {

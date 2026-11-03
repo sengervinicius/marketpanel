@@ -57,6 +57,10 @@ const ROOTS = {
   '6B': { ex: 'CME', months: 'HMUZ',       name: 'British Pound' },
   '6J': { ex: 'CME', months: 'HMUZ',       name: 'Japanese Yen' },
   BTC: { ex: 'CME', months: 'FGHJKMNQUVXZ', name: 'Bitcoin (CME)' },
+  // Money markets — price = 100 − implied rate
+  ZQ:  { ex: 'CBT', months: 'FGHJKMNQUVXZ', name: '30-Day Fed Funds', impliedRate: true },
+  SR3: { ex: 'CME', months: 'HMUZ',         name: '3M SOFR', impliedRate: true },
+  SR1: { ex: 'CME', months: 'FGHJKMNQUVXZ', name: '1M SOFR', impliedRate: true },
 };
 
 // Aliases the UI already uses (Yahoo front-month tickers and friendly names)
@@ -137,6 +141,7 @@ async function getFuturesCurve(input, opts = {}) {
       volume: Number.isFinite(Number(r.regularMarketVolume)) ? Number(r.regularMarketVolume) : null,
       oi: Number.isFinite(Number(r.openInterest)) ? Number(r.openInterest) : null,
       expiry: r.expireDate ? new Date(Number(r.expireDate) * 1000).toISOString().slice(0, 10) : null,
+      impliedRate: ROOTS[root].impliedRate ? Number((100 - price).toFixed(3)) : undefined,
       year: c.year, month: c.month,
     });
   }

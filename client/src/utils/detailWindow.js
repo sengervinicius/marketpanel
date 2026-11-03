@@ -32,6 +32,17 @@ export function openDetailWindow(input) {
   );
 }
 
+/** Treasury & Money Markets window for one country (BR, US, EU, GB, JP, MX). */
+export function openMoneyMarketsWindow(cc) {
+  const code = String(cc || '').trim().toUpperCase();
+  if (!code) return;
+  window.open(
+    `${window.location.origin}/#/money/${encodeURIComponent(code)}`,
+    '_blank',
+    detailWindowFeatures()
+  );
+}
+
 export function openSectorWindow(etf) {
   const sym = String(etf || '').trim().toUpperCase();
   if (!sym) return;

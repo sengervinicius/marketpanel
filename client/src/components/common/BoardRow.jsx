@@ -33,6 +33,7 @@ export default function BoardRow({
   deltaColor,
   active = false,
   onClick,
+  onDoubleClick,
   title,
   className = '',
 }) {
@@ -44,7 +45,7 @@ export default function BoardRow({
   ].filter(Boolean).join(' ');
 
   return (
-    <div className={classes} onClick={onClick} title={title}>
+    <div className={classes} onClick={onClick} onDoubleClick={onDoubleClick} title={title}>
       <span className={`ds-brow-k${labelSans ? ' ds-brow-k--sans' : ''}`}>{label}</span>
       {mini != null ? <span className="ds-brow-mini">{mini}</span> : null}
       <span className="ds-brow-v">

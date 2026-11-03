@@ -39,7 +39,7 @@ import Tape from '../common/Tape';
 import BoardRow, { BoardSectionLabel } from '../common/BoardRow';
 import { PriceRow } from '../common/PriceRow';
 import { COLS_STANDARD } from '../../utils/panelColumns';
-import { openDetailWindow } from '../../utils/detailWindow';
+import { openDetailWindow, openMoneyMarketsWindow } from '../../utils/detailWindow';
 import ViewChips from '../common/ViewChips';
 import { useOverlay } from '../overlay/OverlayContext';
 import './DebtPanel.css';
@@ -55,6 +55,9 @@ const REGIONS = [
 ];
 
 // Global 10Y board rows (right column) — mockup order, DI second.
+// Board row code → Treasury & Money Markets page country (CH has no page yet).
+const MONEY_MKT_CC = { US: 'US', BR: 'BR', EU: 'EU', UK: 'GB' };
+
 const GLOBAL_ROWS = [
   { code: 'US', flag: '🇺🇸', label: 'UST' },
   { code: 'BR', flag: '🇧🇷', label: 'DI·BR' },
@@ -551,16 +554,24 @@ function DebtPanel() {
         updatedAt={lastUpdated}
         source={sourceLabel}
         actions={(
-          <ViewChips
-            options={REGIONS.map(r => ({
-              key: r.code,
-              label: r.label,
-              title: r.code === 'ALL' ? 'Overlay all curves' : `${r.label} curve`,
-            }))}
-            value={region}
-            onChange={setRegion}
-            ariaLabel="Curve region"
-          />
+          <>
+            <ViewChips
+              options={REGIONS.map(r => ({
+                key: r.code,
+                label: r.label,
+                title: r.code === 'ALL' ? 'Overlay all curves' : `${r.label} curve`,
+              }))}
+              value={region}
+              onChange={setRegion}
+              ariaLabel="Curve region"
+            />
+            <button
+              type="button"
+              className="dp-mm-btn"
+              onClick={() => openMoneyMarketsWindow(MONEY_MKT_CC[region] || 'US')}
+              title="Treasury & Money Markets — policy rates, curve, rate futures, FX, risk, releases for the selected country (opens a window)"
+            >⤢ MONEY MKTS</button>
+          </>
         )}
       />
 
@@ -715,7 +726,8 @@ function DebtPanel() {
                 key={row.code}
                 active={active}
                 onClick={() => setRegion(row.code)}
-                title={`Load ${row.label} curve`}
+                onDoubleClick={() => { const cc = MONEY_MKT_CC[row.code]; if (cc) openMoneyMarketsWindow(cc); }}
+                title={`Load ${row.label} curve · double-click → Treasury & Money Markets window`}
                 label={<>{row.flag} {row.label}</>}
                 mini={<MiniCurveSvg points={row.points} stroke={stroke} />}
                 value={row.val != null ? row.val.toFixed(2) : '—'}

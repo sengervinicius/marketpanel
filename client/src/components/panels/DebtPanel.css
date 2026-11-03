@@ -184,3 +184,19 @@
   white-space: nowrap; cursor: pointer;
 }
 .dp-curve-item input { accent-color: var(--accent); width: 11px; height: 11px; cursor: pointer; }
+
+/* ⤢ MONEY MKTS — opens the Treasury & Money Markets window for the region */
+.dp-mm-btn {
+  margin-left: 6px;
+  background: none;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  font-family: var(--font-family-mono);
+  font-size: var(--type-caption);
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dp-mm-btn:hover { color: var(--accent); border-color: var(--accent); }

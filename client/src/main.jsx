@@ -46,7 +46,10 @@ try {
   const _qs = new URLSearchParams(window.location.search);
   const _detail = _qs.get('detail');
   const _sector = _qs.get('sector');
-  if (_detail && !window.location.hash.startsWith('#/detail')) {
+  const _money = _qs.get('money');
+  if (_money && !window.location.hash.startsWith('#/money')) {
+    window.location.hash = '#/money/' + encodeURIComponent(_money.toUpperCase());
+  } else if (_detail && !window.location.hash.startsWith('#/detail')) {
     window.location.hash = '#/detail/' + encodeURIComponent(_detail.toUpperCase());
   } else if (_sector && !window.location.hash.startsWith('#/sector')) {
     window.location.hash = '#/sector/' + encodeURIComponent(_sector.toUpperCase());
@@ -56,6 +59,7 @@ try {
 // LandingPage removed — LoginScreen IS the landing page
 import InstrumentDetailPage from './pages/InstrumentDetailPage.jsx'
 import SectorDetailPage from './pages/SectorDetailPage.jsx'
+import MoneyMarketsPage from './pages/MoneyMarketsPage.jsx'
 import { lazyWithRetry } from './utils/lazyWithRetry.js'
 // Perf (#bundle): ChatPage statically imports ChatPanel — keeping it static
 // here would pull the whole chat stack into the eager index chunk.
@@ -197,6 +201,7 @@ function AppShell() {
               <Route path="/" element={<App />} />
               <Route path="/detail/:symbolKey" element={<InstrumentDetailPage />} />
               <Route path="/sector/:etf" element={<SectorDetailPage />} />
+              <Route path="/money/:cc" element={<MoneyMarketsPage />} />
               <Route path="/chat" element={<Suspense fallback={null}><ChatPage /></Suspense>} />
               <Route path="/chat/:userId" element={<Suspense fallback={null}><ChatPage /></Suspense>} />
               {/* Catch-all → 404 page */}
