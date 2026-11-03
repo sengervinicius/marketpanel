@@ -130,8 +130,33 @@ function batchKey(raw) {
   return { ns: 'stocks', key: raw };
 }
 
+// /snapshot/rates ships as { results: [{ symbol, price, change, changePct }] }
+// (^IRX ^FVX ^TNX ^TYX + SELIC). Yield tickers are not in the stocks
+// universe, so without this they fell through to a per-ticker extras fetch
+// that the cross-asset ribbon never saw resolve.
+const _ratesMemo = new WeakMap();
+function lookupInRates(marketData, ticker) {
+  const rates = marketData?.rates;
+  const rows = rates?.results;
+  if (!Array.isArray(rows)) return null;
+  let map = _ratesMemo.get(rows);
+  if (!map) {
+    map = new Map();
+    for (const r of rows) {
+      if (!r || r.price == null) continue;
+      map.set(String(r.symbol).toUpperCase(), { price: r.price, change: r.change ?? null, changePct: r.changePct ?? null, asOf: r.asOf ?? null });
+    }
+    _ratesMemo.set(rows, map);
+  }
+  return map.get(String(ticker).toUpperCase()) ?? null;
+}
+
 function lookupInBatch(marketData, ticker) {
   if (!marketData || !ticker) return null;
+  if (ticker.startsWith('^') && marketData.rates) {
+    const r = lookupInRates(marketData, ticker);
+    if (r) return r;
+  }
   const { ns, key } = batchKey(ticker) ?? {};
   if (!ns || !key) return null;
   const entry = marketData[ns]?.[key] ?? null;
