@@ -263,13 +263,15 @@ async function ensureFresh() {
 // siblings that all clear the volume bar, so a 10-row box showed six near-
 // identical questions. Family key = the question with state/number lists
 // stripped, first 6 words. First (highest-ranked) sibling wins.
+const US_STATES = /\b(alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming)\b/g;
 function familyKey(m) {
   const t = String(m.title || m.question || '').toLowerCase()
-    .replace(/\b(and|or|,)\b/g, ' ')
-    .replace(/\d[\d.,%$]*/g, '#')
+    .replace(US_STATES, ' ')
+    .replace(/\b(and|or|the|a|an|of|on|in|by|to|at)\b/g, ' ')
+    .replace(/[^a-z\s]/g, ' ')          // numbers, punctuation, $ % → the family ignores them
     .replace(/\s+/g, ' ')
     .trim();
-  return t.split(' ').slice(0, 6).join(' ');
+  return t.split(' ').slice(0, 5).join(' ');
 }
 function dedupeByFamily(list) {
   const seen = new Set();
@@ -311,12 +313,12 @@ function getTopMarkets({ limit = 20, category, source, includeSports = false } =
  * @returns {Array}
  */
 function getForYouMarkets({ limit = 8 } = {}) {
-  return _markets
+  return dedupeByFamily(_markets
     .filter(m => !isSportsMarket(m))
     .map(m => ({ m, score: scoreFinanceRelevance(m) }))
     .sort((a, b) => (b.score - a.score) || ((b.m.volume24h || 0) - (a.m.volume24h || 0)))
-    .slice(0, Math.max(1, limit))
-    .map(x => x.m);
+    .map(x => x.m))
+    .slice(0, Math.max(1, limit));
 }
 
 /**
@@ -439,6 +441,7 @@ function __setMarketsForTest(markets) {
 }
 
 module.exports = {
+  dedupeByFamily, familyKey,
   init,
   stop,
   refresh,

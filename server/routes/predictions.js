@@ -197,8 +197,9 @@ router.get('/for-you', async (req, res) => {
       }
     }
 
-    // Trim to limit
-    personalizedMarkets = personalizedMarkets.slice(0, limit);
+    // One per family across the merged list (sibling election combos,
+    // "ETH above $X on <date>" ladders…), then trim.
+    personalizedMarkets = aggregator.dedupeByFamily(personalizedMarkets).slice(0, limit);
 
     // Build category summary for the client
     const categorySummary = sortedCategoryNames(relevantCategories);
