@@ -179,6 +179,19 @@ const WireBriefing = memo(function WireBriefing({
 });
 
 // ── Wire row — single line; click expands summary + full chips ──────
+// Fonte column — short house names, like a wire shows them.
+const SOURCE_SHORT = [
+  [/bloomberg/i, 'BBG'], [/financial times|^ft$/i, 'FT'], [/reuters/i, 'RTRS'], [/cnbc/i, 'CNBC'], [/wall street journal|wsj/i, 'WSJ'],
+  [/yahoo/i, 'YAHOO'], [/marketwatch/i, 'MW'], [/barron/i, 'BARRONS'], [/valor/i, 'VALOR'], [/infomoney/i, 'INFOMONEY'], [/estad[aã]o/i, 'ESTADÃO'],
+  [/folha/i, 'FOLHA'], [/seeking ?alpha/i, 'SA'], [/motley/i, 'FOOL'], [/benzinga/i, 'BZNGA'], [/investing\.com/i, 'INVESTING'], [/globe ?newswire|pr ?newswire|business ?wire/i, 'WIRE'],
+  [/associated press|^ap$/i, 'AP'], [/nikkei/i, 'NIKKEI'], [/guardian/i, 'GUARDIAN'], [/telegraph/i, 'TELEGRAPH'], [/economist/i, 'ECONOMIST'],
+];
+function shortSource(name) {
+  const n = String(name || '').trim();
+  for (const [re, short] of SOURCE_SHORT) if (re.test(n)) return short;
+  return n.toUpperCase().replace(/\.(COM|NET|ORG)$/i, '').slice(0, 9) || 'WIRE';
+}
+
 const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTickerSummary, onFocusCode }) {
   const tickerClicks = useTickerClicksFactory(); // wave-nov item 5
   const breaking = isBreakingStory(item);
@@ -220,10 +233,17 @@ const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTick
   const storySent = storySentiment(item);
   return (
     <div className={isNew ? 'np-wr-wrap np-wr-wrap--new' : 'np-wr-wrap'}>
-      <div className={`np-wr${storySent ? ` np-wr--${storySent}` : ''}`} title={item.title}>
+      <div
+        className={`np-wr${storySent ? ` np-wr--${storySent}` : ''}${expanded ? ' np-wr--open' : ''}`}
+        title={item.title}
+        onClick={onToggle}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle(); } }}
+      >
         <span className="np-wr-tm">{fmtClock(item.published_utc)}</span>
         <span className="np-wr-tk">
-          {codes.slice(0, 2).map(t => {
+          {codes.slice(0, 1).map(t => {
             const s = tickerSentiment(item, t);
             return (
               <button
@@ -235,8 +255,8 @@ const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTick
               >{t}</button>
             );
           })}
-          {codes.length > 2 && (
-            <span className="np-tkc np-tkc--more" title={codes.slice(2).join(' · ')}>+{codes.length - 2}</span>
+          {codes.length > 1 && (
+            <span className="np-wr-more" title={codes.slice(1).join(' · ')}>+{codes.length - 1}</span>
           )}
         </span>
         {url ? (
@@ -251,13 +271,7 @@ const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTick
         ) : (
           <span className={`np-wr-hl ${breaking ? 'np-wr-hl--brk' : ''}`}>{item.title}</span>
         )}
-        <span className="np-wr-src">{source.toUpperCase()}</span>
-        <button
-          className={`np-wr-toggle${expanded ? ' np-wr-toggle--open' : ''}`}
-          onClick={(e) => { e.stopPropagation(); onToggle(); }}
-          title={expanded ? 'Collapse' : 'Show summary & tickers'}
-          aria-label={expanded ? 'Collapse' : 'Expand'}
-        >{'\u203a'}</button>
+        <span className="np-wr-src" title={source}>{shortSource(source)}</span>
       </div>
 
       {expanded && (
@@ -378,33 +392,23 @@ const CurveStrip = memo(function CurveStrip({ root }) {
   const front = curve[0]?.price;
   const back = curve[curve.length - 1]?.price;
   const shape = curve.length >= 2 ? (back > front ? 'CONTANGO' : back < front ? 'BACKWARDATION' : 'FLAT') : null;
+  const pts = curve.slice(0, 8);
   return (
-    <div className="np-curve" role="group" aria-label={`${name} forward curve`}>
-      <div className="np-curve-head">
-        <span className="np-curve-title">{name.toUpperCase()} · FWD CURVE</span>
-        {shape && <span className={`np-curve-shape np-curve-shape--${shape.toLowerCase()}`}>{shape}</span>}
-        {curve.length >= 2 && front > 0 && (
-          <span className="np-curve-roll">{`${curve[curve.length - 1].contract}: ${((back / front - 1) * 100).toFixed(2)}% vs front`}</span>
-        )}
-      </div>
-      {loading ? (
-        <div className="np-curve-empty">Loading contracts…</div>
-      ) : error ? (
-        <div className="np-curve-empty">{error}</div>
-      ) : (
-        <div className="np-curve-row">
-          {curve.slice(0, 12).map((c, i) => {
-            const d = i === 0 || !(front > 0) ? null : (c.price / front - 1) * 100;
-            return (
-              <span key={c.contract + i} className="np-curve-pt">
-                <span className="np-curve-m">{c.contract}</span>
-                <span className="np-curve-px">{c.price.toLocaleString('en-US', { maximumFractionDigits: c.price < 10 ? 3 : 2 })}</span>
-                <span className={`np-curve-d ${d == null ? '' : d > 0 ? 'np-curve-d--up' : d < 0 ? 'np-curve-d--down' : ''}`}>{d == null ? 'FRONT' : `${d >= 0 ? '+' : ''}${d.toFixed(2)}%`}</span>
-              </span>
-            );
-          })}
-        </div>
-      )}
+    <div className="np-curve" role="group" aria-label={`${name} forward curve`} title={error || `${name} forward curve · ${curve.length} contracts`}>
+      <span className="np-curve-title">{name.toUpperCase()} CURVE</span>
+      {shape && <span className={`np-curve-shape np-curve-shape--${shape.toLowerCase()}`}>{shape}</span>}
+      {loading ? <span className="np-curve-empty">…</span>
+        : error ? <span className="np-curve-empty">{error}</span>
+        : pts.map((c, i) => {
+          const d = i === 0 || !(front > 0) ? null : (c.price / front - 1) * 100;
+          return (
+            <span key={c.contract + i} className="np-curve-pt">
+              <span className="np-curve-m">{c.contract}</span>
+              <span className="np-curve-px">{c.price.toLocaleString('en-US', { maximumFractionDigits: c.price < 10 ? 3 : 2 })}</span>
+              {d != null && <span className={`np-curve-d ${d > 0 ? 'np-curve-d--up' : d < 0 ? 'np-curve-d--down' : ''}`}>{`${d >= 0 ? '+' : ''}${d.toFixed(1)}%`}</span>}
+            </span>
+          );
+        })}
     </div>
   );
 });
@@ -684,11 +688,11 @@ function NewsPanel() {
 
       {tallyTotal > 0 && (
         <div className="np-tally" role="status" aria-label="Sentiment tally">
-          <span className="np-tally-n np-tally-n--neg">{tally.neg} NEGATIVE</span>
+          <span className="np-tally-n np-tally-n--neg">{tally.neg} NEG</span>
           <span className="np-tally-dot">·</span>
-          <span className="np-tally-n np-tally-n--neu">{tally.neu} NEUTRAL</span>
+          <span className="np-tally-n np-tally-n--neu">{tally.neu} NEU</span>
           <span className="np-tally-dot">·</span>
-          <span className="np-tally-n np-tally-n--pos">{tally.pos} POSITIVE</span>
+          <span className="np-tally-n np-tally-n--pos">{tally.pos} POS</span>
           <span className="np-tally-bar" aria-hidden="true">
             <span className="np-tally-seg np-tally-seg--neg" style={{ flex: tally.neg }} />
             <span className="np-tally-seg np-tally-seg--neu" style={{ flex: tally.neu }} />

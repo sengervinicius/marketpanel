@@ -32,6 +32,7 @@
 
 const crypto = require('crypto');
 const logger = require('../utils/logger');
+const lexicon = require('./newsLexicon');
 
 const MODEL = 'claude-haiku-4-5-20251001';
 const BATCH = 30;
@@ -40,6 +41,7 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const CACHE_MAX = 5000;
 
 const _cache = new Map(); // titleHash -> { sentiment, instruments, at }
+let _modelDeadUntil = 0;   // billing/auth backoff for the model path
 
 function keyFor(title) {
   return crypto.createHash('sha1').update(String(title || '').trim().toLowerCase()).digest('hex');
@@ -144,10 +146,20 @@ async function enrich(items) {
       it.sentiment = hit.sentiment;
       it.instruments = hit.instruments;
       it.classified = true;
+      it.classifier = 'model';
     } else {
+      // Floor: deterministic lexicon verdict so the wire is never blank.
+      // Haiku (below) overwrites it when it answers.
+      const lx = lexicon.tag(it.title);
+      it.sentiment = lx.sentiment;
+      it.instruments = lx.instruments;
+      it.classified = true;
+      it.classifier = 'lexicon';
       pending.push({ it, k });
     }
   }
+  // No key → nothing to upgrade; lexicon verdicts stand.
+  if (!process.env.ANTHROPIC_API_KEY || _modelDeadUntil > Date.now()) return items;
 
   for (let s = 0; s < pending.length; s += BATCH) {
     const slice = pending.slice(s, s + BATCH);
@@ -157,17 +169,20 @@ async function enrich(items) {
       slice.forEach((p, idx) => {
         const o = byIndex.get(idx);
         const sentiment = normSent(o?.sentiment);
-        if (!sentiment) { p.it.sentiment = null; p.it.classified = false; return; }
+        if (!sentiment) return; // keep the lexicon verdict
         const instruments = normInstruments(o?.instruments);
+        // Model wins on sentiment; union the codes so lexicon tickers survive.
         p.it.sentiment = sentiment;
-        p.it.instruments = instruments;
-        p.it.classified = true;
-        cacheSet(p.k, { sentiment, instruments });
+        p.it.instruments = [...new Set([...instruments, ...(p.it.instruments || [])])].slice(0, 4);
+        p.it.classifier = 'model';
+        cacheSet(p.k, { sentiment, instruments: p.it.instruments });
       });
     } catch (e) {
-      // Leave this slice unclassified. Say so once per call, not per line.
-      logger.warn('newsClassifier', `batch of ${slice.length} left unclassified: ${e.message}`);
-      slice.forEach(p => { if (p.it.sentiment === undefined) { p.it.sentiment = null; p.it.classified = false; } });
+      // Lexicon verdicts stand. Billing/auth failures won't fix themselves
+      // in the next 60s poll, so stop paying the round-trip for 10 min.
+      logger.warn('newsClassifier', `batch of ${slice.length} kept on lexicon: ${e.message}`);
+      if (/anthropic_http_(400|401|403|429)/.test(e.message)) _modelDeadUntil = Date.now() + 10 * 60 * 1000;
+      break;
     }
   }
   return items;
@@ -175,12 +190,13 @@ async function enrich(items) {
 
 /** Counts for the header bar. Unclassified items are not counted. */
 function tally(items) {
-  const t = { negative: 0, neutral: 0, positive: 0, unclassified: 0 };
+  const t = { negative: 0, neutral: 0, positive: 0, unclassified: 0, model: 0 };
   for (const it of items || []) {
     if (it?.sentiment === 'negative') t.negative++;
     else if (it?.sentiment === 'positive') t.positive++;
     else if (it?.sentiment === 'neutral') t.neutral++;
     else t.unclassified++;
+    if (it?.classifier === 'model') t.model++;
   }
   return t;
 }
