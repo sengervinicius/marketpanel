@@ -28,6 +28,8 @@ const CELLS = [
   { t: 'GC=F',    label: 'GOLD',     group: 'CMD' },
   { t: 'BZ=F',    label: 'BRENT',    group: 'CMD' },
   { t: 'BTC-USD', label: 'BTC',      group: 'CRYPTO' },
+  { t: '^STOXX50E', label: 'EURO STOXX', group: 'EQ' },
+  { t: '^N225',   label: 'NIKKEI',   group: 'EQ' },
 ];
 
 function Cell({ cell, spark, onOpen }) {
@@ -35,12 +37,16 @@ function Cell({ cell, spark, onOpen }) {
   const price = q?.price != null ? q.price * (cell.scale || 1) : null;
   const pct = q?.changePct;
   const tone = pct == null ? '' : pct > 0 ? ' xa-cell--up' : pct < 0 ? ' xa-cell--down' : '';
+  const fmt = price == null ? '—'
+    : price.toLocaleString('en-US', { minimumFractionDigits: cell.digits ?? (price < 10 ? 2 : 0), maximumFractionDigits: cell.digits ?? 2 }) + (cell.suffix || '');
   return (
     <button type="button" className={`xa-cell${tone}`} onClick={() => onOpen(cell.t)} title={`${cell.label} · ${cell.t}`}>
-      <span className="xa-label">{cell.label}</span>
-      <span className="xa-spark">{spark && spark.length >= 2 ? <Sparkline data={spark} width={54} height={14} baseline="first" /> : null}</span>
-      <span className="xa-price">{price != null ? price.toLocaleString('en-US', { minimumFractionDigits: cell.digits ?? (price < 10 ? 2 : 0), maximumFractionDigits: cell.digits ?? 2 }) : '—'}{price != null && cell.suffix ? cell.suffix : ''}</span>
-      <span className="xa-pct">{pct != null ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` : '—'}</span>
+      <span className="xa-head">
+        <span className="xa-label">{cell.label}</span>
+        <span className="xa-pct">{pct != null ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` : '—'}</span>
+      </span>
+      <span className="xa-price">{fmt}</span>
+      <span className="xa-spark">{spark && spark.length >= 2 ? <Sparkline data={spark} width={120} height={16} baseline="first" /> : <span className="xa-spark-empty" />}</span>
     </button>
   );
 }
