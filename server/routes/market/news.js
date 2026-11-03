@@ -84,7 +84,11 @@ const CODE_SYNONYMS = {
   '^TNX': ['UST10Y', 'US10Y', 'TREASURIES', 'UST'], '^GSPC': ['SPX', 'SP500', 'ES'], '^IXIC': ['NDX', 'NASDAQ', 'NQ'],
   '^BVSP': ['IBOV', 'IBOVESPA', 'BOVESPA'], '^DJI': ['DJI', 'DOW', 'YM'],
   'USDBRL=X': ['USDBRL', 'BRL', 'USD/BRL'], 'EURUSD=X': ['EURUSD', 'EUR/USD', 'EUR'], 'BTC-USD': ['BTC', 'BITCOIN', 'BTCUSD'],
-  'DX-Y.NYB': ['DXY', 'USD'],
+  'DX-Y.NYB': ['DXY', 'DOLLAR'],
+  SELIC: ['SELIC', 'COPOM', 'BCB'], FED: ['FED', 'FOMC', 'POWELL'], ECB: ['ECB', 'LAGARDE'], BOJ: ['BOJ'],
+  CDS5Y: ['CDS5Y', 'CDS'], IPCA: ['IPCA', 'INFLATION'], CPI: ['CPI', 'INFLATION'],
+  PETR4: ['PETR4', 'PETROBRAS'], VALE3: ['VALE3', 'VALE'], ITUB4: ['ITUB4', 'ITAU', 'ITAÚ'],
+  NVDA: ['NVDA', 'NVIDIA'], AAPL: ['AAPL', 'APPLE'], MSFT: ['MSFT', 'MICROSOFT'], TSLA: ['TSLA', 'TESLA'], AMZN: ['AMZN', 'AMAZON'], META: ['META'], GOOGL: ['GOOGL', 'GOOGLE', 'ALPHABET'],
 };
 function codeAliases(input) {
   const raw = String(input || '').toUpperCase().trim();
@@ -263,9 +267,16 @@ router.get('/news', async (req, res) => {
         fetchTickerNews(tickerFilter, limit).catch(() => []),
         fetchGeneralFeed(60).then(items => classifier.enrich(items)).catch(() => []),
       ]);
+      // Text fallback: when the classifier is unavailable (or hasn't seen a
+      // story yet), match the alias words in the headline itself. Word-
+      // boundary, ≥3 chars, so "OIL" matches "Oil price extends decline"
+      // but "NU" does not match "Nubank"'s neighbours by accident.
+      const words = [...want].filter(w => /^[A-Z][A-Z0-9]{2,}$/.test(w) && !/^(THE|AND|FOR)$/.test(w));
+      const wordRe = words.length ? new RegExp(`\\b(${words.join('|')})\\b`, 'i') : null;
       const tagged = general.filter(it =>
         (it.instruments || []).some(c => want.has(String(c).toUpperCase())) ||
-        itemTickers(it).some(c => want.has(c)));
+        itemTickers(it).some(c => want.has(c)) ||
+        (wordRe && wordRe.test(`${it.title || ''} ${it.description || ''}`)));
       const unique = sortByPublished(dedupeByTitle([...company, ...tagged]));
       const items = await classifier.enrich(unique.slice(0, limit));
       const result = { results: items, tally: classifier.tally(items), status: 'OK', scope: 'ticker', ticker: tickerFilter };
