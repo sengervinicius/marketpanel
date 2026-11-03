@@ -221,7 +221,7 @@
 
 .np-wr {
   display: grid;
-  grid-template-columns: 58px auto 1fr 66px 16px;
+  grid-template-columns: 54px auto 1fr 56px 14px;
   gap: 0 10px;
   align-items: baseline;
   padding: 4px 8px;
@@ -259,7 +259,7 @@
 
 /* Headline — the ONLY bright element; breaking = red, no badges */
 .np-wr-hl {
-  font-size: var(--type-title);
+  font-size: var(--type-body);   /* harmony: same size as the price rows above */
   font-weight: 550;
   color: var(--text-primary);
   line-height: 1.32;
@@ -330,7 +330,7 @@
 
 /* ── Expanded story: summary + full chips + article link ─────────── */
 .np-wr-detail {
-  padding: 2px 8px 7px 76px;
+  padding: 2px 8px 7px 72px;
   cursor: default;
 }
 

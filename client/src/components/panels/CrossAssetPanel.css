@@ -35,7 +35,7 @@
 }
 .xa-pct { font-family: var(--font-mono); font-size: var(--type-caption); color: var(--text-faint); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .xa-price {
-  font-family: var(--font-mono); font-size: var(--type-title); font-weight: 600;
+  font-family: var(--font-mono); font-size: var(--type-body); font-weight: 600;
   color: var(--text-primary); font-variant-numeric: tabular-nums; line-height: 1.15;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
