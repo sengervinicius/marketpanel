@@ -189,11 +189,12 @@ async function fxBlock(cc) {
 
 async function riskBlock(cc) {
   if (cc === 'BR') {
-    const embi = await bcb(40940).catch(() => null);
-    const rows = embi ? [row('EMBI+ BRAZIL', embi.value, { chg: embi.change, unit: 'bp', date: embi.date })] : [];
+    // BCB SGS 40940 (JPMorgan EMBI+ Brazil) is rejected by the API now —
+    // the series was discontinued — so there is no free sovereign-risk
+    // print left. Say so; do not proxy it with an ETF.
     return {
-      title: 'SOVEREIGN RISK', rows, source: embi ? 'JPMorgan EMBI+ via BCB SGS' : null, status: rows.length ? 'daily' : 'unavailable',
-      needs: 'CDS 5Y: no affordable API (Markit/ICE, Bloomberg, Refinitiv only). Global USD bonds (GLB27…): needs a bond-pricing vendor.',
+      title: 'SOVEREIGN RISK', rows: [], source: null, status: 'unavailable',
+      needs: 'CDS 5Y / EMBI+: no affordable API (BCB discontinued EMBI+ series 40940; Markit/ICE, Bloomberg, Refinitiv only). Global USD bonds (GLB27…): needs a bond-pricing vendor.',
     };
   }
   if (cc === 'US') {
