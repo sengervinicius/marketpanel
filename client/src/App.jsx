@@ -1230,7 +1230,7 @@ export default function App() {
               })()}
             </div>
 
-            <FeedStatusBar feedStatus={feedStatus} />
+            <FeedStatusBar feedStatus={feedStatus} lastUpdated={lastUpdated} />
             </div>{/* end inner content column */}
 
             {/* Wave 13A: Particle sidebar */}

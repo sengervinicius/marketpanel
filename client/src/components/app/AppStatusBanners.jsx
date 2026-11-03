@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import { swallow } from '../../utils/swallow';
 
 // ── Feed Status Bar ──────────────────────────────────────────────────────────
-export function FeedStatusBar({ feedStatus }) {
+export function FeedStatusBar({ feedStatus, lastUpdated }) {
+  // Prices reach the grid by REST polling whether or not the streaming
+  // socket is up (the Polygon key has no WS entitlement, so it never is).
+  // "CONNECTING" forever was technically true of the socket and useless to
+  // the reader. If the last REST refresh is fresh, say POLLING.
+  const restFresh = lastUpdated instanceof Date && (Date.now() - lastUpdated.getTime()) < 90_000;
   const feeds = [
     { key: 'stocks', label: 'STOCKS' },
     { key: 'forex',  label: 'FX' },
@@ -23,6 +28,7 @@ export function FeedStatusBar({ feedStatus }) {
   };
   const color = (level) => {
     if (level === 'live')      return '#00cc66';
+    if (level === 'polling')   return '#5aa0ff';
     if (level === 'degraded')  return '#ff9900';
     if (level === 'delayed')   return '#ffcc00';
     if (level === 'closed')    return '#666';
@@ -31,6 +37,7 @@ export function FeedStatusBar({ feedStatus }) {
   };
   const dot = (level) => {
     if (level === 'live')     return '●';
+    if (level === 'polling')  return '◍';
     if (level === 'degraded') return '◐';
     if (level === 'delayed')  return '◑';
     if (level === 'closed')   return '⊙';
@@ -48,7 +55,8 @@ export function FeedStatusBar({ feedStatus }) {
       <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--type-caption)', letterSpacing: '1px' }}>FEED</span>
       {feeds.map(({ key, label }) => {
         const val = feedStatus?.[key];
-        const level = getLevel(val);
+        const raw = getLevel(val);
+        const level = (raw === 'connecting' || raw === 'unavailable') && restFresh ? 'polling' : raw;
         const latency = getLatencyText(val);
         return (
           <span key={key} className="flex-row gap-4">
