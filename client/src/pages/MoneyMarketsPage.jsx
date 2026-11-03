@@ -29,6 +29,7 @@ const fmtVal = (v, unit) => {
 const fmtChg = (c, unit) => {
   if (c == null || !Number.isFinite(Number(c))) return '';
   const n = Number(c);
+  if (n === 0) return 'unch';
   const s = unit === 'bp' ? n.toFixed(0) : n.toFixed(2);
   return (n > 0 ? '+' : '') + s;
 };
@@ -40,6 +41,7 @@ const fmtDate = (d) => {
   return `${String(t.getMonth() + 1).padStart(2, '0')}/${String(t.getDate()).padStart(2, '0')}`;
 };
 const fmtRel = (v) => {
+  if (v == null || v === '') return '--';
   const n = Number(v);
   if (!Number.isFinite(n)) return '--';
   return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
