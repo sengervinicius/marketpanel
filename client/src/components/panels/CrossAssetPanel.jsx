@@ -15,26 +15,28 @@ import PanelChrome from '../common/PanelChrome';
 import Sparkline from '../common/Sparkline';
 import './CrossAssetPanel.css';
 
+// t = key in the central price store (same keys the FX/crypto/rates panels
+// use); s = symbol for /api/history (sparkline). They differ for FX/crypto.
 const CELLS = [
-  { t: '^GSPC',   label: 'S&P 500',  group: 'EQ' },
-  { t: '^IXIC',   label: 'NASDAQ',   group: 'EQ' },
-  { t: '^RUT',    label: 'RUSSELL',  group: 'EQ' },
-  { t: '^BVSP',   label: 'IBOV',     group: 'BR' },
-  { t: 'EWZ',     label: 'EWZ',      group: 'BR' },
-  { t: 'USDBRL=X', label: 'USD/BRL', group: 'FX', digits: 4 },
-  { t: '^TNX',    label: 'UST 10Y',  group: 'RATES', suffix: '%', scale: 0.1, digits: 2 },
-  { t: 'DX-Y.NYB', label: 'DXY',     group: 'FX', digits: 2 },
-  { t: 'EURUSD=X', label: 'EUR/USD', group: 'FX', digits: 4 },
-  { t: 'GC=F',    label: 'GOLD',     group: 'CMD' },
-  { t: 'BZ=F',    label: 'BRENT',    group: 'CMD' },
-  { t: 'BTC-USD', label: 'BTC',      group: 'CRYPTO' },
-  { t: '^STOXX50E', label: 'EURO STOXX', group: 'EQ' },
-  { t: '^N225',   label: 'NIKKEI',   group: 'EQ' },
+  { t: '^GSPC',     s: '^GSPC',     label: 'S&P 500',    group: 'EQ' },
+  { t: '^IXIC',     s: '^IXIC',     label: 'NASDAQ',     group: 'EQ' },
+  { t: '^RUT',      s: '^RUT',      label: 'RUSSELL',    group: 'EQ' },
+  { t: '^BVSP',     s: '^BVSP',     label: 'IBOV',       group: 'BR' },
+  { t: 'EWZ',       s: 'EWZ',       label: 'EWZ',        group: 'BR' },
+  { t: 'C:USDBRL',  s: 'USDBRL',    label: 'USD/BRL',    group: 'FX', digits: 4 },
+  { t: '^TNX',      s: '^TNX',      label: 'UST 10Y',    group: 'RATES', suffix: '%', digits: 2 },
+  { t: 'DX-Y.NYB',  s: 'DX-Y.NYB',  label: 'DXY',        group: 'FX', digits: 2 },
+  { t: 'C:EURUSD',  s: 'EURUSD',    label: 'EUR/USD',    group: 'FX', digits: 4 },
+  { t: 'GC=F',      s: 'GC=F',      label: 'GOLD',       group: 'CMD' },
+  { t: 'BZ=F',      s: 'BZ=F',      label: 'BRENT',      group: 'CMD' },
+  { t: 'X:BTCUSD',  s: 'X:BTCUSD',  label: 'BTC',        group: 'CRYPTO', digits: 0 },
+  { t: '^STOXX50E', s: '^STOXX50E', label: 'EURO STOXX', group: 'EQ' },
+  { t: '^N225',     s: '^N225',     label: 'NIKKEI',     group: 'EQ' },
 ];
 
 function Cell({ cell, spark, onOpen }) {
   const q = useTickerPrice(cell.t);
-  const price = q?.price != null ? q.price * (cell.scale || 1) : null;
+  const price = q?.price != null ? q.price : null;
   const pct = q?.changePct;
   const tone = pct == null ? '' : pct > 0 ? ' xa-cell--up' : pct < 0 ? ' xa-cell--down' : '';
   const fmt = price == null ? '—'
@@ -53,13 +55,13 @@ function Cell({ cell, spark, onOpen }) {
 
 export default function CrossAssetPanel() {
   const openDetail = useOpenDetail();
-  const tickers = useMemo(() => CELLS.map(c => c.t), []);
+  const tickers = useMemo(() => CELLS.map(c => c.s), []);
   const sparks = useSparklineData(tickers);
   return (
     <div className="xa-panel">
       <PanelChrome title="CROSS-ASSET" subtitle="WHAT MOVED TODAY · 1D" />
       <div className="xa-grid">
-        {CELLS.map(c => <Cell key={c.t} cell={c} spark={sparks[c.t]} onOpen={openDetail} />)}
+        {CELLS.map(c => <Cell key={c.t} cell={c} spark={sparks[c.s]} onOpen={openDetail} />)}
       </div>
     </div>
   );
