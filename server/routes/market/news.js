@@ -23,6 +23,7 @@ const { polyFetch, parseRss, sendError, fetch, YF_UA } = require('./lib/provider
 const { dailyAILimit } = require('../../middleware/dailyAILimit');
 const { aiQuotaGate } = require('../../middleware/aiQuotaGate');
 const { PERPLEXITY_URL, MODEL } = require('../search.helpers');
+const classifier = require('../../services/newsClassifier');
 
 const FINNHUB_BASE = 'https://finnhub.io/api/v1';
 
@@ -227,7 +228,8 @@ router.get('/news', async (req, res) => {
       if (cached) return res.json(cached);
 
       const unique = await fetchTickerNews(tickerFilter, limit);
-      const result = { results: unique.slice(0, limit), status: 'OK' };
+      const items = await classifier.enrich(unique.slice(0, limit));
+      const result = { results: items, tally: classifier.tally(items), status: 'OK' };
       cacheSet(cacheKey, result, 60_000);
       return res.json(result);
     }
@@ -254,8 +256,10 @@ router.get('/news', async (req, res) => {
         .filter(item => itemTickers(item).some(t => want.has(t)));
 
       const unique = sortByPublished(dedupeByTitle(matched));
+      const items = await classifier.enrich(unique.slice(0, limit));
       const payload = {
-        results: unique.slice(0, limit),
+        results: items,
+        tally: classifier.tally(items),
         status: 'OK',
         scope: 'tickers',
         tickers: scopeTickers,
@@ -270,7 +274,8 @@ router.get('/news', async (req, res) => {
     if (cached) return res.json(cached);
 
     const results = await fetchGeneralFeed(limit);
-    const payload = { results: results.slice(0, limit * 2), status: 'OK' };
+    const items = await classifier.enrich(results.slice(0, limit * 2));
+    const payload = { results: items, tally: classifier.tally(items), status: 'OK' };
     cacheSet(cacheKey, payload, TTL.news);
     res.json(payload);
   } catch (e) {

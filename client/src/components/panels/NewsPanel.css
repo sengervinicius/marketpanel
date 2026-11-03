@@ -177,7 +177,40 @@
   background: var(--bg-app);
 }
 
-/* ── Wire row: [time 44px | source 66px | headline 1fr | chips auto] */
+/* ── Tally: counts + proportion bar — the read on the tape before the tape */
+.np-tally {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--color-surface-1, var(--bg-app));
+  font-family: var(--font-family-mono);
+  font-size: var(--type-caption);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.np-tally-n--neg { color: var(--color-down); }
+.np-tally-n--neu { color: var(--text-secondary); }
+.np-tally-n--pos { color: var(--color-up); }
+.np-tally-dot { color: var(--text-faint); }
+.np-tally-bar {
+  display: flex;
+  flex: 1;
+  min-width: 60px;
+  height: 4px;
+  margin-left: 8px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--color-surface-2);
+}
+.np-tally-seg { height: 100%; min-width: 0; }
+.np-tally-seg--neg { background: var(--color-down); }
+.np-tally-seg--neu { background: var(--text-faint); }
+.np-tally-seg--pos { background: var(--color-up); }
+
+/* ── Wire row: [time 58px | códigos auto | headline 1fr | source 66px | 16px] */
 .np-wr-wrap {
   border-bottom: 1px solid var(--border-subtle);
 }
@@ -188,7 +221,7 @@
 
 .np-wr {
   display: grid;
-  grid-template-columns: 44px 66px 1fr auto 16px;
+  grid-template-columns: 58px auto 1fr 66px 16px;
   gap: 0 10px;
   align-items: baseline;
   padding: 4px 8px;
@@ -199,8 +232,9 @@
      carries sentiment, so rows never shift. */
   border-left: 2px solid transparent;
 }
-.np-wr--up   { border-left-color: color-mix(in srgb, var(--color-up) 60%, transparent); }
-.np-wr--down { border-left-color: color-mix(in srgb, var(--color-down) 60%, transparent); }
+.np-wr--up      { border-left-color: var(--color-up); }
+.np-wr--down    { border-left-color: var(--color-down); }
+.np-wr--neutral { border-left-color: var(--text-faint); }
 
 .np-wr:hover {
   background: var(--color-surface-2);
@@ -270,7 +304,10 @@
 .np-wr-tk {
   display: flex;
   gap: 4px;
+  min-width: 0;
+  align-self: center;
 }
+.np-tkc--more { color: var(--text-muted); border-style: dashed; }
 
 /* Ticker chip — colored border only when the story carries per-ticker
    sentiment; neutral grey otherwise. */
@@ -293,7 +330,7 @@
 
 /* ── Expanded story: summary + full chips + article link ─────────── */
 .np-wr-detail {
-  padding: 2px 8px 7px 62px;
+  padding: 2px 8px 7px 76px;
   cursor: default;
 }
 

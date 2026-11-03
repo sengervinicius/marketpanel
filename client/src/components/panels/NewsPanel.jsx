@@ -45,10 +45,11 @@ const isMacroStory = (item) =>
   MACRO_RE.test(item?.title || '') || MACRO_RE.test(item?.description || '');
 
 function fmtClock(dateStr) {
-  if (!dateStr) return '--:--';
+  if (!dateStr) return '--:--:--';
   const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) return '--:--';
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  if (Number.isNaN(d.getTime())) return '--:--:--';
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
 // Per-ticker sentiment ONLY when the story itself carries it (Polygon
@@ -71,6 +72,7 @@ function storySentiment(item) {
   const s = String(item?.sentiment || '').toLowerCase();
   if (s === 'positive' || s === 'bullish') return 'up';
   if (s === 'negative' || s === 'bearish') return 'down';
+  if (s === 'neutral') return 'neutral';
   const ins = Array.isArray(item?.insights) ? item.insights : [];
   let up = 0, down = 0;
   for (const x of ins) {
@@ -86,7 +88,6 @@ function storySentiment(item) {
 function isBreakingStory(item) {
   const t = (item?.title || '').toUpperCase();
   return item?.importance === 'high' ||
-    String(item?.sentiment || '').toLowerCase() === 'negative' ||
     t.includes('BREAKING') || t.includes('ALERT');
 }
 
@@ -184,6 +185,9 @@ const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTick
   const url = item.article_url || item.link || item.url;
   const source = String(item.publisher?.name || item.publisher || item.source || item.author || 'NEWSWIRE');
   const tickers = item.tickers || [];
+  // Códigos: the classifier's instruments (CDS5Y, SELIC, USDBRL…) lead,
+  // provider tickers follow; deduped, so a story never shows PETR4 twice.
+  const codes = Array.from(new Set([...(item.instruments || []), ...tickers].map(String)));
   const description = item.description || item.summary || '';
 
   // Per-ticker 7-day AI summary (unchanged fetch path, memoized panel-side).
@@ -218,7 +222,15 @@ const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTick
     <div className={isNew ? 'np-wr-wrap np-wr-wrap--new' : 'np-wr-wrap'}>
       <div className={`np-wr${storySent ? ` np-wr--${storySent}` : ''}`} title={item.title}>
         <span className="np-wr-tm">{fmtClock(item.published_utc)}</span>
-        <span className="np-wr-src">{source.toUpperCase()}</span>
+        <span className="np-wr-tk">
+          {codes.slice(0, 2).map(t => {
+            const s = tickerSentiment(item, t);
+            return <span key={t} className={`np-tkc ${s ? `np-tkc--${s}` : ''}`}>{t}</span>;
+          })}
+          {codes.length > 2 && (
+            <span className="np-tkc np-tkc--more" title={codes.slice(2).join(' · ')}>+{codes.length - 2}</span>
+          )}
+        </span>
         {url ? (
           <a
             className={`np-wr-hl np-wr-hl--link ${breaking ? 'np-wr-hl--brk' : ''}`}
@@ -231,12 +243,7 @@ const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTick
         ) : (
           <span className={`np-wr-hl ${breaking ? 'np-wr-hl--brk' : ''}`}>{item.title}</span>
         )}
-        <span className="np-wr-tk">
-          {tickers.slice(0, 3).map(t => {
-            const s = tickerSentiment(item, t);
-            return <span key={t} className={`np-tkc ${s ? `np-tkc--${s}` : ''}`}>{t}</span>;
-          })}
-        </span>
+        <span className="np-wr-src">{source.toUpperCase()}</span>
         <button
           className={`np-wr-toggle${expanded ? ' np-wr-toggle--open' : ''}`}
           onClick={(e) => { e.stopPropagation(); onToggle(); }}
@@ -250,9 +257,9 @@ const WireRow = memo(function WireRow({ item, isNew, expanded, onToggle, getTick
           <div className="np-wr-desc">
             {description || 'No summary available for this story.'}
           </div>
-          {(tickers.length > 0 || url) && (
+          {(codes.length > 0 || url) && (
             <div className="np-wr-detail-row">
-              {tickers.slice(0, 8).map(t => {
+              {codes.slice(0, 8).map(t => {
                 const s = tickerSentiment(item, t);
                 /* wave-nov item 5 — single (delayed) keeps the 7-day AI
                    summary popover; double-click opens the detail window. */
@@ -496,6 +503,15 @@ function NewsPanel() {
 
   const displayed = effectiveScope === 'macro' ? news.filter(isMacroStory) : news;
 
+  // Tally of the rows on screen (not the server's — MACRO/WATCHLIST filter
+  // client-side). Unclassified rows are left out of the bar, never guessed.
+  const tally = displayed.reduce((t, it) => {
+    const s = storySentiment(it);
+    if (s === 'down') t.neg++; else if (s === 'up') t.pos++; else if (s === 'neutral') t.neu++;
+    return t;
+  }, { neg: 0, neu: 0, pos: 0 });
+  const tallyTotal = tally.neg + tally.neu + tally.pos;
+
   // Items carry no stable id from every provider — fall back to url/title.
   const rowKey = (item, i) => item.id || item.article_url || item.link || `${item.title}-${i}`;
 
@@ -546,6 +562,21 @@ function NewsPanel() {
           onRefresh={handleBriefingRefresh}
           onTickerClick={handleBriefingTickerClick}
         />
+      )}
+
+      {tallyTotal > 0 && (
+        <div className="np-tally" role="status" aria-label="Sentiment tally">
+          <span className="np-tally-n np-tally-n--neg">{tally.neg} NEGATIVE</span>
+          <span className="np-tally-dot">·</span>
+          <span className="np-tally-n np-tally-n--neu">{tally.neu} NEUTRAL</span>
+          <span className="np-tally-dot">·</span>
+          <span className="np-tally-n np-tally-n--pos">{tally.pos} POSITIVE</span>
+          <span className="np-tally-bar" aria-hidden="true">
+            <span className="np-tally-seg np-tally-seg--neg" style={{ flex: tally.neg }} />
+            <span className="np-tally-seg np-tally-seg--neu" style={{ flex: tally.neu }} />
+            <span className="np-tally-seg np-tally-seg--pos" style={{ flex: tally.pos }} />
+          </span>
+        </div>
       )}
 
       {error && news.length === 0 && (
