@@ -258,6 +258,31 @@ async function ensureFresh() {
  * @param {string} opts.source - Filter by source ('kalshi' or 'polymarket')
  * @returns {Array}
  */
+// One market per "family". Polymarket lists combinatorial election markets
+// ("Will Republicans win Alaska and Iowa, and lose Kansas…") as dozens of
+// siblings that all clear the volume bar, so a 10-row box showed six near-
+// identical questions. Family key = the question with state/number lists
+// stripped, first 6 words. First (highest-ranked) sibling wins.
+function familyKey(m) {
+  const t = String(m.title || m.question || '').toLowerCase()
+    .replace(/\b(and|or|,)\b/g, ' ')
+    .replace(/\d[\d.,%$]*/g, '#')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return t.split(' ').slice(0, 6).join(' ');
+}
+function dedupeByFamily(list) {
+  const seen = new Set();
+  const out = [];
+  for (const m of list) {
+    const k = familyKey(m);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(m);
+  }
+  return out;
+}
+
 function getTopMarkets({ limit = 20, category, source, includeSports = false } = {}) {
   let results = _markets;
   if (category) {
@@ -265,10 +290,16 @@ function getTopMarkets({ limit = 20, category, source, includeSports = false } =
   } else if (!includeSports) {
     // No explicit category → default/ALL feed: sports are only visible
     // behind the explicit SPORTS tab (category === 'sports'), never here.
-    results = results.filter(m => !isSportsMarket(m));
+    // Rank by finance/macro relevance first (volume breaks ties) so the
+    // ALL tab reads like a desk, not like the Polymarket front page.
+    results = results
+      .filter(m => !isSportsMarket(m))
+      .map(m => ({ m, score: scoreFinanceRelevance(m) }))
+      .sort((a, b) => (b.score - a.score) || ((b.m.volume24h || 0) - (a.m.volume24h || 0)))
+      .map(x => x.m);
   }
   if (source) results = results.filter(m => m.source === source);
-  return results.slice(0, limit);
+  return dedupeByFamily(results).slice(0, limit);
 }
 
 /**
